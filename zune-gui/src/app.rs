@@ -1199,6 +1199,12 @@ impl ZuneApp {
                     .inner_margin(egui::Margin::symmetric(10, 12)),
             )
             .show(ui, |ui| {
+                // A short window used to crop the bottom of the rail — the library figures
+                // were the first thing to go. Scrolling costs nothing when it is not needed
+                // and keeps the figures reachable when it is.
+                egui::ScrollArea::vertical()
+                    .auto_shrink([false; 2])
+                    .show(ui, |ui| {
                 ui.add_space(2.0);
                 // The rail takes the *current* page's signature colour, so it changes hue as
                 // you move through the app instead of stamping one brand orange over every
@@ -1262,13 +1268,22 @@ impl ZuneApp {
 
                 ui.add_space(14.0);
                 ui.separator();
-                ui.add_space(8.0);
-                ui.label(RichText::new("LIBRARY").color(MUTED).size(11.0).strong());
-                ui.add_space(4.0);
-                ui.label(format!("{} tracks", self.snapshot.tracks));
-                ui.label(format!("{} albums", self.snapshot.albums));
-                ui.label(format!("{} playlists", self.snapshot.playlists));
-                ui.label(theme::human_bytes(self.snapshot.library_bytes));
+                ui.add_space(10.0);
+                ui.label(RichText::new("LIBRARY").color(MUTED).size(10.0).strong());
+                ui.add_space(6.0);
+                // The value carries the row, the unit is a quiet suffix. Printing "2425
+                // tracks" as one string made every figure the same weight and turned four
+                // numbers into a paragraph.
+                rail_stat(ui, &thousands(self.snapshot.tracks as u64), "tracks", TEXT_1);
+                rail_stat(ui, &thousands(self.snapshot.albums as u64), "albums", TEXT_1);
+                rail_stat(ui, &thousands(self.snapshot.playlists as u64), "playlists", TEXT_1);
+                // The one place the rail spends its accent: how much is on the device.
+                let size = theme::human_bytes(self.snapshot.library_bytes);
+                let (size_value, size_unit) = match size.split_once(' ') {
+                    Some((value, unit)) => (value.to_owned(), unit.to_owned()),
+                    None => (size, String::new()),
+                };
+                rail_stat(ui, &size_value, &size_unit, NEON_ORANGE);
                 ui.add_space(10.0);
                 if self.queue.len() > 0 {
                     theme::tag(ui, &format!("{} queued", self.queue.len()), ORANGE);
@@ -1276,6 +1291,7 @@ impl ZuneApp {
                 if !self.selected.is_empty() {
                     theme::tag(ui, &format!("{} selected", self.selected.len()), YELLOW);
                 }
+                    });
             });
     }
 
@@ -2587,6 +2603,16 @@ impl eframe::App for ZuneApp {
 /// The Zune mark: a ring with the bar through it, which is what makes it a Zune and not
 /// a record. This is the one piece of chrome that keeps a fixed colour — it is the brand,
 /// so it stays orange while everything around it takes the page's signature.
+/// One figure in the left rail: a large value with a small unit after it.
+fn rail_stat(ui: &mut egui::Ui, value: &str, unit: &str, colour: egui::Color32) {
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = 5.0;
+        ui.label(RichText::new(value).size(19.0).color(colour));
+        ui.label(RichText::new(unit).size(11.0).color(MUTED));
+    });
+    ui.add_space(3.0);
+}
+
 /// The Zune mark: a ring with a Z inside it.
 ///
 /// A ring alone reads as a generic record button, which is what this started as. The Z
