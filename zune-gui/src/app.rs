@@ -16,8 +16,8 @@ use crate::design::paint::{self, GlowResponse, GLOW_MD, GLOW_SM, GLOW_TEXT};
 use crate::design::tokens::{
     body, body_sm, display, h1, h2, human_bytes, label, mono, r_md, r_pill, r_sm, subtitle,
     tracked, BODY_SM, CARD_GAP, CANVAS, DISPLAY, F_LIGHT, F_XLIGHT, NEON_AMBER, NEON_CYAN,
-    NEON_LIME, NEON_MAGENTA, NEON_ORANGE, SP_12, SP_16, SP_24, SP_8, SURFACE_1, SURFACE_2,
-    TEXT_1, TEXT_2, TEXT_3,
+    NEON_LIME, NEON_MAGENTA, NEON_ORANGE, NEON_VIOLET, SP_12, SP_16, SP_24, SP_32, SP_8,
+    SURFACE_1, SURFACE_2, TEXT_1, TEXT_2, TEXT_3,
 };
 use crate::ui::track_row::{track_row, TrackRow};
 use crate::core::library;
@@ -25,7 +25,10 @@ use crate::model::*;
 use crate::theme::{self, *};
 use crate::ui::album_tile::{AlbumTile, CoverBadge};
 use crate::ui::board::{self, BoardState};
+use crate::ui::device_pill::{device_pill, PillState};
 use crate::ui::glass_card::GlassCard;
+use crate::ui::icon_button::IconButton;
+use crate::ui::icons::Icon;
 use crate::ui::progress_ring::ProgressRing;
 use crate::ui::section::section_rule;
 use crate::worker::{self, Worker};
@@ -83,6 +86,22 @@ impl Page {
             Page::Wifi => "vendor WiFi opcodes 0x9225 / 0x9227 / 0x9228",
             Page::Log => "everything the device thread reported",
             Page::Board => "the design system, every token and component on one page",
+        }
+    }
+
+    /// The page's signature colour (v1.1 §2.1.2). One neon per page, so the chrome, the
+    /// markers and the figures all agree, and no single hue owns the whole product.
+    fn accent(self) -> Color32 {
+        match self {
+            Page::Home => NEON_ORANGE,
+            Page::Albums => NEON_CYAN,
+            Page::Artists => NEON_MAGENTA,
+            Page::Tracks => NEON_LIME,
+            Page::Push => NEON_VIOLET,
+            Page::Device => NEON_AMBER,
+            Page::Wifi => NEON_CYAN,
+            Page::Log => TEXT_2,
+            Page::Board => NEON_VIOLET,
         }
     }
 
@@ -573,7 +592,7 @@ impl ZuneApp {
                     for (index, (value, name)) in stats.iter().enumerate() {
                         let x = rect.left() + column * index as f32;
                         let y = rect.top() + 36.0;
-                        let number = painter.layout_no_wrap(value.clone(), h1(), NEON_ORANGE);
+                        let number = painter.layout_no_wrap(value.clone(), h1(), TEXT_1);
                         paint::glow_galley(
                             painter,
                             egui::pos2(x, y),
@@ -582,7 +601,7 @@ impl ZuneApp {
                             GLOW_TEXT,
                             GlowResponse::IDLE,
                         );
-                        painter.galley(egui::pos2(x, y), number, NEON_ORANGE);
+                        painter.galley(egui::pos2(x, y), number, TEXT_1);
                         let caption = painter.layout_no_wrap(tracked(name), label(), TEXT_3);
                         painter.galley(egui::pos2(x, y + 52.0), caption, TEXT_3);
                     }
@@ -1014,6 +1033,18 @@ impl ZuneApp {
 
     // ── panels ───────────────────────────────────────────────────────────────
 
+    /// Where the library on screen came from, as a phrase: `cached · 3 min ago`, or
+    /// `live`. Shared by the status line and the top bar's capsule tooltip.
+    fn origin_text(&self) -> String {
+        match (self.origin.source, self.origin.read_at) {
+            (Source::Cached, Some(at)) => {
+                format!("cached · {}", cache::relative_age(at, cache::now_unix()))
+            }
+            (Source::Cached, None) => "cached".to_owned(),
+            (Source::Live, _) => "live".to_owned(),
+        }
+    }
+
     /// A quiet statement of where the library on screen came from: `cached · 3 min
     /// ago`, or `live`. text-2, because it is a fact about the data, not an alarm.
     fn data_origin_label(&self, ui: &mut egui::Ui) {
@@ -1021,13 +1052,7 @@ impl ZuneApp {
         if self.tracks.is_empty() && self.link != Link::Connected && self.origin.read_at.is_none() {
             return;
         }
-        let text = match (self.origin.source, self.origin.read_at) {
-            (Source::Cached, Some(at)) => {
-                format!("cached · {}", cache::relative_age(at, cache::now_unix()))
-            }
-            (Source::Cached, None) => "cached".to_owned(),
-            (Source::Live, _) => "live".to_owned(),
-        };
+        let text = self.origin_text();
         let response = ui.label(RichText::new(text).color(TEXT_2).size(12.0));
         // The tooltip carries the rest of the provenance: which device, whether it is
         // on the end of the cable, and the worker's one-line note.
@@ -1046,7 +1071,12 @@ impl ZuneApp {
         response.on_hover_text(hover.trim_end().to_owned());
     }
 
-    fn top_bar(&mut self, ui: &mut egui::Ui) {
+    /// The chrome. Three things, per UI_DESIGN §3: the mark on the left, the current page
+    /// name in the middle at label weight (it echoes the 88pt title below rather than
+    /// competing with it), and one device capsule on the right. The serial, the MTPZ tag
+    /// and the cache age used to live here as loose text; they belong to the Device page,
+    /// and the capsule carries a tooltip for the one that matters at a glance.
+    fn top_bar(&mut self, ui: &mut egui::Ui, motion: &mut Motion) {
         egui::Panel::top("top")
             .exact_size(58.0)
             .frame(
@@ -1058,80 +1088,85 @@ impl ZuneApp {
             )
             .show(ui, |ui| {
                 ui.horizontal_centered(|ui| {
+                    zune_mark(ui, 26.0);
+                    ui.add_space(SP_8);
                     theme::wordmark(ui);
-                    ui.add_space(6.0);
-                    let (color, label) = match self.link {
-                        Link::Connected => (GREEN, "connected"),
-                        Link::Connecting => (YELLOW, "connecting…"),
-                        Link::Disconnected => (RED, "no device"),
-                    };
-                    theme::dot_label(ui, color, label);
 
-                    if self.link == Link::Connected {
-                        ui.label(RichText::new(&self.snapshot.name).strong());
-                        if !self.snapshot.serial.is_empty() {
-                            ui.label(
-                                RichText::new(format!("· {}", self.snapshot.serial))
-                                    .color(MUTED)
-                                    .monospace(),
-                            );
-                        }
-                    }
-                    if self.snapshot.key_error.is_some() {
-                        theme::tag(ui, "MTPZ key missing", RED);
-                    } else if self.snapshot.key_path.is_some() {
-                        theme::tag(ui, "trusted", GREEN);
-                    }
-                    self.data_origin_label(ui);
+                    ui.add_space(SP_32);
+                    ui.label(
+                        RichText::new(tracked(self.page.title()))
+                            .font(label())
+                            .color(TEXT_3),
+                    );
 
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        // ── actions ─────────────────────────────────────────
                         let connected = self.link == Link::Connected;
-                        if ui
-                            .add_enabled(!self.busy, egui::Button::new("Reset USB"))
-                            .on_hover_text(
-                                "Reset and re-enumerate the device — the recovery for a stalled bulk pipe",
-                            )
-                            .clicked()
-                        {
-                            self.worker.send(Command::UsbReset);
-                        }
-                        if ui
-                            .add_enabled(connected && !self.busy, egui::Button::new("Eject"))
-                            .on_hover_text("Close the MTP session so the Zune can be unplugged")
+                        if IconButton::new()
+                            .enabled(connected && !self.busy)
+                            .tip("Close the MTP session so the Zune can be unplugged")
+                            .show(ui, motion, 1, Icon::Eject)
                             .clicked()
                         {
                             self.worker.send(Command::Eject);
                         }
-                        if ui
-                            .add_enabled(connected && !self.busy, egui::Button::new("Refresh"))
-                            .on_hover_text("Re-read the device now and overwrite the cached library")
+                        if IconButton::new()
+                            .enabled(connected && !self.busy)
+                            .tip("Re-read the device now and overwrite the cached library")
+                            .show(ui, motion, 2, Icon::Refresh)
                             .clicked()
                         {
                             self.worker.clear_cancel();
                             self.worker.send(Command::Refresh);
                         }
                         if !connected
-                            && ui
-                                .add_enabled(!self.busy, egui::Button::new("Connect"))
+                            && IconButton::new()
+                                .enabled(!self.busy)
+                                .tip("Open the device")
+                                .show(ui, motion, 3, Icon::Sync)
                                 .clicked()
                         {
                             self.worker.send(Command::Connect);
                         }
-                        if connected {
-                            match (self.snapshot.used(), self.snapshot.capacity) {
-                                (Some(used), Some(cap)) if cap > 0 => {
-                                    ui.label(
-                                        RichText::new(format!(
-                                            "{} free of {}",
-                                            theme::human_bytes(cap - used),
-                                            theme::human_bytes(cap)
-                                        ))
-                                        .color(MUTED),
-                                    );
-                                }
-                                _ => {}
+
+                        ui.add_space(SP_12);
+
+                        // ── the device capsule ─────────────────────────────
+                        let state = if self.busy {
+                            PillState::Transferring
+                        } else {
+                            match self.link {
+                                Link::Connected => PillState::Connected,
+                                Link::Connecting => PillState::Connecting,
+                                Link::Disconnected => PillState::Disconnected,
                             }
-                        }
+                        };
+                        let detail = if self.link == Link::Connected {
+                            match (self.snapshot.used(), self.snapshot.capacity) {
+                                (Some(used), Some(cap)) if cap > 0 => format!(
+                                    "{} · {} free of {}",
+                                    self.snapshot.name,
+                                    human_bytes(cap - used),
+                                    human_bytes(cap)
+                                ),
+                                _ => self.snapshot.name.clone(),
+                            }
+                        } else if self.snapshot.key_error.is_some() {
+                            "MTPZ key missing".to_owned()
+                        } else {
+                            String::new()
+                        };
+                        let hinted = if detail.is_empty() {
+                            detail.clone()
+                        } else {
+                            format!(
+                                "{detail}\n{}\nserial {}",
+                                self.origin_text(),
+                                self.snapshot.serial
+                            )
+                        };
+                        device_pill(ui, motion, 1, state, &detail)
+                            .on_hover_text(hinted);
                     });
                 });
             });
@@ -1147,6 +1182,10 @@ impl ZuneApp {
             )
             .show(ui, |ui| {
                 ui.add_space(2.0);
+                // The rail takes the *current* page's signature colour, so it changes hue as
+                // you move through the app instead of stamping one brand orange over every
+                // room (v1.1 §2.1.2 — the mark, the marker and the figures all agree).
+                let accent = self.page.accent();
                 for page in Page::ALL {
                     let selected = self.page == page;
                     let (rect, response) =
@@ -1168,12 +1207,18 @@ impl ZuneApp {
                             painter,
                             bar,
                             crate::design::tokens::r_pill(),
-                            ORANGE,
+                            accent,
                             crate::design::paint::GLOW_MD,
                             crate::design::paint::GlowResponse::IDLE,
                         );
                     }
-                    let color = if selected { ORANGE } else if response.hovered() { TEXT } else { MUTED };
+                    let color = if selected {
+                        accent
+                    } else if response.hovered() {
+                        TEXT_1
+                    } else {
+                        MUTED
+                    };
                     // The icon leads the label, and both take the row's state colour, so
                     // a selected row reads as one lit object instead of a bar plus some
                     // text that happens to sit next to it.
@@ -1232,7 +1277,7 @@ impl ZuneApp {
                             let bar = egui::ProgressBar::new(progress.fraction())
                                 .desired_width(260.0)
                                 .animate(true)
-                                .fill(ORANGE)
+                                .fill(NEON_AMBER)
                                 .text(format!("{:.0}%", progress.fraction() * 100.0));
                             ui.add(bar);
                             ui.label(RichText::new(&progress.task).strong());
@@ -1311,8 +1356,8 @@ impl ZuneApp {
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         if self.busy {
                             let (rect, _) = ui.allocate_exact_size(Vec2::new(10.0, 10.0), Sense::hover());
-                            ui.painter().circle_filled(rect.center(), 4.0, ORANGE);
-                            ui.label(RichText::new("working…").color(ORANGE));
+                            ui.painter().circle_filled(rect.center(), 4.0, NEON_AMBER);
+                            ui.label(RichText::new("working…").color(NEON_AMBER));
                         }
                         if self.link == Link::Connected && !self.snapshot.topology.is_empty() {
                             ui.label(RichText::new(&self.snapshot.topology).color(MUTED).size(11.0));
@@ -2476,7 +2521,7 @@ impl eframe::App for ZuneApp {
         // another repaint, which is what keeps an idle window at 0 % CPU.
         let mut motion = Motion::begin(ui.ctx());
 
-        self.top_bar(ui);
+        self.top_bar(ui, &mut motion);
         self.status_bar(ui);
         self.side_bar(ui);
         egui::CentralPanel::default()
@@ -2500,6 +2545,25 @@ impl eframe::App for ZuneApp {
         self.confirm_dialog(ui.ctx());
         motion.finish(ui.ctx());
     }
+}
+
+/// The Zune mark: a ring with the bar through it, which is what makes it a Zune and not
+/// a record. This is the one piece of chrome that keeps a fixed colour — it is the brand,
+/// so it stays orange while everything around it takes the page's signature.
+fn zune_mark(ui: &mut egui::Ui, size: f32) {
+    let (rect, _) = ui.allocate_exact_size(Vec2::splat(size), Sense::hover());
+    let painter = ui.painter();
+    let center = rect.center();
+    let radius = size * 0.40;
+    paint::glow_circle(painter, center, radius, NEON_ORANGE, GLOW_SM, GlowResponse::IDLE);
+    painter.circle_stroke(center, radius, Stroke::new(1.8, NEON_ORANGE));
+    painter.line_segment(
+        [
+            egui::pos2(center.x - radius * 0.52, center.y),
+            egui::pos2(center.x + radius * 0.52, center.y),
+        ],
+        Stroke::new(1.8, NEON_ORANGE),
+    );
 }
 
 /// Album totals use the same formatting as track rows.

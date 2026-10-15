@@ -34,26 +34,20 @@ pub fn apply(ctx: &eframe::egui::Context) {
     crate::design::install(ctx);
 }
 
+/// The wordmark. Pure white, like every other large piece of type: a full-height neon
+/// wordmark next to a neon mark is two accents fighting, and v1.1 §2.1.2 allows one.
+/// The mark itself stays orange — that is the brand, and it is small.
 pub fn wordmark(ui: &mut Ui) {
-    use crate::design::tokens::F_XLIGHT;
-    // The wordmark is a neon element, so it carries a text glow.
+    use crate::design::tokens::{F_XLIGHT, TEXT_1};
     let (rect, _) = ui.allocate_exact_size(egui::vec2(64.0, 34.0), egui::Sense::hover());
     let painter = ui.painter();
     let galley = painter.layout_no_wrap(
         "zune".to_owned(),
         eframe::egui::FontId::new(30.0, eframe::egui::FontFamily::Name(F_XLIGHT.into())),
-        ORANGE,
+        TEXT_1,
     );
     let pos = egui::pos2(rect.left(), rect.center().y - galley.size().y / 2.0);
-    crate::design::paint::glow_galley(
-        painter,
-        pos,
-        &galley,
-        ORANGE,
-        crate::design::paint::GLOW_TEXT,
-        crate::design::paint::GlowResponse::IDLE,
-    );
-    painter.galley(pos, galley, ORANGE);
+    painter.galley(pos, galley, TEXT_1);
 }
 
 pub fn tag(ui: &mut Ui, text: &str, color: Color32) {
