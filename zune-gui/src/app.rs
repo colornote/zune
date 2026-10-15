@@ -1228,13 +1228,46 @@ impl ZuneApp {
                 for index in range {
                     let row = &rows[index];
                     let selected = self.selected.contains(&row.handle);
-                    ui.horizontal(|ui| {
-                        let mut checked = selected;
-                        if ui
-                            .add_sized([18.0, 18.0], egui::Checkbox::without_text(&mut checked))
-                            .changed()
-                        {
-                            toggle = Some((row.handle, checked));
+                    // Reserve the row's fill and marker slots first. egui paints in call
+                    // order, so a background drawn after the widgets would sit on top of
+                    // them; setting a deferred `Shape::Noop` slot is the one-pass way to
+                    // get it underneath.
+                    let fill = ui.painter().add(egui::Shape::Noop);
+                    let marker = ui.painter().add(egui::Shape::Noop);
+
+                    let inner = ui.allocate_ui_with_layout(
+                        Vec2::new(ui.available_width(), theme::ROW_HEIGHT),
+                        Layout::left_to_right(Align::Center),
+                        |ui| {
+                        // A stock checkbox put a grey disc on each of 2425 rows. A dot that
+                        // is barely there until you reach for it keeps the column scannable
+                        // and still makes selection discoverable.
+                        let (dot, dot_response) =
+                            ui.allocate_exact_size(Vec2::splat(18.0), Sense::click());
+                        let center = dot.center();
+                        let painter = ui.painter();
+                        if selected {
+                            painter.circle_filled(center, 5.5, ORANGE);
+                            let s = 2.2;
+                            painter.add(egui::Shape::line(
+                                vec![
+                                    center + Vec2::new(-s, 0.0),
+                                    center + Vec2::new(-s * 0.2, s * 0.8),
+                                    center + Vec2::new(s * 1.15, -s * 0.85),
+                                ],
+                                Stroke::new(1.6, CANVAS),
+                            ));
+                        } else if dot_response.hovered() {
+                            painter.circle_stroke(center, 5.5, Stroke::new(1.0, TEXT_2));
+                        } else {
+                            painter.circle_filled(
+                                center,
+                                1.8,
+                                paint::with_alpha(Color32::WHITE, 0.20),
+                            );
+                        }
+                        if dot_response.clicked() {
+                            toggle = Some((row.handle, !selected));
                         }
                         let number = row
                             .track_no
@@ -1260,7 +1293,48 @@ impl ZuneApp {
                             [78.0, 18.0],
                             egui::Label::new(RichText::new(theme::human_bytes(row.size as u64)).color(MUTED).size(12.0)),
                         );
-                    });
+                        },
+                    );
+
+                    // The rect comes from the layout (accurate for any row height the content
+                    // ends up with); the hover test comes from the pointer, because egui's own
+                    // hover state for a row inside a virtualised list cannot be trusted — its
+                    // response id is shared and only the last row in the frame would ever win.
+                    let rect = inner.response.rect.expand2(Vec2::new(6.0, 2.0));
+                    let hovering = ui
+                        .ctx()
+                        .pointer_latest_pos()
+                        .is_some_and(|pos| rect.contains(pos));
+                    if selected {
+                        ui.painter().set(
+                            fill,
+                            egui::Shape::rect_filled(
+                                rect,
+                                r_sm(),
+                                paint::with_alpha(ORANGE, 0.10),
+                            ),
+                        );
+                    } else if hovering {
+                        ui.painter().set(
+                            fill,
+                            egui::Shape::rect_filled(
+                                rect,
+                                r_sm(),
+                                paint::with_alpha(SURFACE_2, 0.75),
+                            ),
+                        );
+                    }
+                    if selected || hovering {
+                        // The signature marker, at the row's own height.
+                        let bar = Rect::from_min_size(
+                            egui::pos2(rect.left(), rect.center().y - 8.0),
+                            Vec2::new(2.0, 16.0),
+                        );
+                        ui.painter().set(
+                            marker,
+                            egui::Shape::rect_filled(bar, CornerRadius::same(1), ORANGE),
+                        );
+                    }
                 }
             });
         if let Some((handle, checked)) = toggle {

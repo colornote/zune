@@ -15,7 +15,10 @@ pub use crate::design::tokens::{
 
 pub const FIELD: Color32 = crate::design::tokens::CANVAS;
 pub const LINE: Color32 = crate::design::tokens::HAIRLINE;
-pub const ROW_HEIGHT: f32 = 22.0;
+/// The recorded row pitch is cosmetic. The real row height is whatever the layout
+/// produces; this only has to be close enough for `show_rows` to virtualise, so keep
+/// it exactly what `tracks_page` allocates per row.
+pub const ROW_HEIGHT: f32 = 28.0;
 pub const COLS: [(f32, &str); 7] = [
     (26.0, ""),
     (36.0, "#"),
