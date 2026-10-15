@@ -273,6 +273,13 @@ struct Backend {
     bulk_props_unavailable: bool,
     /// Set when the session is being used by a task.
     busy: bool,
+    /// The library the device last reported, kept so the embedded-art sweep can run as
+    /// soon as a session exists. The cached start loads a library with no session — the
+    /// device connects afterwards — so the sweep cannot simply run where the library
+    /// arrives.
+    albums: Vec<Album>,
+    /// Set once the sweep has run for the current library.
+    harvested: bool,
 }
 
 impl Backend {
@@ -398,6 +405,11 @@ impl Backend {
         self.cover_index = None;
         self.album_date_code = None;
         self.bulk_props_unavailable = false;
+        // A session may have appeared long after the library did (the cached start loads
+        // the library with no device attached). This is the moment the embedded-art sweep
+        // becomes possible, so it runs here rather than from `handle`: an idle UI sends no
+        // commands, and `busy` is still set during a connect.
+        self.harvested = true;
         ev.link(Link::Connected);
         ev.send(Event::Snapshot(Box::new(self.snapshot.clone())));
 
@@ -525,8 +537,18 @@ impl Backend {
         self.busy = false;
         ev.busy(false);
         ev.send(Event::Snapshot(Box::new(self.snapshot.clone())));
-        // Covers are not part of the cache: even a fast start has to fetch them, and the
-        // Albums page opens straight from this path. Start the background pass here too.
+        // Device first: most of this library carries its art in the audio files, and that
+        // is a few seconds of partial reads rather than minutes of network throttling.
+        // With no session yet (the usual cached start), `handle` runs the sweep as soon
+        // as the device connects.
+        // No bulk sweep from a cached library: its handles may predate a change on the
+        // device, and a stale handle costs a full 30-second USB timeout. The per-album
+        // fallback still tries the audio file first, with handles taken from the live
+        // library the UI was given.
+        self.albums = albums.clone();
+        self.harvested = true;
+        // Whatever is left is not part of the cache: even a fast start has to fetch it, and
+        // the Albums page opens straight from this path. Start the background pass here.
         Self::spawn_cover_prefetch(&self.snapshot.serial, &albums, ev);
         ev.send(Event::Library { tracks, albums });
         ev.send(Event::Origin(Box::new(DataOrigin {
@@ -580,6 +602,19 @@ impl Backend {
 
     // ── command dispatch ─────────────────────────────────────────────────────
 
+    /// Run the embedded-art sweep the first time a session and a library are both here.
+    fn sweep_embedded_art_if_ready(&mut self, ev: &Emitter) {
+        if self.harvested || self.albums.is_empty() || self.session.is_none() || self.busy {
+            return;
+        }
+        self.harvested = true;
+        let albums = self.albums.clone();
+        let serial = self.snapshot.serial.clone();
+        if let Some(session) = self.session.as_mut() {
+            Self::harvest_embedded_art(session, &serial, &albums, ev);
+        }
+    }
+
     fn handle(
         &mut self,
         cmd: Command,
@@ -587,6 +622,7 @@ impl Backend {
         cancel: &AtomicBool,
         interrupt: &AtomicBool,
     ) {
+        self.sweep_embedded_art_if_ready(ev);
         match cmd {
             Command::Shutdown => {}
             Command::Connect => {
@@ -839,6 +875,8 @@ impl Backend {
             ev,
             &mut self.cover_index,
         );
+        self.albums = albums.clone();
+        self.harvested = false;
         let need_fallback = albums.iter().filter(|a| !a.cover_source.is_found()).count();
         if need_fallback > 0 {
             ev.log(LogLine::info(format!(
@@ -846,6 +884,8 @@ impl Backend {
                  Albums page looks for those in the local files and online (iTunes)",
                 albums.len()
             )));
+            // No bulk sweep here: `lib` holds the session for the rest of this function,
+            // and the per-album fallback now tries the audio file first anyway.
             Self::spawn_cover_prefetch(&self.snapshot.serial, &albums, ev);
         }
         if cover_report.found > 0 {
@@ -2069,6 +2109,48 @@ impl Backend {
 
     /// The device has no art for this album: local files first, then iTunes, and cache
     /// whatever comes back so the next run is instant.
+    /// Sweep the library for art that lives inside the audio files themselves.
+    ///
+    /// Device-first by design. The online ladder costs about three seconds per album in
+    /// throttling and is wrong about a third of this library; two partial reads per album
+    /// is about 5 MB for the whole thing and answers in seconds, from the device's own
+    /// data. Whatever this finds is cached, so the wall is largely complete before a
+    /// single request leaves the machine, and the ladder only sees what is left.
+    fn harvest_embedded_art(
+        session: &mut Session,
+        serial: &str,
+        albums: &[Album],
+        ev: &Emitter,
+    ) {
+        if !cache::is_usable_serial(serial) {
+            return;
+        }
+        let mut found = 0usize;
+        let mut tried = 0usize;
+        for album in albums {
+            // A cover the cache already answers for needs nothing from the device.
+            if cache::read_cover(serial, album.cover_key).is_some() {
+                continue;
+            }
+            let Some(handle) = album.track_handles.first().copied() else {
+                continue;
+            };
+            tried += 1;
+            match Self::embedded_cover(session, serial, handle, album.cover_key, &album.name, ev) {
+                Ok(true) => found += 1,
+                Ok(false) => {}
+                Err(e) => log::debug!("embedded cover {handle:#010x}: {e:#}"),
+            }
+        }
+        if tried > 0 {
+            let line = format!(
+                "embedded cover art: {found} of {tried} album(s) carry their art in the audio file"
+            );
+            log::info!("{line}");
+            ev.log(LogLine::info(line));
+        }
+    }
+
     /// Pull an album's art out of the audio object itself.
     ///
     /// This is where cover art really is on a Zune 30: the device exposes no MTP read
@@ -2080,16 +2162,13 @@ impl Backend {
     ///
     /// `Ok(true)` means a cover was found, decoded, cached and sent.
     fn embedded_cover(
-        &mut self,
-        handle: u32,
+        session: &mut Session,
         serial: &str,
+        handle: u32,
         key: u32,
         album: &str,
         ev: &Emitter,
     ) -> Result<bool> {
-        let Some(session) = self.session.as_mut() else {
-            return Ok(false);
-        };
         const HEAD: u32 = 64 * 1024;
         let head = session.get_partial_object(handle, 0, HEAD)?;
         let Some(at) = id3::locate_picture(&head) else {
@@ -2143,10 +2222,12 @@ impl Backend {
 
         // Before anything online: the art may simply be inside the album's audio file.
         if let Some(handle) = track_handle {
-            match self.embedded_cover(handle, &serial, key, album, ev) {
-                Ok(true) => return,
-                Ok(false) => {}
-                Err(e) => log::debug!("embedded cover {handle:#010x}: {e:#}"),
+            if let Some(session) = self.session.as_mut() {
+                match Self::embedded_cover(session, &serial, handle, key, album, ev) {
+                    Ok(true) => return,
+                    Ok(false) => {}
+                    Err(e) => log::debug!("embedded cover {handle:#010x}: {e:#}"),
+                }
             }
         }
         // A miss is remembered: asking iTunes again on every repaint would be rude, and

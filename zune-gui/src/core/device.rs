@@ -18,6 +18,8 @@ use crate::core::usb::Transport;
 
 pub const WRITE_TIMEOUT: Duration = Duration::from_secs(10);
 pub const READ_TIMEOUT: Duration = Duration::from_secs(30);
+/// A byte-range read answers quickly or not at all; see `get_partial_object`.
+pub const PARTIAL_READ_TIMEOUT: Duration = Duration::from_secs(5);
 /// Large writes stall the Zune, so SendObject payloads go out in 16 KB batches.
 const PUSH_BATCH: usize = 16 * 1024;
 
@@ -329,7 +331,24 @@ impl Session {
     /// The fallback when a firmware refuses GetObject for cover-art objects.
     /// `format` is the wanted thumbnail format code (JPEG = 0x3801, 0 = undefined).
     /// GetPartialObject (0x101B): `count` bytes of an object, starting at `offset`.
+    ///
+    /// Reads a byte range, so an 8 MB MP3 does not have to cross USB to reach an ID3 tag
+    /// in its first 64 KB.
+    ///
+    /// The timeout is short on purpose. A handle that no longer exists makes this firmware
+    /// answer nothing at all, and at the default 30 seconds that is half a minute of a
+    /// frozen worker per stale handle — measured on one album in a cached library whose
+    /// device had since changed. A partial read is a small, fast request: if it has not
+    /// answered in five seconds it is not going to.
     pub fn get_partial_object(&mut self, handle: u32, offset: u32, count: u32) -> Result<Vec<u8>> {
+        let saved = self.read_timeout;
+        self.read_timeout = PARTIAL_READ_TIMEOUT;
+        let result = self.partial_object_inner(handle, offset, count);
+        self.read_timeout = saved;
+        result
+    }
+
+    fn partial_object_inner(&mut self, handle: u32, offset: u32, count: u32) -> Result<Vec<u8>> {
         self.send_cmd(OP_GET_PARTIAL_OBJECT, &[handle, offset, count])?;
         let d = self.recv_data()?.data;
         self.recv_resp()?;
