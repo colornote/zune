@@ -1418,7 +1418,17 @@ impl ZuneApp {
         // bottom edge pushed the ascenders above the clip rect, so the box cropped the
         // cap height of every title — "Albums" lost the top of its A. The tight box is
         // still the point, it just has to crop the descender underneath instead.
-        let height = DISPLAY * 0.92;
+        // How tall the text actually is, not a guess. At 88 pt ExtraLight the galley is
+        // taller than the font size (leading plus ascender), and a box sized from the font
+        // size alone cropped the bottom of the glyphs. Taking the galley's own height means
+        // the box always fits what it holds.
+        let height = galley.size().y;
+        log::debug!(
+            "page title {:?}: galley {:.1}px tall, DISPLAY {DISPLAY}, self-reported {:?}",
+            self.page.title(),
+            height,
+            galley.size()
+        );
         let (rect, _) =
             ui.allocate_exact_size(egui::vec2(ui.available_width(), height), Sense::hover());
         let painter = ui.painter().with_clip_rect(rect);
