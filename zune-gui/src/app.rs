@@ -14,9 +14,10 @@ use crate::cache;
 use crate::design::anim::Motion;
 use crate::design::paint::{self, GlowResponse, GLOW_MD, GLOW_SM, GLOW_TEXT};
 use crate::design::tokens::{
-    body, body_sm, display, h1, h2, label, mono, r_md, r_pill, r_sm, subtitle, tracked, BODY_SM,
-    CARD_GAP, CANVAS, DISPLAY, F_LIGHT, F_XLIGHT, NEON_AMBER, NEON_CYAN, NEON_LIME, NEON_MAGENTA,
-    SP_12, SP_24, SP_8, SURFACE_1, SURFACE_2, TEXT_1, TEXT_2, TEXT_3,
+    body, body_sm, display, h1, h2, human_bytes, label, mono, r_md, r_pill, r_sm, subtitle,
+    tracked, BODY_SM, CARD_GAP, CANVAS, DISPLAY, F_LIGHT, F_XLIGHT, NEON_AMBER, NEON_CYAN,
+    NEON_LIME, NEON_MAGENTA, NEON_ORANGE, SP_12, SP_16, SP_24, SP_8, SURFACE_1, SURFACE_2,
+    TEXT_1, TEXT_2, TEXT_3,
 };
 use crate::ui::track_row::{track_row, TrackRow};
 use crate::core::library;
@@ -24,49 +25,56 @@ use crate::model::*;
 use crate::theme::{self, *};
 use crate::ui::album_tile::{AlbumTile, CoverBadge};
 use crate::ui::board::{self, BoardState};
+use crate::ui::glass_card::GlassCard;
+use crate::ui::progress_ring::ProgressRing;
+use crate::ui::section::section_rule;
 use crate::worker::{self, Worker};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Page {
-    /// P0: the design-system component board (visual acceptance surface).
-    Board,
-    Tracks,
+    /// The Bento sheet: library totals, capacity, device — the front door.
+    Home,
     Albums,
     Artists,
+    Tracks,
     Push,
     Device,
     Wifi,
     Log,
+    /// The design-system component board (a dev surface, so it sits last).
+    Board,
 }
 
 impl Page {
-    const ALL: [Page; 8] = [
-        Page::Board,
-        Page::Tracks,
+    const ALL: [Page; 9] = [
+        Page::Home,
         Page::Albums,
         Page::Artists,
+        Page::Tracks,
         Page::Push,
         Page::Device,
         Page::Wifi,
         Page::Log,
+        Page::Board,
     ];
 
     fn title(self) -> &'static str {
         match self {
-            Page::Board => "Design",
-            Page::Tracks => "Collection",
+            Page::Home => "Collection",
+            Page::Tracks => "Tracks",
             Page::Albums => "Albums",
             Page::Artists => "Artists",
             Page::Push => "Push",
             Page::Device => "Device",
             Page::Wifi => "Wi-Fi",
             Page::Log => "Log",
+            Page::Board => "Design",
         }
     }
 
     fn subtitle(self) -> &'static str {
         match self {
-            Page::Board => "the design system, every token and component on one page",
+            Page::Home => "everything on the device, at a glance",
             Page::Tracks => "every track on the device",
             Page::Albums => "albums and their cover art",
             Page::Artists => "the names behind the albums",
@@ -74,6 +82,7 @@ impl Page {
             Page::Device => "identity, storage and the MTPZ session",
             Page::Wifi => "vendor WiFi opcodes 0x9225 / 0x9227 / 0x9228",
             Page::Log => "everything the device thread reported",
+            Page::Board => "the design system, every token and component on one page",
         }
     }
 
@@ -82,14 +91,15 @@ impl Page {
     fn icon(self) -> crate::ui::icons::Icon {
         use crate::ui::icons::Icon;
         match self {
-            Page::Board => Icon::Grid,
-            Page::Tracks => Icon::Note,
+            Page::Home => Icon::Home,
             Page::Albums => Icon::Disc,
             Page::Artists => Icon::Person,
+            Page::Tracks => Icon::Note,
             Page::Push => Icon::Upload,
             Page::Device => Icon::Device,
             Page::Wifi => Icon::Wifi,
             Page::Log => Icon::List,
+            Page::Board => Icon::Grid,
         }
     }
 }
@@ -251,6 +261,7 @@ impl ZuneApp {
             // Dev affordance: ZUNE_PAGE=device|tracks|albums|push|wifi|log lets the
             // screenshot tooling park on a page without a click. Default: the board.
             page: match std::env::var("ZUNE_PAGE").ok().as_deref() {
+                Some("home") | Some("collection") => Page::Home,
                 Some("tracks") => Page::Tracks,
                 Some("albums") => Page::Albums,
                 Some("artists") => Page::Artists,
@@ -258,7 +269,8 @@ impl ZuneApp {
                 Some("device") => Page::Device,
                 Some("wifi") => Page::Wifi,
                 Some("log") => Page::Log,
-                _ => Page::Board,
+                Some("design") | Some("board") => Page::Board,
+                _ => Page::Home,
             },
             search: String::new(),
             sort: SortKey::Album,
@@ -522,6 +534,260 @@ impl ZuneApp {
             }),
         }
         rows
+    }
+
+    /// Collection — the Bento sheet.
+    ///
+    /// Three cards across: the library's totals, the capacity ring, and the device. A
+    /// strip of the albums that do have art sits underneath. The page owns the orange
+    /// signature, so every neon on it is orange and nothing else — and per v1.1 §2.1.2
+    /// none of it is a fill, only figures, a ring, a rule and a glow.
+    fn home_page(&mut self, ui: &mut egui::Ui, motion: &mut Motion) {
+        self.banner(ui);
+
+        const CARD_H: f32 = 158.0;
+        const RING_W: f32 = 238.0;
+        const DEVICE_W: f32 = 252.0;
+        let library_w = (ui.available_width() - RING_W - DEVICE_W - CARD_GAP * 2.0).max(300.0);
+
+        let mut goto: Option<Page> = None;
+        let mut open_album: Option<String> = None;
+
+        ui.horizontal(|ui| {
+            // ── the library's own numbers ───────────────────────────────────────
+            GlassCard::new(Vec2::new(library_w, CARD_H))
+                .accent(NEON_ORANGE)
+                .padding(Vec2::new(SP_24, 20.0))
+                .salt(1)
+                .show(ui, motion, |ui, rect, _motion| {
+                    let painter = ui.painter();
+                    let head = painter.layout_no_wrap(tracked("library"), label(), TEXT_3);
+                    painter.galley(rect.left_top(), head, TEXT_3);
+
+                    let stats = [
+                        (thousands(self.snapshot.tracks as u64), "TRACKS"),
+                        (thousands(self.snapshot.albums as u64), "ALBUMS"),
+                        (thousands(self.snapshot.playlists as u64), "PLAYLISTS"),
+                    ];
+                    let column = rect.width() / 3.0;
+                    for (index, (value, name)) in stats.iter().enumerate() {
+                        let x = rect.left() + column * index as f32;
+                        let y = rect.top() + 36.0;
+                        let number = painter.layout_no_wrap(value.clone(), h1(), NEON_ORANGE);
+                        paint::glow_galley(
+                            painter,
+                            egui::pos2(x, y),
+                            &number,
+                            NEON_ORANGE,
+                            GLOW_TEXT,
+                            GlowResponse::IDLE,
+                        );
+                        painter.galley(egui::pos2(x, y), number, NEON_ORANGE);
+                        let caption = painter.layout_no_wrap(tracked(name), label(), TEXT_3);
+                        painter.galley(egui::pos2(x, y + 52.0), caption, TEXT_3);
+                    }
+
+                    if self.snapshot.library_bytes > 0 {
+                        let foot = painter.layout_no_wrap(
+                            format!(
+                                "{} of audio in the library file",
+                                human_bytes(self.snapshot.library_bytes)
+                            ),
+                            body_sm(),
+                            TEXT_2,
+                        );
+                        painter.galley(
+                            egui::pos2(rect.left(), rect.bottom() - foot.size().y),
+                            foot,
+                            TEXT_2,
+                        );
+                    }
+                });
+
+            // ── capacity ────────────────────────────────────────────────────────
+            GlassCard::new(Vec2::new(RING_W, CARD_H))
+                .accent(NEON_ORANGE)
+                .padding(Vec2::new(SP_16, SP_16))
+                .salt(2)
+                .show(ui, motion, |ui, rect, motion| {
+                    let head = ui
+                        .painter()
+                        .layout_no_wrap(tracked("capacity"), label(), TEXT_3);
+                    ui.painter().galley(rect.left_top(), head, TEXT_3);
+
+                    let used = self
+                        .snapshot
+                        .used()
+                        .unwrap_or(self.snapshot.library_bytes);
+                    let capacity = self.snapshot.capacity.unwrap_or(0);
+                    let fraction = if capacity > 0 {
+                        used as f32 / capacity as f32
+                    } else {
+                        0.0
+                    };
+                    let headline = match self.snapshot.free {
+                        Some(free) => human_bytes(free),
+                        None => "—".to_owned(),
+                    };
+                    // An 88px ring cannot hold "9.5 GB" at the figure size, so the unit
+                    // moves down into the caption where it belongs anyway.
+                    let (figure, unit) = match headline.split_once(' ') {
+                        Some((value, unit)) => (value.to_owned(), unit.to_owned()),
+                        None => (headline.clone(), String::new()),
+                    };
+                    let caption = if unit.is_empty() {
+                        "FREE".to_owned()
+                    } else {
+                        format!("{unit} FREE")
+                    };
+                    ui.add_space(22.0);
+                    ui.with_layout(Layout::top_down(Align::Center), |ui| {
+                        ProgressRing::new(fraction, &figure, &caption)
+                            .size(88.0)
+                            .accent(NEON_ORANGE)
+                            .show(ui, motion, 1);
+                    });
+                });
+
+            // ── the device ──────────────────────────────────────────────────────
+            GlassCard::new(Vec2::new(DEVICE_W, CARD_H))
+                .accent(NEON_ORANGE)
+                .padding(Vec2::new(SP_24, 20.0))
+                .salt(3)
+                .show(ui, motion, |ui, rect, _motion| {
+                    let painter = ui.painter();
+                    let head = painter.layout_no_wrap(tracked("device"), label(), TEXT_3);
+                    painter.galley(rect.left_top(), head, TEXT_3);
+
+                    let name = if self.snapshot.name.is_empty() {
+                        "not connected"
+                    } else {
+                        self.snapshot.name.as_str()
+                    };
+                    let name_galley = painter.layout_no_wrap(name.to_owned(), h2(), TEXT_1);
+                    painter.galley(egui::pos2(rect.left(), rect.top() + 28.0), name_galley, TEXT_1);
+
+                    // One lit dot for the link, then the facts a support ticket needs.
+                    let dot = egui::pos2(rect.left() + 4.0, rect.top() + 74.0);
+                    let tint = if self.link == Link::Connected {
+                        NEON_LIME
+                    } else {
+                        NEON_MAGENTA
+                    };
+                    paint::glow_circle(painter, dot, 3.5, tint, GLOW_SM, GlowResponse::IDLE);
+                    painter.circle_filled(dot, 3.5, tint);
+                    let state = painter.layout_no_wrap(
+                        if self.link == Link::Connected {
+                            "trusted MTPZ session".to_owned()
+                        } else {
+                            "no MTPZ session".to_owned()
+                        },
+                        body_sm(),
+                        TEXT_2,
+                    );
+                    painter.galley(egui::pos2(rect.left() + 14.0, dot.y - state.size().y / 2.0), state, TEXT_2);
+
+                    let mut line = |offset: f32, text: String| {
+                        let galley = painter.layout_no_wrap(text, mono(11.0), TEXT_3);
+                        painter.galley(egui::pos2(rect.left(), rect.top() + offset), galley, TEXT_3);
+                    };
+                    if !self.snapshot.firmware.is_empty() {
+                        line(98.0, format!("fw  {}", self.snapshot.firmware));
+                    }
+                    if !self.snapshot.serial.is_empty() {
+                        let serial = &self.snapshot.serial[..self.snapshot.serial.len().min(18)];
+                        line(114.0, format!("sn  {serial}"));
+                    }
+                });
+        });
+
+        // ── the wall ────────────────────────────────────────────────────────
+        // Request before drawing: the worker is cache-first, so the albums whose art is
+        // already on disk come straight back and the rest fall through to the online
+        // ladder without blocking the frame. Note this cannot filter on cover_source —
+        // that is 0 for every album on this device, because the Zune genuinely stores no
+        // cover objects. "Has art" is a fact about the cache, not about the library.
+        let first: Vec<(u32, Option<u32>, String, String)> = self
+            .albums
+            .iter()
+            .take(12)
+            .map(|album| {
+                (
+                    album.cover_key,
+                    album.cover_handle,
+                    album.artist.clone(),
+                    album.name.clone(),
+                )
+            })
+            .collect();
+        for (key, handle, artist, album) in first {
+            if self.covers.contains_key(&key) || self.cover_pending.contains(&key) {
+                continue;
+            }
+            match handle {
+                Some(handle) => self.request_cover(handle),
+                None => {
+                    self.cover_pending.insert(key);
+                    self.worker.send(Command::FetchFallbackCover { key, artist, album });
+                }
+            }
+        }
+
+        let ready = |key: &u32| matches!(self.covers.get(key), Some(CoverState::Ready(_)));
+        let mut strip: Vec<&Album> = self.albums.iter().take(12).collect();
+        // Albums that already have art lead the strip; the rest keep their order behind
+        // them, so the row fills up as covers land instead of staying a row of blanks.
+        strip.sort_by_key(|album| !ready(&album.cover_key));
+        strip.truncate(8);
+        let shown = strip.iter().filter(|album| ready(&album.cover_key)).count();
+        let total = self.albums.len();
+
+        ui.add_space(SP_24);
+        section_rule(ui, "cover art", Some(&format!("{shown} of {total} albums")));
+        if total == 0 {
+            self.empty_hint(ui, "No library yet — Refresh reads the device once it is connected.");
+        } else {
+            ui.horizontal(|ui| {
+                for album in &strip {
+                    let (rect, response) =
+                        ui.allocate_exact_size(Vec2::splat(124.0), Sense::click());
+                    match self.covers.get(&album.cover_key) {
+                        Some(CoverState::Ready(texture)) => {
+                            paint::rounded_image(ui.painter(), texture.id(), rect, r_md(), CANVAS);
+                        }
+                        _ => {
+                            // Same quiet placeholder as the album wall.
+                            let painter = ui.painter();
+                            painter.rect_filled(rect, r_md(), SURFACE_1);
+                            paint::paint_dot_grid(painter, rect.shrink(2.0), &paint::dot_grid(ui.ctx()));
+                            paint::hairline(painter, rect, r_md());
+                        }
+                    }
+                    if response.clicked() {
+                        open_album = Some(album.name.clone());
+                    }
+                    response.on_hover_text(format!("{} · {}", album.name, album.artist));
+                }
+            });
+        }
+
+        // ── shortcuts ───────────────────────────────────────────────────────
+        ui.add_space(SP_24);
+        section_rule(ui, "go to", None);
+        ui.horizontal(|ui| {
+            for page in [Page::Albums, Page::Artists, Page::Tracks, Page::Push, Page::Wifi] {
+                if ui.button(page.title()).clicked() {
+                    goto = Some(page);
+                }
+            }
+        });
+
+        if let Some(album) = open_album {
+            self.album_open = Some(album);
+            self.page = Page::Albums;
+        } else if let Some(page) = goto {
+            self.page = page;
+        }
     }
 
     /// The library folded by artist name, in alphabetical order.
@@ -2220,6 +2486,7 @@ impl eframe::App for ZuneApp {
                     self.page_header(ui);
                 }
                 match self.page {
+                    Page::Home => self.home_page(ui, &mut motion),
                     Page::Board => board::board(ui, &mut motion, &mut self.board),
                     Page::Tracks => self.tracks_page(ui),
                     Page::Albums => self.albums_page(ui, &mut motion),
@@ -2238,6 +2505,21 @@ impl eframe::App for ZuneApp {
 /// Album totals use the same formatting as track rows.
 fn duration_label(seconds: u32) -> String {
     format_duration(seconds)
+}
+
+/// 2425 → "2,425". The counts here are small enough that a grouping pass is cheaper
+/// than a formatting dependency, and the separators are what make a four-digit figure
+/// land in a hero slot.
+fn thousands(value: u64) -> String {
+    let digits = value.to_string();
+    let mut out = String::with_capacity(digits.len() + digits.len() / 3);
+    for (index, ch) in digits.chars().enumerate() {
+        if index > 0 && (digits.len() - index) % 3 == 0 {
+            out.push(',');
+        }
+        out.push(ch);
+    }
+    out
 }
 
 fn level_color(level: Level) -> Color32 {
