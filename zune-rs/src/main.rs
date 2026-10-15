@@ -873,8 +873,37 @@ fn cmd_wifi(s: &mut Session, key_path: Option<&Path>, w: WifiCommand) -> Result<
                     index + 1,
                     ssid
                 );
+                // The key material sits after the three lengths in the key block
+                // (flags, value, keyLen), so it starts at 0x34 + 12.
+                let key_at = 0x34 + 12;
+                let key_bytes = record
+                    .get(key_at..(key_at + key_len).min(320))
+                    .unwrap_or(&[]);
+                // NUL-terminated and read back as text: seeing the passphrase is the point.
+                let printable = key_bytes
+                    .iter()
+                    .take_while(|b| **b != 0)
+                    .all(|b| b.is_ascii_graphic() || *b == b' ');
+                if printable && !key_bytes.is_empty() {
+                    let shown: String = key_bytes
+                        .iter()
+                        .take_while(|b| **b != 0)
+                        .map(|b| *b as char)
+                        .collect();
+                    println!("      key: {:?} ({} bytes incl. terminator)", shown, key_len);
+                } else {
+                    println!(
+                        "      key: {} bytes, not printable: {}",
+                        key_len,
+                        key_bytes
+                            .iter()
+                            .map(|b| format!("{b:02x}"))
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                    );
+                }
                 println!(
-                    "      raw: {}",
+                    "      raw head: {}",
                     record[..48]
                         .iter()
                         .map(|b| format!("{b:02x}"))
