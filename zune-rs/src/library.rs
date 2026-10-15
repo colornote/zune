@@ -98,6 +98,11 @@ pub struct Library<'a> {
     /// reported instead of quietly rendering as an empty column.
     pub prop_failures: usize,
     pub last_prop_error: Option<String>,
+    /// Set once the device has refused the bulk property list. The refusal costs a
+    /// 30-second timeout *and* leaves an unread response in the device's bulk-IN
+    /// buffer, after which every later command in the same session times out too —
+    /// so it is worth remembering, and worth draining after.
+    bulk_props_unavailable: bool,
 }
 
 impl<'a> Library<'a> {
@@ -108,7 +113,13 @@ impl<'a> Library<'a> {
             .first()
             .context("device reported no storage")?;
         session.session_storage = storage;
-        Ok(Library { session, storage, prop_failures: 0, last_prop_error: None })
+        Ok(Library {
+            session,
+            storage,
+            prop_failures: 0,
+            last_prop_error: None,
+            bulk_props_unavailable: false,
+        })
     }
 
     fn note_failure(&mut self, e: anyhow::Error) {
@@ -188,14 +199,47 @@ impl<'a> Library<'a> {
     /// Read every property we care about for all of `handles`, in as few round trips
     /// as the device allows.
     fn collect_props(&mut self, handles: &[u32]) -> Result<HashMap<u32, Props>> {
-        // One call for every property of every object…
-        let entries = match self
-            .session
-            .object_prop_list(self.storage, u32::MAX, 0, u16::MAX)
-        {
+        // One call for every property of every object… but this firmware refuses it, so
+        // a session that has already learned that goes straight to the slow path.
+        // This firmware (Keel 3.30, Pyxis) does not implement the bulk property list at
+        // all. Asking anyway is not merely slow: the unanswered request leaves the device
+        // refusing writes, so every later command in the session times out and a library
+        // read looks like a dead device. Skip it by default and let the per-track path
+        // below do the work; ZUNE_BULK_PROPS=1 forces the attempt for a model that
+        // might answer it.
+        let skip_bulk = self.bulk_props_unavailable
+            || std::env::var_os("ZUNE_BULK_PROPS").is_none();
+        let bulk = if skip_bulk {
+            Err(anyhow::anyhow!("bulk property list already known to be unsupported"))
+        } else {
+            self.session.object_prop_list(self.storage, u32::MAX, 0, u16::MAX)
+        };
+        let entries = match bulk {
             Ok(e) if !e.is_empty() => e,
             Ok(_) => bail!("device returned an empty property list"),
+            // Nothing to learn from retrying the same unsupported opcode once per
+            // property — that is six more timeouts, and six more chances to leave the
+            // device wedged. Hand straight back to the per-track path instead.
+            Err(e) if skip_bulk => {
+                bail!("bulk property list unsupported ({e:#})")
+            }
             Err(e) => {
+                // The refusal leaves its own error response sitting in the device's
+                // bulk-IN buffer. Nothing later in this session works until that is
+                // read, so drain before doing anything else — otherwise the slow path
+                // below fails too and the whole library read looks like a dead device.
+                self.bulk_props_unavailable = true;
+                match self
+                    .session
+                    .transport
+                    .drain_pending_input(std::time::Duration::from_millis(350))
+                {
+                    Ok(d) if !d.is_empty() => {
+                        log::debug!("drained {} bytes after the refused bulk read", d.len())
+                    }
+                    Ok(_) => {}
+                    Err(e) => log::debug!("drain after refused bulk read failed: {e:#}"),
+                }
                 // …or, failing that, one call per property.
                 log::debug!("all-properties request failed: {e:#}");
                 let mut acc = Vec::new();
@@ -456,15 +500,35 @@ impl<'a> Library<'a> {
     /// fine. Two partial reads: 64 KB to locate the frame, then exactly the picture,
     /// because the picture is ~272 KB and the file is ~8 MB.
     ///
+    /// `stems` are the file stems about to be pushed, tried first.
+    ///
+    /// Matching by album name alone is not enough: the device's metadata for a track is
+    /// whatever wrote it there, and it regularly disagrees with the ID3 tags of the very
+    /// file being pushed — "Lady Love" in the file against "LeToya" on the device, for
+    /// instance. The name the firmware indexes the file under is the one thing both
+    /// sides agree on, so it is tried first and the album name is the fallback.
+    ///
     /// `None` means this album is not on the device, or its files carry no art.
-    pub fn cover_from_device(&mut self, album: &str) -> Result<Option<Vec<u8>>> {
+    pub fn cover_from_device(
+        &mut self,
+        album: &str,
+        stems: &[String],
+    ) -> Result<Option<Vec<u8>>> {
         const HEAD: u32 = 64 * 1024;
         let wanted = album.trim().to_lowercase();
+        let wanted_names: std::collections::HashSet<String> = stems
+            .iter()
+            .map(|s| tags::device_key(&format!("{s}.mp3")))
+            .collect();
         let Some(track) = self.tracks()?.into_iter().find(|t| {
-            t.album
-                .as_deref()
-                .map(|a| a.trim().to_lowercase() == wanted)
-                .unwrap_or(false)
+            if wanted_names.contains(&tags::device_key(&t.filename)) {
+                return true;
+            }
+            !wanted.is_empty()
+                && t.album
+                    .as_deref()
+                    .map(|a| a.trim().to_lowercase() == wanted)
+                    .unwrap_or(false)
         }) else {
             return Ok(None);
         };
@@ -583,6 +647,11 @@ impl<'a> Library<'a> {
             .map(|p| (p.clone(), tags::read(p)))
             .collect();
         track_tags.sort_by_key(|(p, t)| (t.track.unwrap_or(0), p.clone()));
+        // The names the firmware will index these files under, for the device-side lookup.
+        let local_stems: Vec<String> = files
+            .iter()
+            .filter_map(|p| p.file_stem().map(|s| s.to_string_lossy().to_string()))
+            .collect();
 
         if dry_run {
             // Say where the cover would come from, without reading or writing anything: a
@@ -591,7 +660,7 @@ impl<'a> Library<'a> {
             let local = pick_cover(dir, cover);
             match local {
                 Some(c) => progress(&format!("  cover: {}", c.display())),
-                None => match self.cover_from_device(&album_name) {
+                None => match self.cover_from_device(&album_name, &local_stems) {
                     Ok(Some(bytes)) => progress(&format!(
                         "  cover: none in the folder — the device has one for this album \
                          ({:.0} KB in the audio file's ID3 tag), it would be reused",
@@ -660,7 +729,7 @@ impl<'a> Library<'a> {
                 // object — so the copy being pushed can borrow it. It is written beside the
                 // folder's audio rather than over anything, and named for where it came from.
                 let extracted = dir.join("cover-from-device.jpg");
-                match self.cover_from_device(&album_name) {
+                match self.cover_from_device(&album_name, &local_stems) {
                     Ok(Some(bytes)) => {
                         match std::fs::write(&extracted, &bytes) {
                             Ok(()) => {
