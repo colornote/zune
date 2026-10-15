@@ -1,6 +1,6 @@
 //! Snapshot of `zune-rs/src/library.rs` (read-only copy — do NOT edit zune-rs from here).
 //!
-//! Provenance: re-synced 2026-10-15T13:16:15Z from /home/qyd/zune/zune-rs/src/library.rs
+//! Provenance: re-synced 2026-10-15T13:16:15Z from ~/zune/zune-rs/src/library.rs
 //! sha256: 8f642fa1ddf1f528e8117d737316e7b9dd288c60d8a6e2df1e0ed1d61264830d
 //! Paths rewritten: crate::{mtp,mtpz,usb,device,library,media,tags} -> crate::core::*.
 //! Re-synced to pick up the upstream MTPZ CMAC fix (the previous hand-rolled

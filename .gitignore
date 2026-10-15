@@ -8,6 +8,8 @@ dist/
 macos-dist/
 *.tar.gz
 *.zip
+#   zune-gui/build-macos.sh writes to these (not the default `target/`)
+target-*/
 
 # ── The MTPZ key is the device's authentication secret. Never commit it. ─────
 .mtpz-data
@@ -21,6 +23,18 @@ covers/
 library.json
 *.miss
 
+# ── Vendor / firmware binaries ───────────────────────────────────────────────
+#   Fetched or extracted, tens-to-hundreds of MB each. GitHub rejects files over
+#   100 MB outright, so these must never be `git add`ed as-is.
+fw/
+zfw/
+KeelBaseline.Cab
+winclient/bin/
+winclient/msi/
+winclient/x86/
+winclient/*.exe
+winclient/*.cab
+
 # ── Editors / OS ─────────────────────────────────────────────────────────────
 .DS_Store
 **/.DS_Store
@@ -32,3 +46,5 @@ library.json
 *.log
 /re-work/
 /src-latest/
+# Stale full-copy backups of the GUI (build output included) — never in git.
+zune-gui.bak-latest/

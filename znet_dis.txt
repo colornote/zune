@@ -1,0 +1,3039 @@
+
+zfw/nk/nk_rom/modules/znet_p.dll:	file format coff-<unknown arch>
+
+Disassembly of section .text:
+
+03321000 <.text>:
+ 3321000: 00000000     	andeq	r0, r0, r0
+ 3321004: 4b43f1cc     	blmi	0x441d73c               @ imm = #0x10fc730
+ 3321008: 00000000     	andeq	r0, r0, r0
+ 332100c: 00000002     	andeq	r0, r0, r2
+ 3321010: 0000005f     	andeq	r0, r0, pc, asr r0
+ 3321014: 00001028     	andeq	r1, r0, r8, lsr #32
+ 3321018: 00000428     	andeq	r0, r0, r8, lsr #8
+ 332101c: 0053005a     	subseq	r0, r3, r10, asr r0
+ 3321020: 00300056     	eorseq	r0, r0, r6, asr r0
+ 3321024: 0000003a     	andeq	r0, r0, r10, lsr r0
+ 3321028: 53445352     	<unknown>
+ 332102c: 60676f8e     	rsbvs	r6, r7, lr, lsl #31
+ 3321030: 46d1e901     	ldrbmi	lr, [r1], r1, lsl #18
+ 3321034: 895d969c     	ldmdbhi	sp, {r2, r3, r4, r7, r9, r10, r12, pc} ^
+ 3321038: 9fb70eb2     	svcls	#0xb70eb2
+ 332103c: 00000001     	andeq	r0, r0, r1
+ 3321040: 705c3a45     	subsvc	r3, r12, r5, asr #20
+ 3321044: 73697879     	<unknown>
+ 3321048: 2e33765c     	mrchs	p6, #0x1, r7, c3, c12, #0x2
+ 332104c: 75705c33     	ldrbvc	r5, [r0, #-0xc33]!
+ 3321050: 63696c62     	<unknown>
+ 3321054: 6265635c     	rsbvs	r6, r5, #92, #6
+ 3321058: 5c657361     	stclpl	p3, c7, [r5], #-388
+ 332105c: 79736563     	ldmdbvc	r3!, {r0, r1, r5, r6, r8, r10, sp, lr} ^
+ 3321060: 6e656773     	mcrvs	p7, #0x3, r6, c5, c3, #0x3
+ 3321064: 6b616f5c     	blvs	0x4b7cddc               @ imm = #0x185bd70
+ 3321068: 7261745c     	rsbvc	r7, r1, #92, #8
+ 332106c: 5c746567     	ldclpl	p5, c6, [r4], #-412
+ 3321070: 564d5241     	strbpl	r5, [sp], -r1, asr #4
+ 3321074: 725c4934     	subsvc	r4, r12, #52, #18
+ 3321078: 69617465     	stmdbvs	r1!, {r0, r2, r5, r6, r10, r12, sp, lr} ^
+ 332107c: 6e7a5c6c     	cdpvs	p12, #0x7, c5, c10, c12, #0x3
+ 3321080: 702e7465     	eorvc	r7, lr, r5, ror #8
+ 3321084: 00006264     	andeq	r6, r0, r4, ror #4
+
+03321088 <ZNetCloudAllocBlob>:
+ 3321088: e92d4070     	push	{r4, r5, r6, lr}
+ 332108c: e1a04002     	mov	r4, r2
+ 3321090: e1a05001     	mov	r5, r1
+ 3321094: e1a06000     	mov	r6, r0
+ 3321098: e3a00040     	mov	r0, #64
+ 332109c: eb00076f     	bl	0x3322e60 <ZNetGetCloudSchedulerStatus+0x34c> @ imm = #0x1dbc
+ 33210a0: e3500000     	cmp	r0, #0
+ 33210a4: e5840000     	str	r0, [r4]
+ 33210a8: 0a00000f     	beq	0x33210ec <ZNetCloudAllocBlob+0x64> @ imm = #0x3c
+ 33210ac: e1a02005     	mov	r2, r5
+ 33210b0: e3a01000     	mov	r1, #0
+ 33210b4: eb00076d     	bl	0x3322e70 <ZNetGetCloudSchedulerStatus+0x35c> @ imm = #0x1db4
+ 33210b8: e5943000     	ldr	r3, [r4]
+ 33210bc: e3a02202     	mov	r2, #536870912
+ 33210c0: e3a00000     	mov	r0, #0
+ 33210c4: e5832000     	str	r2, [r3]
+ 33210c8: e594e000     	ldr	lr, [r4]
+ 33210cc: e59e3000     	ldr	r3, [lr]
+ 33210d0: e3833001     	orr	r3, r3, #1
+ 33210d4: e58e3000     	str	r3, [lr]
+ 33210d8: e5943000     	ldr	r3, [r4]
+ 33210dc: e5836008     	str	r6, [r3, #0x8]
+ 33210e0: e5943000     	ldr	r3, [r4]
+ 33210e4: e583500c     	str	r5, [r3, #0xc]
+ 33210e8: e8bd8070     	pop	{r4, r5, r6, pc}
+ 33210ec: e59f0000     	ldr	r0, [pc]                @ 0x33210f4 <ZNetCloudAllocBlob+0x6c>
+ 33210f0: e8bd8070     	pop	{r4, r5, r6, pc}
+ 33210f4: 8007000e     	andhi	r0, r7, lr
+
+033210f8 <ZNetCloudReleaseBlob>:
+ 33210f8: e92d4010     	push	{r4, lr}
+ 33210fc: e1a04000     	mov	r4, r0
+ 3321100: eb000762     	bl	0x3322e90 <ZNetGetCloudSchedulerStatus+0x37c> @ imm = #0x1d88
+ 3321104: e3d0c20f     	bics	r12, r0, #-268435456
+ 3321108: 1a000004     	bne	0x3321120 <ZNetCloudReleaseBlob+0x28> @ imm = #0x10
+ 332110c: e1a00004     	mov	r0, r4
+ 3321110: eb00075a     	bl	0x3322e80 <ZNetGetCloudSchedulerStatus+0x36c> @ imm = #0x1d68
+ 3321114: e3500000     	cmp	r0, #0
+ 3321118: 159f0008     	ldrne	r0, [pc, #0x8]          @ 0x3321128 <ZNetCloudReleaseBlob+0x30>
+ 332111c: 18bd8010     	popne	{r4, pc}
+ 3321120: e3a00000     	mov	r0, #0
+ 3321124: e8bd8010     	pop	{r4, pc}
+ 3321128: 80004005     	andhi	r4, r0, r5
+ 332112c: e92d41f0     	push	{r4, r5, r6, r7, r8, lr}
+ 3321130: e24dd010     	sub	sp, sp, #16
+ 3321134: e1a06002     	mov	r6, r2
+ 3321138: e1a07001     	mov	r7, r1
+ 332113c: e1a04000     	mov	r4, r0
+ 3321140: e5943000     	ldr	r3, [r4]
+ 3321144: e3a08000     	mov	r8, #0
+ 3321148: e3730001     	cmn	r3, #1
+ 332114c: 1a000012     	bne	0x332119c <ZNetCloudReleaseBlob+0xa4> @ imm = #0x48
+ 3321150: e5940004     	ldr	r0, [r4, #0x4]
+ 3321154: e3a0e003     	mov	lr, #3
+ 3321158: e3a03000     	mov	r3, #0
+ 332115c: e3a02003     	mov	r2, #3
+ 3321160: e3a01103     	mov	r1, #-1073741824
+ 3321164: e58d8008     	str	r8, [sp, #0x8]
+ 3321168: e58d8004     	str	r8, [sp, #0x4]
+ 332116c: e58de000     	str	lr, [sp]
+ 3321170: eb00075a     	bl	0x3322ee0 <ZNetGetCloudSchedulerStatus+0x3cc> @ imm = #0x1d68
+ 3321174: e1a05000     	mov	r5, r0
+ 3321178: e3750001     	cmn	r5, #1
+ 332117c: 0a000006     	beq	0x332119c <ZNetCloudReleaseBlob+0xa4> @ imm = #0x18
+ 3321180: e3e02000     	mvn	r2, #0
+ 3321184: e1a01005     	mov	r1, r5
+ 3321188: e1a00004     	mov	r0, r4
+ 332118c: eb00074f     	bl	0x3322ed0 <ZNetGetCloudSchedulerStatus+0x3bc> @ imm = #0x1d3c
+ 3321190: e3700001     	cmn	r0, #1
+ 3321194: 11a00005     	movne	r0, r5
+ 3321198: 1b000740     	blne	0x3322ea0 <ZNetGetCloudSchedulerStatus+0x38c> @ imm = #0x1d00
+ 332119c: e5940000     	ldr	r0, [r4]
+ 33211a0: e3700001     	cmn	r0, #1
+ 33211a4: 0a00000b     	beq	0x33211d8 <ZNetCloudReleaseBlob+0xe0> @ imm = #0x2c
+ 33211a8: e5941008     	ldr	r1, [r4, #0x8]
+ 33211ac: e1a03006     	mov	r3, r6
+ 33211b0: e1a02007     	mov	r2, r7
+ 33211b4: e58d800c     	str	r8, [sp, #0xc]
+ 33211b8: e58d8008     	str	r8, [sp, #0x8]
+ 33211bc: e58d8004     	str	r8, [sp, #0x4]
+ 33211c0: e58d8000     	str	r8, [sp]
+ 33211c4: eb00073d     	bl	0x3322ec0 <ZNetGetCloudSchedulerStatus+0x3ac> @ imm = #0x1cf4
+ 33211c8: e3500000     	cmp	r0, #0
+ 33211cc: 13a00000     	movne	r0, #0
+ 33211d0: 128dd010     	addne	sp, sp, #16
+ 33211d4: 18bd81f0     	popne	{r4, r5, r6, r7, r8, pc}
+ 33211d8: eb000734     	bl	0x3322eb0 <ZNetGetCloudSchedulerStatus+0x39c> @ imm = #0x1cd0
+ 33211dc: e28dd010     	add	sp, sp, #16
+ 33211e0: e8bd81f0     	pop	{r4, r5, r6, r7, r8, pc}
+ 33211e4: e52de004     	str	lr, [sp, #-0x4]!
+ 33211e8: e24dd004     	sub	sp, sp, #4
+ 33211ec: e59f2040     	ldr	r2, [pc, #0x40]         @ 0x3321234 <ZNetCloudReleaseBlob+0x13c>
+ 33211f0: e5923000     	ldr	r3, [r2]
+ 33211f4: e3130001     	tst	r3, #1
+ 33211f8: 1a000005     	bne	0x3321214 <ZNetCloudReleaseBlob+0x11c> @ imm = #0x14
+ 33211fc: e59f0024     	ldr	r0, [pc, #0x24]         @ 0x3321228 <ZNetCloudReleaseBlob+0x130>
+ 3321200: e3833001     	orr	r3, r3, #1
+ 3321204: e5823000     	str	r3, [r2]
+ 3321208: eb00070c     	bl	0x3322e40 <ZNetGetCloudSchedulerStatus+0x32c> @ imm = #0x1c30
+ 332120c: e59f001c     	ldr	r0, [pc, #0x1c]         @ 0x3321230 <ZNetCloudReleaseBlob+0x138>
+ 3321210: eb0006a6     	bl	0x3322cb0 <ZNetGetCloudSchedulerStatus+0x19c> @ imm = #0x1a98
+ 3321214: e59f3010     	ldr	r3, [pc, #0x10]         @ 0x332122c <ZNetCloudReleaseBlob+0x134>
+ 3321218: e59f0008     	ldr	r0, [pc, #0x8]          @ 0x3321228 <ZNetCloudReleaseBlob+0x130>
+ 332121c: e58d3000     	str	r3, [sp]
+ 3321220: e28dd004     	add	sp, sp, #4
+ 3321224: e49df004     	ldr	pc, [sp], #4
+ 3321228: 01f05080     	mvnseq	r5, r0, lsl #1
+ 332122c: 01f05094     	<unknown>
+ 3321230: 03322f40     	teqeq	r2, #64, #30
+ 3321234: 01f0507c     	mvnseq	r5, r12, ror r0
+
+03321238 <ZNetGetMeAsPeer>:
+ 3321238: e92d4010     	push	{r4, lr}
+ 332123c: e24dd00c     	sub	sp, sp, #12
+ 3321240: e1a0e000     	mov	lr, r0
+ 3321244: e59f0024     	ldr	r0, [pc, #0x24]         @ 0x3321270 <ZNetGetMeAsPeer+0x38>
+ 3321248: e3a04001     	mov	r4, #1
+ 332124c: e3a0200c     	mov	r2, #12
+ 3321250: e590300c     	ldr	r3, [r0, #0xc]
+ 3321254: e28d1000     	add	r1, sp, #0
+ 3321258: e1cd40b0     	strh	r4, [sp]
+ 332125c: e58d3004     	str	r3, [sp, #0x4]
+ 3321260: e58de008     	str	lr, [sp, #0x8]
+ 3321264: ebffffb0     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x140
+ 3321268: e28dd00c     	add	sp, sp, #12
+ 332126c: e8bd8010     	pop	{r4, pc}
+ 3321270: 01f0506c     	mvnseq	r5, r12, rrx
+
+03321274 <ZNetReplyToSend>:
+ 3321274: e92d4030     	push	{r4, r5, lr}
+ 3321278: e24dd010     	sub	sp, sp, #16
+ 332127c: e1a04001     	mov	r4, r1
+ 3321280: e1a0e000     	mov	lr, r0
+ 3321284: e59f0028     	ldr	r0, [pc, #0x28]         @ 0x33212b4 <ZNetReplyToSend+0x40>
+ 3321288: e3a05004     	mov	r5, #4
+ 332128c: e3a02010     	mov	r2, #16
+ 3321290: e590300c     	ldr	r3, [r0, #0xc]
+ 3321294: e28d1000     	add	r1, sp, #0
+ 3321298: e1cd50b0     	strh	r5, [sp]
+ 332129c: e58d3004     	str	r3, [sp, #0x4]
+ 33212a0: e58de008     	str	lr, [sp, #0x8]
+ 33212a4: e5cd400c     	strb	r4, [sp, #0xc]
+ 33212a8: ebffff9f     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x184
+ 33212ac: e28dd010     	add	sp, sp, #16
+ 33212b0: e8bd8030     	pop	{r4, r5, pc}
+ 33212b4: 01f0506c     	mvnseq	r5, r12, rrx
+
+033212b8 <ZNetSetWifiState>:
+ 33212b8: e92d4010     	push	{r4, lr}
+ 33212bc: e24dd00c     	sub	sp, sp, #12
+ 33212c0: e1a0e000     	mov	lr, r0
+ 33212c4: e59f0024     	ldr	r0, [pc, #0x24]         @ 0x33212f0 <ZNetSetWifiState+0x38>
+ 33212c8: e3a0401e     	mov	r4, #30
+ 33212cc: e3a0200c     	mov	r2, #12
+ 33212d0: e590300c     	ldr	r3, [r0, #0xc]
+ 33212d4: e28d1000     	add	r1, sp, #0
+ 33212d8: e1cd40b0     	strh	r4, [sp]
+ 33212dc: e58d3004     	str	r3, [sp, #0x4]
+ 33212e0: e58de008     	str	lr, [sp, #0x8]
+ 33212e4: ebffff90     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x1c0
+ 33212e8: e28dd00c     	add	sp, sp, #12
+ 33212ec: e8bd8010     	pop	{r4, pc}
+ 33212f0: 01f0506c     	mvnseq	r5, r12, rrx
+
+033212f4 <ZNetSetPassthroughState>:
+ 33212f4: e92d4010     	push	{r4, lr}
+ 33212f8: e24dd00c     	sub	sp, sp, #12
+ 33212fc: e1a0e000     	mov	lr, r0
+ 3321300: e59f0024     	ldr	r0, [pc, #0x24]         @ 0x332132c <ZNetSetPassthroughState+0x38>
+ 3321304: e3a0401f     	mov	r4, #31
+ 3321308: e3a0200c     	mov	r2, #12
+ 332130c: e590300c     	ldr	r3, [r0, #0xc]
+ 3321310: e28d1000     	add	r1, sp, #0
+ 3321314: e1cd40b0     	strh	r4, [sp]
+ 3321318: e58d3004     	str	r3, [sp, #0x4]
+ 332131c: e58de008     	str	lr, [sp, #0x8]
+ 3321320: ebffff81     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x1fc
+ 3321324: e28dd00c     	add	sp, sp, #12
+ 3321328: e8bd8010     	pop	{r4, pc}
+ 332132c: 01f0506c     	mvnseq	r5, r12, rrx
+
+03321330 <ZNetGetWifiState>:
+ 3321330: e92d4010     	push	{r4, lr}
+ 3321334: e24dd00c     	sub	sp, sp, #12
+ 3321338: e1a0e000     	mov	lr, r0
+ 332133c: e59f0024     	ldr	r0, [pc, #0x24]         @ 0x3321368 <ZNetGetWifiState+0x38>
+ 3321340: e3a04005     	mov	r4, #5
+ 3321344: e3a0200c     	mov	r2, #12
+ 3321348: e590300c     	ldr	r3, [r0, #0xc]
+ 332134c: e28d1000     	add	r1, sp, #0
+ 3321350: e1cd40b0     	strh	r4, [sp]
+ 3321354: e58d3004     	str	r3, [sp, #0x4]
+ 3321358: e58de008     	str	lr, [sp, #0x8]
+ 332135c: ebffff72     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x238
+ 3321360: e28dd00c     	add	sp, sp, #12
+ 3321364: e8bd8010     	pop	{r4, pc}
+ 3321368: 01f0506c     	mvnseq	r5, r12, rrx
+
+0332136c <ZNetSetTransmitRate>:
+ 332136c: e92d4010     	push	{r4, lr}
+ 3321370: e24dd00c     	sub	sp, sp, #12
+ 3321374: e1a0e000     	mov	lr, r0
+ 3321378: e59f0024     	ldr	r0, [pc, #0x24]         @ 0x33213a4 <ZNetSetTransmitRate+0x38>
+ 332137c: e3a0402a     	mov	r4, #42
+ 3321380: e3a0200c     	mov	r2, #12
+ 3321384: e590300c     	ldr	r3, [r0, #0xc]
+ 3321388: e28d1000     	add	r1, sp, #0
+ 332138c: e1cd40b0     	strh	r4, [sp]
+ 3321390: e58d3004     	str	r3, [sp, #0x4]
+ 3321394: e58de008     	str	lr, [sp, #0x8]
+ 3321398: ebffff63     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x274
+ 332139c: e28dd00c     	add	sp, sp, #12
+ 33213a0: e8bd8010     	pop	{r4, pc}
+ 33213a4: 01f0506c     	mvnseq	r5, r12, rrx
+
+033213a8 <ZNetGetWifiStrength>:
+ 33213a8: e92d4010     	push	{r4, lr}
+ 33213ac: e24dd00c     	sub	sp, sp, #12
+ 33213b0: e1a0e000     	mov	lr, r0
+ 33213b4: e59f0024     	ldr	r0, [pc, #0x24]         @ 0x33213e0 <ZNetGetWifiStrength+0x38>
+ 33213b8: e3a04006     	mov	r4, #6
+ 33213bc: e3a0200c     	mov	r2, #12
+ 33213c0: e590300c     	ldr	r3, [r0, #0xc]
+ 33213c4: e28d1000     	add	r1, sp, #0
+ 33213c8: e1cd40b0     	strh	r4, [sp]
+ 33213cc: e58d3004     	str	r3, [sp, #0x4]
+ 33213d0: e58de008     	str	lr, [sp, #0x8]
+ 33213d4: ebffff54     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x2b0
+ 33213d8: e28dd00c     	add	sp, sp, #12
+ 33213dc: e8bd8010     	pop	{r4, pc}
+ 33213e0: 01f0506c     	mvnseq	r5, r12, rrx
+
+033213e4 <ZNetSetSyncState>:
+ 33213e4: e92d4010     	push	{r4, lr}
+ 33213e8: e24dd00c     	sub	sp, sp, #12
+ 33213ec: e1a0e000     	mov	lr, r0
+ 33213f0: e59f0024     	ldr	r0, [pc, #0x24]         @ 0x332141c <ZNetSetSyncState+0x38>
+ 33213f4: e3a04020     	mov	r4, #32
+ 33213f8: e3a0200c     	mov	r2, #12
+ 33213fc: e590300c     	ldr	r3, [r0, #0xc]
+ 3321400: e28d1000     	add	r1, sp, #0
+ 3321404: e1cd40b0     	strh	r4, [sp]
+ 3321408: e58d3004     	str	r3, [sp, #0x4]
+ 332140c: e58de008     	str	lr, [sp, #0x8]
+ 3321410: ebffff45     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x2ec
+ 3321414: e28dd00c     	add	sp, sp, #12
+ 3321418: e8bd8010     	pop	{r4, pc}
+ 332141c: 01f0506c     	mvnseq	r5, r12, rrx
+
+03321420 <ZNetGetSyncState>:
+ 3321420: e92d4010     	push	{r4, lr}
+ 3321424: e24dd00c     	sub	sp, sp, #12
+ 3321428: e1a0e000     	mov	lr, r0
+ 332142c: e59f0024     	ldr	r0, [pc, #0x24]         @ 0x3321458 <ZNetGetSyncState+0x38>
+ 3321430: e3a04021     	mov	r4, #33
+ 3321434: e3a0200c     	mov	r2, #12
+ 3321438: e590300c     	ldr	r3, [r0, #0xc]
+ 332143c: e28d1000     	add	r1, sp, #0
+ 3321440: e1cd40b0     	strh	r4, [sp]
+ 3321444: e58d3004     	str	r3, [sp, #0x4]
+ 3321448: e58de008     	str	lr, [sp, #0x8]
+ 332144c: ebffff36     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x328
+ 3321450: e28dd00c     	add	sp, sp, #12
+ 3321454: e8bd8010     	pop	{r4, pc}
+ 3321458: 01f0506c     	mvnseq	r5, r12, rrx
+
+0332145c <ZNetSetSyncProgress>:
+ 332145c: e92d4010     	push	{r4, lr}
+ 3321460: e24dd00c     	sub	sp, sp, #12
+ 3321464: e1a0e000     	mov	lr, r0
+ 3321468: e59f0024     	ldr	r0, [pc, #0x24]         @ 0x3321494 <ZNetSetSyncProgress+0x38>
+ 332146c: e3a04022     	mov	r4, #34
+ 3321470: e3a0200c     	mov	r2, #12
+ 3321474: e590300c     	ldr	r3, [r0, #0xc]
+ 3321478: e28d1000     	add	r1, sp, #0
+ 332147c: e1cd40b0     	strh	r4, [sp]
+ 3321480: e58d3004     	str	r3, [sp, #0x4]
+ 3321484: e58de008     	str	lr, [sp, #0x8]
+ 3321488: ebffff27     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x364
+ 332148c: e28dd00c     	add	sp, sp, #12
+ 3321490: e8bd8010     	pop	{r4, pc}
+ 3321494: 01f0506c     	mvnseq	r5, r12, rrx
+
+03321498 <ZNetGetSyncProgress>:
+ 3321498: e92d4010     	push	{r4, lr}
+ 332149c: e24dd00c     	sub	sp, sp, #12
+ 33214a0: e1a0e000     	mov	lr, r0
+ 33214a4: e59f0024     	ldr	r0, [pc, #0x24]         @ 0x33214d0 <ZNetGetSyncProgress+0x38>
+ 33214a8: e3a04023     	mov	r4, #35
+ 33214ac: e3a0200c     	mov	r2, #12
+ 33214b0: e590300c     	ldr	r3, [r0, #0xc]
+ 33214b4: e28d1000     	add	r1, sp, #0
+ 33214b8: e1cd40b0     	strh	r4, [sp]
+ 33214bc: e58d3004     	str	r3, [sp, #0x4]
+ 33214c0: e58de008     	str	lr, [sp, #0x8]
+ 33214c4: ebffff18     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x3a0
+ 33214c8: e28dd00c     	add	sp, sp, #12
+ 33214cc: e8bd8010     	pop	{r4, pc}
+ 33214d0: 01f0506c     	mvnseq	r5, r12, rrx
+
+033214d4 <ZNetSetUserPowerEnable>:
+ 33214d4: e92d4010     	push	{r4, lr}
+ 33214d8: e24dd00c     	sub	sp, sp, #12
+ 33214dc: e1a0e000     	mov	lr, r0
+ 33214e0: e59f0024     	ldr	r0, [pc, #0x24]         @ 0x332150c <ZNetSetUserPowerEnable+0x38>
+ 33214e4: e3a04007     	mov	r4, #7
+ 33214e8: e3a0200c     	mov	r2, #12
+ 33214ec: e590300c     	ldr	r3, [r0, #0xc]
+ 33214f0: e28d1000     	add	r1, sp, #0
+ 33214f4: e1cd40b0     	strh	r4, [sp]
+ 33214f8: e58d3004     	str	r3, [sp, #0x4]
+ 33214fc: e58de008     	str	lr, [sp, #0x8]
+ 3321500: ebffff09     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x3dc
+ 3321504: e28dd00c     	add	sp, sp, #12
+ 3321508: e8bd8010     	pop	{r4, pc}
+ 332150c: 01f0506c     	mvnseq	r5, r12, rrx
+
+03321510 <ZNetEnableVigorousScan>:
+ 3321510: e92d4010     	push	{r4, lr}
+ 3321514: e24dd00c     	sub	sp, sp, #12
+ 3321518: e1a0e000     	mov	lr, r0
+ 332151c: e59f0024     	ldr	r0, [pc, #0x24]         @ 0x3321548 <ZNetEnableVigorousScan+0x38>
+ 3321520: e3a04008     	mov	r4, #8
+ 3321524: e3a0200c     	mov	r2, #12
+ 3321528: e590300c     	ldr	r3, [r0, #0xc]
+ 332152c: e28d1000     	add	r1, sp, #0
+ 3321530: e1cd40b0     	strh	r4, [sp]
+ 3321534: e58d3004     	str	r3, [sp, #0x4]
+ 3321538: e58de008     	str	lr, [sp, #0x8]
+ 332153c: ebfffefa     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x418
+ 3321540: e28dd00c     	add	sp, sp, #12
+ 3321544: e8bd8010     	pop	{r4, pc}
+ 3321548: 01f0506c     	mvnseq	r5, r12, rrx
+
+0332154c <ZNetPerformOneTimeScan>:
+ 332154c: e52de004     	str	lr, [sp, #-0x4]!
+ 3321550: e24dd008     	sub	sp, sp, #8
+ 3321554: e59f0020     	ldr	r0, [pc, #0x20]         @ 0x332157c <ZNetPerformOneTimeScan+0x30>
+ 3321558: e3a0e009     	mov	lr, #9
+ 332155c: e3a02008     	mov	r2, #8
+ 3321560: e590300c     	ldr	r3, [r0, #0xc]
+ 3321564: e28d1000     	add	r1, sp, #0
+ 3321568: e1cde0b0     	strh	lr, [sp]
+ 332156c: e58d3004     	str	r3, [sp, #0x4]
+ 3321570: ebfffeed     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x44c
+ 3321574: e28dd008     	add	sp, sp, #8
+ 3321578: e49df004     	ldr	pc, [sp], #4
+ 332157c: 01f0506c     	mvnseq	r5, r12, rrx
+
+03321580 <ZNetConnectPeer>:
+ 3321580: e92d4010     	push	{r4, lr}
+ 3321584: e24dd00c     	sub	sp, sp, #12
+ 3321588: e1a0e000     	mov	lr, r0
+ 332158c: e59f0024     	ldr	r0, [pc, #0x24]         @ 0x33215b8 <ZNetConnectPeer+0x38>
+ 3321590: e3a0400a     	mov	r4, #10
+ 3321594: e3a0200c     	mov	r2, #12
+ 3321598: e590300c     	ldr	r3, [r0, #0xc]
+ 332159c: e28d1000     	add	r1, sp, #0
+ 33215a0: e1cd40b0     	strh	r4, [sp]
+ 33215a4: e58d3004     	str	r3, [sp, #0x4]
+ 33215a8: e58de008     	str	lr, [sp, #0x8]
+ 33215ac: ebfffede     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x488
+ 33215b0: e28dd00c     	add	sp, sp, #12
+ 33215b4: e8bd8010     	pop	{r4, pc}
+ 33215b8: 01f0506c     	mvnseq	r5, r12, rrx
+
+033215bc <ZNetDisconnectPeers>:
+ 33215bc: e52de004     	str	lr, [sp, #-0x4]!
+ 33215c0: e24dd008     	sub	sp, sp, #8
+ 33215c4: e59f0020     	ldr	r0, [pc, #0x20]         @ 0x33215ec <ZNetDisconnectPeers+0x30>
+ 33215c8: e3a0e00b     	mov	lr, #11
+ 33215cc: e3a02008     	mov	r2, #8
+ 33215d0: e590300c     	ldr	r3, [r0, #0xc]
+ 33215d4: e28d1000     	add	r1, sp, #0
+ 33215d8: e1cde0b0     	strh	lr, [sp]
+ 33215dc: e58d3004     	str	r3, [sp, #0x4]
+ 33215e0: ebfffed1     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x4bc
+ 33215e4: e28dd008     	add	sp, sp, #8
+ 33215e8: e49df004     	ldr	pc, [sp], #4
+ 33215ec: 01f0506c     	mvnseq	r5, r12, rrx
+
+033215f0 <ZNetSetUserPrivacyEnable>:
+ 33215f0: e92d4010     	push	{r4, lr}
+ 33215f4: e24dd00c     	sub	sp, sp, #12
+ 33215f8: e1a0e000     	mov	lr, r0
+ 33215fc: e59f0024     	ldr	r0, [pc, #0x24]         @ 0x3321628 <ZNetSetUserPrivacyEnable+0x38>
+ 3321600: e3a0400e     	mov	r4, #14
+ 3321604: e3a0200c     	mov	r2, #12
+ 3321608: e590300c     	ldr	r3, [r0, #0xc]
+ 332160c: e28d1000     	add	r1, sp, #0
+ 3321610: e1cd40b0     	strh	r4, [sp]
+ 3321614: e58d3004     	str	r3, [sp, #0x4]
+ 3321618: e58de008     	str	lr, [sp, #0x8]
+ 332161c: ebfffec2     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x4f8
+ 3321620: e28dd00c     	add	sp, sp, #12
+ 3321624: e8bd8010     	pop	{r4, pc}
+ 3321628: 01f0506c     	mvnseq	r5, r12, rrx
+
+0332162c <ZNetSetUserGuid>:
+ 332162c: e92d4010     	push	{r4, lr}
+ 3321630: e24dd00c     	sub	sp, sp, #12
+ 3321634: e1a0e000     	mov	lr, r0
+ 3321638: e59f0024     	ldr	r0, [pc, #0x24]         @ 0x3321664 <ZNetSetUserGuid+0x38>
+ 332163c: e3a0400f     	mov	r4, #15
+ 3321640: e3a0200c     	mov	r2, #12
+ 3321644: e590300c     	ldr	r3, [r0, #0xc]
+ 3321648: e28d1000     	add	r1, sp, #0
+ 332164c: e1cd40b0     	strh	r4, [sp]
+ 3321650: e58d3004     	str	r3, [sp, #0x4]
+ 3321654: e58de008     	str	lr, [sp, #0x8]
+ 3321658: ebfffeb3     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x534
+ 332165c: e28dd00c     	add	sp, sp, #12
+ 3321660: e8bd8010     	pop	{r4, pc}
+ 3321664: 01f0506c     	mvnseq	r5, r12, rrx
+
+03321668 <ZNetSetSessionInviteForPeer>:
+ 3321668: e92d4010     	push	{r4, lr}
+ 332166c: e24dd00c     	sub	sp, sp, #12
+ 3321670: e1a0e000     	mov	lr, r0
+ 3321674: e59f0024     	ldr	r0, [pc, #0x24]         @ 0x33216a0 <ZNetSetSessionInviteForPeer+0x38>
+ 3321678: e3a04011     	mov	r4, #17
+ 332167c: e3a0200c     	mov	r2, #12
+ 3321680: e590300c     	ldr	r3, [r0, #0xc]
+ 3321684: e28d1000     	add	r1, sp, #0
+ 3321688: e1cd40b0     	strh	r4, [sp]
+ 332168c: e58d3004     	str	r3, [sp, #0x4]
+ 3321690: e58de008     	str	lr, [sp, #0x8]
+ 3321694: ebfffea4     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x570
+ 3321698: e28dd00c     	add	sp, sp, #12
+ 332169c: e8bd8010     	pop	{r4, pc}
+ 33216a0: 01f0506c     	mvnseq	r5, r12, rrx
+
+033216a4 <ZNetGetSessionInvite>:
+ 33216a4: e92d4010     	push	{r4, lr}
+ 33216a8: e24dd00c     	sub	sp, sp, #12
+ 33216ac: e1a0e000     	mov	lr, r0
+ 33216b0: e59f0024     	ldr	r0, [pc, #0x24]         @ 0x33216dc <ZNetGetSessionInvite+0x38>
+ 33216b4: e3a04012     	mov	r4, #18
+ 33216b8: e3a0200c     	mov	r2, #12
+ 33216bc: e590300c     	ldr	r3, [r0, #0xc]
+ 33216c0: e28d1000     	add	r1, sp, #0
+ 33216c4: e1cd40b0     	strh	r4, [sp]
+ 33216c8: e58d3004     	str	r3, [sp, #0x4]
+ 33216cc: e58de008     	str	lr, [sp, #0x8]
+ 33216d0: ebfffe95     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x5ac
+ 33216d4: e28dd00c     	add	sp, sp, #12
+ 33216d8: e8bd8010     	pop	{r4, pc}
+ 33216dc: 01f0506c     	mvnseq	r5, r12, rrx
+
+033216e0 <ZNetUpdateDeviceName>:
+ 33216e0: e52de004     	str	lr, [sp, #-0x4]!
+ 33216e4: e24dd008     	sub	sp, sp, #8
+ 33216e8: e59f0020     	ldr	r0, [pc, #0x20]         @ 0x3321710 <ZNetUpdateDeviceName+0x30>
+ 33216ec: e3a0e013     	mov	lr, #19
+ 33216f0: e3a02008     	mov	r2, #8
+ 33216f4: e590300c     	ldr	r3, [r0, #0xc]
+ 33216f8: e28d1000     	add	r1, sp, #0
+ 33216fc: e1cde0b0     	strh	lr, [sp]
+ 3321700: e58d3004     	str	r3, [sp, #0x4]
+ 3321704: ebfffe88     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x5e0
+ 3321708: e28dd008     	add	sp, sp, #8
+ 332170c: e49df004     	ldr	pc, [sp], #4
+ 3321710: 01f0506c     	mvnseq	r5, r12, rrx
+
+03321714 <ZNetIsVigorouslyScanning>:
+ 3321714: e52de004     	str	lr, [sp, #-0x4]!
+ 3321718: e24dd008     	sub	sp, sp, #8
+ 332171c: e59f0020     	ldr	r0, [pc, #0x20]         @ 0x3321744 <ZNetIsVigorouslyScanning+0x30>
+ 3321720: e3a0e014     	mov	lr, #20
+ 3321724: e3a02008     	mov	r2, #8
+ 3321728: e590300c     	ldr	r3, [r0, #0xc]
+ 332172c: e28d1000     	add	r1, sp, #0
+ 3321730: e1cde0b0     	strh	lr, [sp]
+ 3321734: e58d3004     	str	r3, [sp, #0x4]
+ 3321738: ebfffe7b     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x614
+ 332173c: e28dd008     	add	sp, sp, #8
+ 3321740: e49df004     	ldr	pc, [sp], #4
+ 3321744: 01f0506c     	mvnseq	r5, r12, rrx
+
+03321748 <ZNetGetNotification>:
+ 3321748: e92d4010     	push	{r4, lr}
+ 332174c: e24dd00c     	sub	sp, sp, #12
+ 3321750: e1a0e000     	mov	lr, r0
+ 3321754: e59f0024     	ldr	r0, [pc, #0x24]         @ 0x3321780 <ZNetGetNotification+0x38>
+ 3321758: e3a04015     	mov	r4, #21
+ 332175c: e3a0200c     	mov	r2, #12
+ 3321760: e590300c     	ldr	r3, [r0, #0xc]
+ 3321764: e28d1000     	add	r1, sp, #0
+ 3321768: e1cd40b0     	strh	r4, [sp]
+ 332176c: e58d3004     	str	r3, [sp, #0x4]
+ 3321770: e58de008     	str	lr, [sp, #0x8]
+ 3321774: ebfffe6c     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x650
+ 3321778: e28dd00c     	add	sp, sp, #12
+ 332177c: e8bd8010     	pop	{r4, pc}
+ 3321780: 01f0506c     	mvnseq	r5, r12, rrx
+
+03321784 <ZNetPostNotification>:
+ 3321784: e92d4010     	push	{r4, lr}
+ 3321788: e24dd00c     	sub	sp, sp, #12
+ 332178c: e1a0e000     	mov	lr, r0
+ 3321790: e59f0024     	ldr	r0, [pc, #0x24]         @ 0x33217bc <ZNetPostNotification+0x38>
+ 3321794: e3a0401d     	mov	r4, #29
+ 3321798: e3a0200c     	mov	r2, #12
+ 332179c: e590300c     	ldr	r3, [r0, #0xc]
+ 33217a0: e28d1000     	add	r1, sp, #0
+ 33217a4: e1cd40b0     	strh	r4, [sp]
+ 33217a8: e58d3004     	str	r3, [sp, #0x4]
+ 33217ac: e58de008     	str	lr, [sp, #0x8]
+ 33217b0: ebfffe5d     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x68c
+ 33217b4: e28dd00c     	add	sp, sp, #12
+ 33217b8: e8bd8010     	pop	{r4, pc}
+ 33217bc: 01f0506c     	mvnseq	r5, r12, rrx
+
+033217c0 <ZNetSetProtocolVersion>:
+ 33217c0: e92d4010     	push	{r4, lr}
+ 33217c4: e24dd00c     	sub	sp, sp, #12
+ 33217c8: e1a0e000     	mov	lr, r0
+ 33217cc: e59f0024     	ldr	r0, [pc, #0x24]         @ 0x33217f8 <ZNetSetProtocolVersion+0x38>
+ 33217d0: e3a04016     	mov	r4, #22
+ 33217d4: e3a0200c     	mov	r2, #12
+ 33217d8: e590300c     	ldr	r3, [r0, #0xc]
+ 33217dc: e28d1000     	add	r1, sp, #0
+ 33217e0: e1cd40b0     	strh	r4, [sp]
+ 33217e4: e58d3004     	str	r3, [sp, #0x4]
+ 33217e8: e58de008     	str	lr, [sp, #0x8]
+ 33217ec: ebfffe4e     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x6c8
+ 33217f0: e28dd00c     	add	sp, sp, #12
+ 33217f4: e8bd8010     	pop	{r4, pc}
+ 33217f8: 01f0506c     	mvnseq	r5, r12, rrx
+
+033217fc <ZNetGetTransferProgress>:
+ 33217fc: e92d4010     	push	{r4, lr}
+ 3321800: e24dd00c     	sub	sp, sp, #12
+ 3321804: e1a0e000     	mov	lr, r0
+ 3321808: e59f0024     	ldr	r0, [pc, #0x24]         @ 0x3321834 <ZNetGetTransferProgress+0x38>
+ 332180c: e3a04017     	mov	r4, #23
+ 3321810: e3a0200c     	mov	r2, #12
+ 3321814: e590300c     	ldr	r3, [r0, #0xc]
+ 3321818: e28d1000     	add	r1, sp, #0
+ 332181c: e1cd40b0     	strh	r4, [sp]
+ 3321820: e58d3004     	str	r3, [sp, #0x4]
+ 3321824: e58de008     	str	lr, [sp, #0x8]
+ 3321828: ebfffe3f     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x704
+ 332182c: e28dd00c     	add	sp, sp, #12
+ 3321830: e8bd8010     	pop	{r4, pc}
+ 3321834: 01f0506c     	mvnseq	r5, r12, rrx
+
+03321838 <ZNetCancelSend>:
+ 3321838: e52de004     	str	lr, [sp, #-0x4]!
+ 332183c: e24dd008     	sub	sp, sp, #8
+ 3321840: e59f0020     	ldr	r0, [pc, #0x20]         @ 0x3321868 <ZNetCancelSend+0x30>
+ 3321844: e3a0e01b     	mov	lr, #27
+ 3321848: e3a02008     	mov	r2, #8
+ 332184c: e590300c     	ldr	r3, [r0, #0xc]
+ 3321850: e28d1000     	add	r1, sp, #0
+ 3321854: e1cde0b0     	strh	lr, [sp]
+ 3321858: e58d3004     	str	r3, [sp, #0x4]
+ 332185c: ebfffe32     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x738
+ 3321860: e28dd008     	add	sp, sp, #8
+ 3321864: e49df004     	ldr	pc, [sp], #4
+ 3321868: 01f0506c     	mvnseq	r5, r12, rrx
+
+0332186c <ZNetCancelWifiSync>:
+ 332186c: e52de004     	str	lr, [sp, #-0x4]!
+ 3321870: e24dd008     	sub	sp, sp, #8
+ 3321874: e59f0020     	ldr	r0, [pc, #0x20]         @ 0x332189c <ZNetCancelWifiSync+0x30>
+ 3321878: e3a0e024     	mov	lr, #36
+ 332187c: e3a02008     	mov	r2, #8
+ 3321880: e590300c     	ldr	r3, [r0, #0xc]
+ 3321884: e28d1000     	add	r1, sp, #0
+ 3321888: e1cde0b0     	strh	lr, [sp]
+ 332188c: e58d3004     	str	r3, [sp, #0x4]
+ 3321890: ebfffe25     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x76c
+ 3321894: e28dd008     	add	sp, sp, #8
+ 3321898: e49df004     	ldr	pc, [sp], #4
+ 332189c: 01f0506c     	mvnseq	r5, r12, rrx
+
+033218a0 <ZNetGetSyncType>:
+ 33218a0: e92d4010     	push	{r4, lr}
+ 33218a4: e24dd00c     	sub	sp, sp, #12
+ 33218a8: e1a0e000     	mov	lr, r0
+ 33218ac: e59f0024     	ldr	r0, [pc, #0x24]         @ 0x33218d8 <ZNetGetSyncType+0x38>
+ 33218b0: e3a04025     	mov	r4, #37
+ 33218b4: e3a0200c     	mov	r2, #12
+ 33218b8: e590300c     	ldr	r3, [r0, #0xc]
+ 33218bc: e28d1000     	add	r1, sp, #0
+ 33218c0: e1cd40b0     	strh	r4, [sp]
+ 33218c4: e58d3004     	str	r3, [sp, #0x4]
+ 33218c8: e58de008     	str	lr, [sp, #0x8]
+ 33218cc: ebfffe16     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x7a8
+ 33218d0: e28dd00c     	add	sp, sp, #12
+ 33218d4: e8bd8010     	pop	{r4, pc}
+ 33218d8: 01f0506c     	mvnseq	r5, r12, rrx
+
+033218dc <ZNetScanNetworks>:
+ 33218dc: e52de004     	str	lr, [sp, #-0x4]!
+ 33218e0: e24dd008     	sub	sp, sp, #8
+ 33218e4: e59f0020     	ldr	r0, [pc, #0x20]         @ 0x332190c <ZNetScanNetworks+0x30>
+ 33218e8: e3a0e027     	mov	lr, #39
+ 33218ec: e3a02008     	mov	r2, #8
+ 33218f0: e590300c     	ldr	r3, [r0, #0xc]
+ 33218f4: e28d1000     	add	r1, sp, #0
+ 33218f8: e1cde0b0     	strh	lr, [sp]
+ 33218fc: e58d3004     	str	r3, [sp, #0x4]
+ 3321900: ebfffe09     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x7dc
+ 3321904: e28dd008     	add	sp, sp, #8
+ 3321908: e49df004     	ldr	pc, [sp], #4
+ 332190c: 01f0506c     	mvnseq	r5, r12, rrx
+
+03321910 <ZNetDisableAES>:
+ 3321910: e52de004     	str	lr, [sp, #-0x4]!
+ 3321914: e24dd008     	sub	sp, sp, #8
+ 3321918: e59f0020     	ldr	r0, [pc, #0x20]         @ 0x3321940 <ZNetDisableAES+0x30>
+ 332191c: e3a0e02f     	mov	lr, #47
+ 3321920: e3a02008     	mov	r2, #8
+ 3321924: e590300c     	ldr	r3, [r0, #0xc]
+ 3321928: e28d1000     	add	r1, sp, #0
+ 332192c: e1cde0b0     	strh	lr, [sp]
+ 3321930: e58d3004     	str	r3, [sp, #0x4]
+ 3321934: ebfffdfc     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x810
+ 3321938: e28dd008     	add	sp, sp, #8
+ 332193c: e49df004     	ldr	pc, [sp], #4
+ 3321940: 01f0506c     	mvnseq	r5, r12, rrx
+
+03321944 <ZNetReleaseWifiPower>:
+ 3321944: e92d4010     	push	{r4, lr}
+ 3321948: e24dd00c     	sub	sp, sp, #12
+ 332194c: e1a0e000     	mov	lr, r0
+ 3321950: e59f0024     	ldr	r0, [pc, #0x24]         @ 0x332197c <ZNetReleaseWifiPower+0x38>
+ 3321954: e3a04031     	mov	r4, #49
+ 3321958: e3a0200c     	mov	r2, #12
+ 332195c: e590300c     	ldr	r3, [r0, #0xc]
+ 3321960: e28d1000     	add	r1, sp, #0
+ 3321964: e1cd40b0     	strh	r4, [sp]
+ 3321968: e58d3004     	str	r3, [sp, #0x4]
+ 332196c: e58de008     	str	lr, [sp, #0x8]
+ 3321970: ebfffded     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x84c
+ 3321974: e28dd00c     	add	sp, sp, #12
+ 3321978: e8bd8010     	pop	{r4, pc}
+ 332197c: 01f0506c     	mvnseq	r5, r12, rrx
+
+03321980 <ZNetCloudCancelObjAsync>:
+ 3321980: e92d4010     	push	{r4, lr}
+ 3321984: e24dd00c     	sub	sp, sp, #12
+ 3321988: e1a0e000     	mov	lr, r0
+ 332198c: e59f0024     	ldr	r0, [pc, #0x24]         @ 0x33219b8 <ZNetCloudCancelObjAsync+0x38>
+ 3321990: e3a04034     	mov	r4, #52
+ 3321994: e3a0200c     	mov	r2, #12
+ 3321998: e590300c     	ldr	r3, [r0, #0xc]
+ 332199c: e28d1000     	add	r1, sp, #0
+ 33219a0: e1cd40b0     	strh	r4, [sp]
+ 33219a4: e58d3004     	str	r3, [sp, #0x4]
+ 33219a8: e58de008     	str	lr, [sp, #0x8]
+ 33219ac: ebfffdde     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x888
+ 33219b0: e28dd00c     	add	sp, sp, #12
+ 33219b4: e8bd8010     	pop	{r4, pc}
+ 33219b8: 01f0506c     	mvnseq	r5, r12, rrx
+
+033219bc <ZNetCloudCloseHandle>:
+ 33219bc: e92d4010     	push	{r4, lr}
+ 33219c0: e24dd00c     	sub	sp, sp, #12
+ 33219c4: e1a0e000     	mov	lr, r0
+ 33219c8: e59f0024     	ldr	r0, [pc, #0x24]         @ 0x33219f4 <ZNetCloudCloseHandle+0x38>
+ 33219cc: e3a04035     	mov	r4, #53
+ 33219d0: e3a0200c     	mov	r2, #12
+ 33219d4: e590300c     	ldr	r3, [r0, #0xc]
+ 33219d8: e28d1000     	add	r1, sp, #0
+ 33219dc: e1cd40b0     	strh	r4, [sp]
+ 33219e0: e58d3004     	str	r3, [sp, #0x4]
+ 33219e4: e58de008     	str	lr, [sp, #0x8]
+ 33219e8: ebfffdcf     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x8c4
+ 33219ec: e28dd00c     	add	sp, sp, #12
+ 33219f0: e8bd8010     	pop	{r4, pc}
+ 33219f4: 01f0506c     	mvnseq	r5, r12, rrx
+
+033219f8 <ZNetCloudGetResultBlob>:
+ 33219f8: e92d4030     	push	{r4, r5, lr}
+ 33219fc: e24dd010     	sub	sp, sp, #16
+ 3321a00: e1a04001     	mov	r4, r1
+ 3321a04: e1a0e000     	mov	lr, r0
+ 3321a08: e59f0028     	ldr	r0, [pc, #0x28]         @ 0x3321a38 <ZNetCloudGetResultBlob+0x40>
+ 3321a0c: e3a05037     	mov	r5, #55
+ 3321a10: e3a02010     	mov	r2, #16
+ 3321a14: e590300c     	ldr	r3, [r0, #0xc]
+ 3321a18: e28d1000     	add	r1, sp, #0
+ 3321a1c: e1cd50b0     	strh	r5, [sp]
+ 3321a20: e58d3004     	str	r3, [sp, #0x4]
+ 3321a24: e58de008     	str	lr, [sp, #0x8]
+ 3321a28: e58d400c     	str	r4, [sp, #0xc]
+ 3321a2c: ebfffdbe     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x908
+ 3321a30: e28dd010     	add	sp, sp, #16
+ 3321a34: e8bd8030     	pop	{r4, r5, pc}
+ 3321a38: 01f0506c     	mvnseq	r5, r12, rrx
+
+03321a3c <ZNetCloudSetResultBlob>:
+ 3321a3c: e92d4030     	push	{r4, r5, lr}
+ 3321a40: e24dd010     	sub	sp, sp, #16
+ 3321a44: e1a04001     	mov	r4, r1
+ 3321a48: e1a0e000     	mov	lr, r0
+ 3321a4c: e59f0028     	ldr	r0, [pc, #0x28]         @ 0x3321a7c <ZNetCloudSetResultBlob+0x40>
+ 3321a50: e3a05038     	mov	r5, #56
+ 3321a54: e3a02010     	mov	r2, #16
+ 3321a58: e590300c     	ldr	r3, [r0, #0xc]
+ 3321a5c: e28d1000     	add	r1, sp, #0
+ 3321a60: e1cd50b0     	strh	r5, [sp]
+ 3321a64: e58d3004     	str	r3, [sp, #0x4]
+ 3321a68: e58de008     	str	lr, [sp, #0x8]
+ 3321a6c: e58d400c     	str	r4, [sp, #0xc]
+ 3321a70: ebfffdad     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x94c
+ 3321a74: e28dd010     	add	sp, sp, #16
+ 3321a78: e8bd8030     	pop	{r4, r5, pc}
+ 3321a7c: 01f0506c     	mvnseq	r5, r12, rrx
+
+03321a80 <ZNetCloudGetResultBlobInfo>:
+ 3321a80: e92d4030     	push	{r4, r5, lr}
+ 3321a84: e24dd010     	sub	sp, sp, #16
+ 3321a88: e1a04001     	mov	r4, r1
+ 3321a8c: e1a0e000     	mov	lr, r0
+ 3321a90: e59f0028     	ldr	r0, [pc, #0x28]         @ 0x3321ac0 <ZNetCloudGetResultBlobInfo+0x40>
+ 3321a94: e3a05039     	mov	r5, #57
+ 3321a98: e3a02010     	mov	r2, #16
+ 3321a9c: e590300c     	ldr	r3, [r0, #0xc]
+ 3321aa0: e28d1000     	add	r1, sp, #0
+ 3321aa4: e1cd50b0     	strh	r5, [sp]
+ 3321aa8: e58d3004     	str	r3, [sp, #0x4]
+ 3321aac: e58de008     	str	lr, [sp, #0x8]
+ 3321ab0: e58d400c     	str	r4, [sp, #0xc]
+ 3321ab4: ebfffd9c     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x990
+ 3321ab8: e28dd010     	add	sp, sp, #16
+ 3321abc: e8bd8030     	pop	{r4, r5, pc}
+ 3321ac0: 01f0506c     	mvnseq	r5, r12, rrx
+
+03321ac4 <ZNetIsIpAcquired>:
+ 3321ac4: e52de004     	str	lr, [sp, #-0x4]!
+ 3321ac8: e24dd008     	sub	sp, sp, #8
+ 3321acc: e59f0020     	ldr	r0, [pc, #0x20]         @ 0x3321af4 <ZNetIsIpAcquired+0x30>
+ 3321ad0: e3a0e036     	mov	lr, #54
+ 3321ad4: e3a02008     	mov	r2, #8
+ 3321ad8: e590300c     	ldr	r3, [r0, #0xc]
+ 3321adc: e28d1000     	add	r1, sp, #0
+ 3321ae0: e1cde0b0     	strh	lr, [sp]
+ 3321ae4: e58d3004     	str	r3, [sp, #0x4]
+ 3321ae8: ebfffd8f     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x9c4
+ 3321aec: e28dd008     	add	sp, sp, #8
+ 3321af0: e49df004     	ldr	pc, [sp], #4
+ 3321af4: 01f0506c     	mvnseq	r5, r12, rrx
+
+03321af8 <ZNetEraseUserCredentials>:
+ 3321af8: e52de004     	str	lr, [sp, #-0x4]!
+ 3321afc: e24dd008     	sub	sp, sp, #8
+ 3321b00: e59f0020     	ldr	r0, [pc, #0x20]         @ 0x3321b28 <ZNetEraseUserCredentials+0x30>
+ 3321b04: e3a0e058     	mov	lr, #88
+ 3321b08: e3a02008     	mov	r2, #8
+ 3321b0c: e590300c     	ldr	r3, [r0, #0xc]
+ 3321b10: e28d1000     	add	r1, sp, #0
+ 3321b14: e1cde0b0     	strh	lr, [sp]
+ 3321b18: e58d3004     	str	r3, [sp, #0x4]
+ 3321b1c: ebfffd82     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x9f8
+ 3321b20: e28dd008     	add	sp, sp, #8
+ 3321b24: e49df004     	ldr	pc, [sp], #4
+ 3321b28: 01f0506c     	mvnseq	r5, r12, rrx
+
+03321b2c <ZNetGetPassthroughConnected>:
+ 3321b2c: e92d4010     	push	{r4, lr}
+ 3321b30: e24dd00c     	sub	sp, sp, #12
+ 3321b34: e1a0e000     	mov	lr, r0
+ 3321b38: e59f0024     	ldr	r0, [pc, #0x24]         @ 0x3321b64 <ZNetGetPassthroughConnected+0x38>
+ 3321b3c: e3a0403e     	mov	r4, #62
+ 3321b40: e3a0200c     	mov	r2, #12
+ 3321b44: e590300c     	ldr	r3, [r0, #0xc]
+ 3321b48: e28d1000     	add	r1, sp, #0
+ 3321b4c: e1cd40b0     	strh	r4, [sp]
+ 3321b50: e58d3004     	str	r3, [sp, #0x4]
+ 3321b54: e58de008     	str	lr, [sp, #0x8]
+ 3321b58: ebfffd73     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0xa34
+ 3321b5c: e28dd00c     	add	sp, sp, #12
+ 3321b60: e8bd8010     	pop	{r4, pc}
+ 3321b64: 01f0506c     	mvnseq	r5, r12, rrx
+
+03321b68 <ZNetPassthroughConnect>:
+ 3321b68: e52de004     	str	lr, [sp, #-0x4]!
+ 3321b6c: e24dd008     	sub	sp, sp, #8
+ 3321b70: e59f0020     	ldr	r0, [pc, #0x20]         @ 0x3321b98 <ZNetPassthroughConnect+0x30>
+ 3321b74: e3a0e03f     	mov	lr, #63
+ 3321b78: e3a02008     	mov	r2, #8
+ 3321b7c: e590300c     	ldr	r3, [r0, #0xc]
+ 3321b80: e28d1000     	add	r1, sp, #0
+ 3321b84: e1cde0b0     	strh	lr, [sp]
+ 3321b88: e58d3004     	str	r3, [sp, #0x4]
+ 3321b8c: ebfffd66     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0xa68
+ 3321b90: e28dd008     	add	sp, sp, #8
+ 3321b94: e49df004     	ldr	pc, [sp], #4
+ 3321b98: 01f0506c     	mvnseq	r5, r12, rrx
+
+03321b9c <ZNetPassthroughDisconnect>:
+ 3321b9c: e52de004     	str	lr, [sp, #-0x4]!
+ 3321ba0: e24dd008     	sub	sp, sp, #8
+ 3321ba4: e59f0020     	ldr	r0, [pc, #0x20]         @ 0x3321bcc <ZNetPassthroughDisconnect+0x30>
+ 3321ba8: e3a0e040     	mov	lr, #64
+ 3321bac: e3a02008     	mov	r2, #8
+ 3321bb0: e590300c     	ldr	r3, [r0, #0xc]
+ 3321bb4: e28d1000     	add	r1, sp, #0
+ 3321bb8: e1cde0b0     	strh	lr, [sp]
+ 3321bbc: e58d3004     	str	r3, [sp, #0x4]
+ 3321bc0: ebfffd59     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0xa9c
+ 3321bc4: e28dd008     	add	sp, sp, #8
+ 3321bc8: e49df004     	ldr	pc, [sp], #4
+ 3321bcc: 01f0506c     	mvnseq	r5, r12, rrx
+
+03321bd0 <ZNetCloudGetCurrentJob>:
+ 3321bd0: e52de004     	str	lr, [sp, #-0x4]!
+ 3321bd4: e24dd008     	sub	sp, sp, #8
+ 3321bd8: e59f0020     	ldr	r0, [pc, #0x20]         @ 0x3321c00 <ZNetCloudGetCurrentJob+0x30>
+ 3321bdc: e3a0e03c     	mov	lr, #60
+ 3321be0: e3a02008     	mov	r2, #8
+ 3321be4: e590300c     	ldr	r3, [r0, #0xc]
+ 3321be8: e28d1000     	add	r1, sp, #0
+ 3321bec: e1cde0b0     	strh	lr, [sp]
+ 3321bf0: e58d3004     	str	r3, [sp, #0x4]
+ 3321bf4: ebfffd4c     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0xad0
+ 3321bf8: e28dd008     	add	sp, sp, #8
+ 3321bfc: e49df004     	ldr	pc, [sp], #4
+ 3321c00: 01f0506c     	mvnseq	r5, r12, rrx
+
+03321c04 <ZNetCloudScheduleJob>:
+ 3321c04: e92d4030     	push	{r4, r5, lr}
+ 3321c08: e24dd010     	sub	sp, sp, #16
+ 3321c0c: e1a04001     	mov	r4, r1
+ 3321c10: e1a0e000     	mov	lr, r0
+ 3321c14: e59f0028     	ldr	r0, [pc, #0x28]         @ 0x3321c44 <ZNetCloudScheduleJob+0x40>
+ 3321c18: e3a0503d     	mov	r5, #61
+ 3321c1c: e3a02010     	mov	r2, #16
+ 3321c20: e590300c     	ldr	r3, [r0, #0xc]
+ 3321c24: e28d1000     	add	r1, sp, #0
+ 3321c28: e1cd50b0     	strh	r5, [sp]
+ 3321c2c: e58d3004     	str	r3, [sp, #0x4]
+ 3321c30: e58de008     	str	lr, [sp, #0x8]
+ 3321c34: e58d400c     	str	r4, [sp, #0xc]
+ 3321c38: ebfffd3b     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0xb14
+ 3321c3c: e28dd010     	add	sp, sp, #16
+ 3321c40: e8bd8030     	pop	{r4, r5, pc}
+ 3321c44: 01f0506c     	mvnseq	r5, r12, rrx
+
+03321c48 <ZNetChangeCloudSchedulerState>:
+ 3321c48: e92d4010     	push	{r4, lr}
+ 3321c4c: e24dd00c     	sub	sp, sp, #12
+ 3321c50: e1a0e000     	mov	lr, r0
+ 3321c54: e59f0024     	ldr	r0, [pc, #0x24]         @ 0x3321c80 <ZNetChangeCloudSchedulerState+0x38>
+ 3321c58: e3a04047     	mov	r4, #71
+ 3321c5c: e3a0200c     	mov	r2, #12
+ 3321c60: e590300c     	ldr	r3, [r0, #0xc]
+ 3321c64: e28d1000     	add	r1, sp, #0
+ 3321c68: e1cd40b0     	strh	r4, [sp]
+ 3321c6c: e58d3004     	str	r3, [sp, #0x4]
+ 3321c70: e58de008     	str	lr, [sp, #0x8]
+ 3321c74: ebfffd2c     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0xb50
+ 3321c78: e28dd00c     	add	sp, sp, #12
+ 3321c7c: e8bd8010     	pop	{r4, pc}
+ 3321c80: 01f0506c     	mvnseq	r5, r12, rrx
+
+03321c84 <ZNetGetCloudConnected>:
+ 3321c84: e92d4010     	push	{r4, lr}
+ 3321c88: e24dd00c     	sub	sp, sp, #12
+ 3321c8c: e1a0e000     	mov	lr, r0
+ 3321c90: e59f0024     	ldr	r0, [pc, #0x24]         @ 0x3321cbc <ZNetGetCloudConnected+0x38>
+ 3321c94: e3a04048     	mov	r4, #72
+ 3321c98: e3a0200c     	mov	r2, #12
+ 3321c9c: e590300c     	ldr	r3, [r0, #0xc]
+ 3321ca0: e28d1000     	add	r1, sp, #0
+ 3321ca4: e1cd40b0     	strh	r4, [sp]
+ 3321ca8: e58d3004     	str	r3, [sp, #0x4]
+ 3321cac: e58de008     	str	lr, [sp, #0x8]
+ 3321cb0: ebfffd1d     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0xb8c
+ 3321cb4: e28dd00c     	add	sp, sp, #12
+ 3321cb8: e8bd8010     	pop	{r4, pc}
+ 3321cbc: 01f0506c     	mvnseq	r5, r12, rrx
+
+03321cc0 <ZNetCloudScheduleRecurringJob>:
+ 3321cc0: e92d4030     	push	{r4, r5, lr}
+ 3321cc4: e24dd010     	sub	sp, sp, #16
+ 3321cc8: e1a04001     	mov	r4, r1
+ 3321ccc: e1a0e000     	mov	lr, r0
+ 3321cd0: e59f0028     	ldr	r0, [pc, #0x28]         @ 0x3321d00 <ZNetCloudScheduleRecurringJob+0x40>
+ 3321cd4: e3a0504a     	mov	r5, #74
+ 3321cd8: e3a02010     	mov	r2, #16
+ 3321cdc: e590300c     	ldr	r3, [r0, #0xc]
+ 3321ce0: e28d1000     	add	r1, sp, #0
+ 3321ce4: e1cd50b0     	strh	r5, [sp]
+ 3321ce8: e58d3004     	str	r3, [sp, #0x4]
+ 3321cec: e58de008     	str	lr, [sp, #0x8]
+ 3321cf0: e58d400c     	str	r4, [sp, #0xc]
+ 3321cf4: ebfffd0c     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0xbd0
+ 3321cf8: e28dd010     	add	sp, sp, #16
+ 3321cfc: e8bd8030     	pop	{r4, r5, pc}
+ 3321d00: 01f0506c     	mvnseq	r5, r12, rrx
+
+03321d04 <ZNetCloudSetDisplayStatusBlob>:
+ 3321d04: e92d4030     	push	{r4, r5, lr}
+ 3321d08: e24dd010     	sub	sp, sp, #16
+ 3321d0c: e1a04001     	mov	r4, r1
+ 3321d10: e1a0e000     	mov	lr, r0
+ 3321d14: e59f0028     	ldr	r0, [pc, #0x28]         @ 0x3321d44 <ZNetCloudSetDisplayStatusBlob+0x40>
+ 3321d18: e3a0504b     	mov	r5, #75
+ 3321d1c: e3a02010     	mov	r2, #16
+ 3321d20: e590300c     	ldr	r3, [r0, #0xc]
+ 3321d24: e28d1000     	add	r1, sp, #0
+ 3321d28: e1cd50b0     	strh	r5, [sp]
+ 3321d2c: e58d3004     	str	r3, [sp, #0x4]
+ 3321d30: e58de008     	str	lr, [sp, #0x8]
+ 3321d34: e58d400c     	str	r4, [sp, #0xc]
+ 3321d38: ebfffcfb     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0xc14
+ 3321d3c: e28dd010     	add	sp, sp, #16
+ 3321d40: e8bd8030     	pop	{r4, r5, pc}
+ 3321d44: 01f0506c     	mvnseq	r5, r12, rrx
+
+03321d48 <ZNetCloudGetDisplayStatusBlobInfo>:
+ 3321d48: e92d4030     	push	{r4, r5, lr}
+ 3321d4c: e24dd010     	sub	sp, sp, #16
+ 3321d50: e1a04001     	mov	r4, r1
+ 3321d54: e1a0e000     	mov	lr, r0
+ 3321d58: e59f0028     	ldr	r0, [pc, #0x28]         @ 0x3321d88 <ZNetCloudGetDisplayStatusBlobInfo+0x40>
+ 3321d5c: e3a0504c     	mov	r5, #76
+ 3321d60: e3a02010     	mov	r2, #16
+ 3321d64: e590300c     	ldr	r3, [r0, #0xc]
+ 3321d68: e28d1000     	add	r1, sp, #0
+ 3321d6c: e1cd50b0     	strh	r5, [sp]
+ 3321d70: e58d3004     	str	r3, [sp, #0x4]
+ 3321d74: e58de008     	str	lr, [sp, #0x8]
+ 3321d78: e58d400c     	str	r4, [sp, #0xc]
+ 3321d7c: ebfffcea     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0xc58
+ 3321d80: e28dd010     	add	sp, sp, #16
+ 3321d84: e8bd8030     	pop	{r4, r5, pc}
+ 3321d88: 01f0506c     	mvnseq	r5, r12, rrx
+
+03321d8c <ZNetCloudGetDisplayStatusBlob>:
+ 3321d8c: e92d4030     	push	{r4, r5, lr}
+ 3321d90: e24dd010     	sub	sp, sp, #16
+ 3321d94: e1a04001     	mov	r4, r1
+ 3321d98: e1a0e000     	mov	lr, r0
+ 3321d9c: e59f0028     	ldr	r0, [pc, #0x28]         @ 0x3321dcc <ZNetCloudGetDisplayStatusBlob+0x40>
+ 3321da0: e3a0504d     	mov	r5, #77
+ 3321da4: e3a02010     	mov	r2, #16
+ 3321da8: e590300c     	ldr	r3, [r0, #0xc]
+ 3321dac: e28d1000     	add	r1, sp, #0
+ 3321db0: e1cd50b0     	strh	r5, [sp]
+ 3321db4: e58d3004     	str	r3, [sp, #0x4]
+ 3321db8: e58de008     	str	lr, [sp, #0x8]
+ 3321dbc: e58d400c     	str	r4, [sp, #0xc]
+ 3321dc0: ebfffcd9     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0xc9c
+ 3321dc4: e28dd010     	add	sp, sp, #16
+ 3321dc8: e8bd8030     	pop	{r4, r5, pc}
+ 3321dcc: 01f0506c     	mvnseq	r5, r12, rrx
+
+03321dd0 <ZNetCloudBlockProcessing>:
+ 3321dd0: e92d4030     	push	{r4, r5, lr}
+ 3321dd4: e24dd010     	sub	sp, sp, #16
+ 3321dd8: e1a04001     	mov	r4, r1
+ 3321ddc: e1a0e000     	mov	lr, r0
+ 3321de0: e59f0028     	ldr	r0, [pc, #0x28]         @ 0x3321e10 <ZNetCloudBlockProcessing+0x40>
+ 3321de4: e3a0504e     	mov	r5, #78
+ 3321de8: e3a02010     	mov	r2, #16
+ 3321dec: e590300c     	ldr	r3, [r0, #0xc]
+ 3321df0: e28d1000     	add	r1, sp, #0
+ 3321df4: e1cd50b0     	strh	r5, [sp]
+ 3321df8: e58d3004     	str	r3, [sp, #0x4]
+ 3321dfc: e58de008     	str	lr, [sp, #0x8]
+ 3321e00: e58d400c     	str	r4, [sp, #0xc]
+ 3321e04: ebfffcc8     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0xce0
+ 3321e08: e28dd010     	add	sp, sp, #16
+ 3321e0c: e8bd8030     	pop	{r4, r5, pc}
+ 3321e10: 01f0506c     	mvnseq	r5, r12, rrx
+
+03321e14 <ZNetCloudGetPersistedHandle>:
+ 3321e14: e92d4010     	push	{r4, lr}
+ 3321e18: e24dd00c     	sub	sp, sp, #12
+ 3321e1c: e1a0e000     	mov	lr, r0
+ 3321e20: e59f0024     	ldr	r0, [pc, #0x24]         @ 0x3321e4c <ZNetCloudGetPersistedHandle+0x38>
+ 3321e24: e3a04050     	mov	r4, #80
+ 3321e28: e3a0200c     	mov	r2, #12
+ 3321e2c: e590300c     	ldr	r3, [r0, #0xc]
+ 3321e30: e28d1000     	add	r1, sp, #0
+ 3321e34: e1cd40b0     	strh	r4, [sp]
+ 3321e38: e58d3004     	str	r3, [sp, #0x4]
+ 3321e3c: e58de008     	str	lr, [sp, #0x8]
+ 3321e40: ebfffcb9     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0xd1c
+ 3321e44: e28dd00c     	add	sp, sp, #12
+ 3321e48: e8bd8010     	pop	{r4, pc}
+ 3321e4c: 01f0506c     	mvnseq	r5, r12, rrx
+
+03321e50 <ZNetCloudClosePersistedHandle>:
+ 3321e50: e92d4010     	push	{r4, lr}
+ 3321e54: e24dd00c     	sub	sp, sp, #12
+ 3321e58: e1a0e000     	mov	lr, r0
+ 3321e5c: e59f0024     	ldr	r0, [pc, #0x24]         @ 0x3321e88 <ZNetCloudClosePersistedHandle+0x38>
+ 3321e60: e3a04051     	mov	r4, #81
+ 3321e64: e3a0200c     	mov	r2, #12
+ 3321e68: e590300c     	ldr	r3, [r0, #0xc]
+ 3321e6c: e28d1000     	add	r1, sp, #0
+ 3321e70: e1cd40b0     	strh	r4, [sp]
+ 3321e74: e58d3004     	str	r3, [sp, #0x4]
+ 3321e78: e58de008     	str	lr, [sp, #0x8]
+ 3321e7c: ebfffcaa     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0xd58
+ 3321e80: e28dd00c     	add	sp, sp, #12
+ 3321e84: e8bd8010     	pop	{r4, pc}
+ 3321e88: 01f0506c     	mvnseq	r5, r12, rrx
+
+03321e8c <ZNetCloudGetRuntimeHandle>:
+ 3321e8c: e92d4010     	push	{r4, lr}
+ 3321e90: e24dd00c     	sub	sp, sp, #12
+ 3321e94: e1a0e000     	mov	lr, r0
+ 3321e98: e59f0024     	ldr	r0, [pc, #0x24]         @ 0x3321ec4 <ZNetCloudGetRuntimeHandle+0x38>
+ 3321e9c: e3a04052     	mov	r4, #82
+ 3321ea0: e3a0200c     	mov	r2, #12
+ 3321ea4: e590300c     	ldr	r3, [r0, #0xc]
+ 3321ea8: e28d1000     	add	r1, sp, #0
+ 3321eac: e1cd40b0     	strh	r4, [sp]
+ 3321eb0: e58d3004     	str	r3, [sp, #0x4]
+ 3321eb4: e58de008     	str	lr, [sp, #0x8]
+ 3321eb8: ebfffc9b     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0xd94
+ 3321ebc: e28dd00c     	add	sp, sp, #12
+ 3321ec0: e8bd8010     	pop	{r4, pc}
+ 3321ec4: 01f0506c     	mvnseq	r5, r12, rrx
+
+03321ec8 <ZNetCloudGetJobEnumerator>:
+ 3321ec8: e92d4030     	push	{r4, r5, lr}
+ 3321ecc: e24dd010     	sub	sp, sp, #16
+ 3321ed0: e1a04001     	mov	r4, r1
+ 3321ed4: e1a0e000     	mov	lr, r0
+ 3321ed8: e59f0028     	ldr	r0, [pc, #0x28]         @ 0x3321f08 <ZNetCloudGetJobEnumerator+0x40>
+ 3321edc: e3a05053     	mov	r5, #83
+ 3321ee0: e3a02010     	mov	r2, #16
+ 3321ee4: e590300c     	ldr	r3, [r0, #0xc]
+ 3321ee8: e28d1000     	add	r1, sp, #0
+ 3321eec: e1cd50b0     	strh	r5, [sp]
+ 3321ef0: e58d3004     	str	r3, [sp, #0x4]
+ 3321ef4: e58de008     	str	lr, [sp, #0x8]
+ 3321ef8: e58d400c     	str	r4, [sp, #0xc]
+ 3321efc: ebfffc8a     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0xdd8
+ 3321f00: e28dd010     	add	sp, sp, #16
+ 3321f04: e8bd8030     	pop	{r4, r5, pc}
+ 3321f08: 01f0506c     	mvnseq	r5, r12, rrx
+
+03321f0c <ZNetCloudGetNextObject>:
+ 3321f0c: e92d4070     	push	{r4, r5, r6, lr}
+ 3321f10: e24dd014     	sub	sp, sp, #20
+ 3321f14: e1a05002     	mov	r5, r2
+ 3321f18: e1a04001     	mov	r4, r1
+ 3321f1c: e1a0e000     	mov	lr, r0
+ 3321f20: e59f002c     	ldr	r0, [pc, #0x2c]         @ 0x3321f54 <ZNetCloudGetNextObject+0x48>
+ 3321f24: e3a06054     	mov	r6, #84
+ 3321f28: e3a02014     	mov	r2, #20
+ 3321f2c: e590300c     	ldr	r3, [r0, #0xc]
+ 3321f30: e28d1000     	add	r1, sp, #0
+ 3321f34: e1cd60b0     	strh	r6, [sp]
+ 3321f38: e58d3004     	str	r3, [sp, #0x4]
+ 3321f3c: e58de008     	str	lr, [sp, #0x8]
+ 3321f40: e58d400c     	str	r4, [sp, #0xc]
+ 3321f44: e58d5010     	str	r5, [sp, #0x10]
+ 3321f48: ebfffc77     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0xe24
+ 3321f4c: e28dd014     	add	sp, sp, #20
+ 3321f50: e8bd8070     	pop	{r4, r5, r6, pc}
+ 3321f54: 01f0506c     	mvnseq	r5, r12, rrx
+
+03321f58 <ZNetCloudGetTaskInitBlobInfo>:
+ 3321f58: e92d4030     	push	{r4, r5, lr}
+ 3321f5c: e24dd010     	sub	sp, sp, #16
+ 3321f60: e1a04001     	mov	r4, r1
+ 3321f64: e1a0e000     	mov	lr, r0
+ 3321f68: e59f0028     	ldr	r0, [pc, #0x28]         @ 0x3321f98 <ZNetCloudGetTaskInitBlobInfo+0x40>
+ 3321f6c: e3a05055     	mov	r5, #85
+ 3321f70: e3a02010     	mov	r2, #16
+ 3321f74: e590300c     	ldr	r3, [r0, #0xc]
+ 3321f78: e28d1000     	add	r1, sp, #0
+ 3321f7c: e1cd50b0     	strh	r5, [sp]
+ 3321f80: e58d3004     	str	r3, [sp, #0x4]
+ 3321f84: e58de008     	str	lr, [sp, #0x8]
+ 3321f88: e58d400c     	str	r4, [sp, #0xc]
+ 3321f8c: ebfffc66     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0xe68
+ 3321f90: e28dd010     	add	sp, sp, #16
+ 3321f94: e8bd8030     	pop	{r4, r5, pc}
+ 3321f98: 01f0506c     	mvnseq	r5, r12, rrx
+
+03321f9c <ZNetCloudGetTaskInitBlob>:
+ 3321f9c: e92d4030     	push	{r4, r5, lr}
+ 3321fa0: e24dd010     	sub	sp, sp, #16
+ 3321fa4: e1a04001     	mov	r4, r1
+ 3321fa8: e1a0e000     	mov	lr, r0
+ 3321fac: e59f0028     	ldr	r0, [pc, #0x28]         @ 0x3321fdc <ZNetCloudGetTaskInitBlob+0x40>
+ 3321fb0: e3a05056     	mov	r5, #86
+ 3321fb4: e3a02010     	mov	r2, #16
+ 3321fb8: e590300c     	ldr	r3, [r0, #0xc]
+ 3321fbc: e28d1000     	add	r1, sp, #0
+ 3321fc0: e1cd50b0     	strh	r5, [sp]
+ 3321fc4: e58d3004     	str	r3, [sp, #0x4]
+ 3321fc8: e58de008     	str	lr, [sp, #0x8]
+ 3321fcc: e58d400c     	str	r4, [sp, #0xc]
+ 3321fd0: ebfffc55     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0xeac
+ 3321fd4: e28dd010     	add	sp, sp, #16
+ 3321fd8: e8bd8030     	pop	{r4, r5, pc}
+ 3321fdc: 01f0506c     	mvnseq	r5, r12, rrx
+
+03321fe0 <ZNetCloudScheduleEx>:
+ 3321fe0: e92d4030     	push	{r4, r5, lr}
+ 3321fe4: e24dd010     	sub	sp, sp, #16
+ 3321fe8: e1a04001     	mov	r4, r1
+ 3321fec: e1a0e000     	mov	lr, r0
+ 3321ff0: e59f0028     	ldr	r0, [pc, #0x28]         @ 0x3322020 <ZNetCloudScheduleEx+0x40>
+ 3321ff4: e3a05057     	mov	r5, #87
+ 3321ff8: e3a02010     	mov	r2, #16
+ 3321ffc: e590300c     	ldr	r3, [r0, #0xc]
+ 3322000: e28d1000     	add	r1, sp, #0
+ 3322004: e1cd50b0     	strh	r5, [sp]
+ 3322008: e58d3004     	str	r3, [sp, #0x4]
+ 332200c: e58de008     	str	lr, [sp, #0x8]
+ 3322010: e58d400c     	str	r4, [sp, #0xc]
+ 3322014: ebfffc44     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0xef0
+ 3322018: e28dd010     	add	sp, sp, #16
+ 332201c: e8bd8030     	pop	{r4, r5, pc}
+ 3322020: 01f0506c     	mvnseq	r5, r12, rrx
+
+03322024 <ZNetKeepCloudConnection>:
+ 3322024: e52de004     	str	lr, [sp, #-0x4]!
+ 3322028: e24dd008     	sub	sp, sp, #8
+ 332202c: e59f0020     	ldr	r0, [pc, #0x20]         @ 0x3322054 <ZNetKeepCloudConnection+0x30>
+ 3322030: e3a0e059     	mov	lr, #89
+ 3322034: e3a02008     	mov	r2, #8
+ 3322038: e590300c     	ldr	r3, [r0, #0xc]
+ 332203c: e28d1000     	add	r1, sp, #0
+ 3322040: e1cde0b0     	strh	lr, [sp]
+ 3322044: e58d3004     	str	r3, [sp, #0x4]
+ 3322048: ebfffc37     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0xf24
+ 332204c: e28dd008     	add	sp, sp, #8
+ 3322050: e49df004     	ldr	pc, [sp], #4
+ 3322054: 01f0506c     	mvnseq	r5, r12, rrx
+
+03322058 <ZNetReleaseCloudConnection>:
+ 3322058: e52de004     	str	lr, [sp, #-0x4]!
+ 332205c: e24dd008     	sub	sp, sp, #8
+ 3322060: e59f0020     	ldr	r0, [pc, #0x20]         @ 0x3322088 <ZNetReleaseCloudConnection+0x30>
+ 3322064: e3a0e05a     	mov	lr, #90
+ 3322068: e3a02008     	mov	r2, #8
+ 332206c: e590300c     	ldr	r3, [r0, #0xc]
+ 3322070: e28d1000     	add	r1, sp, #0
+ 3322074: e1cde0b0     	strh	lr, [sp]
+ 3322078: e58d3004     	str	r3, [sp, #0x4]
+ 332207c: ebfffc2a     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0xf58
+ 3322080: e28dd008     	add	sp, sp, #8
+ 3322084: e49df004     	ldr	pc, [sp], #4
+ 3322088: 01f0506c     	mvnseq	r5, r12, rrx
+
+0332208c <ZNetUpdateCloudSyncStatus>:
+ 332208c: e92d4010     	push	{r4, lr}
+ 3322090: e24dd00c     	sub	sp, sp, #12
+ 3322094: e1a0e000     	mov	lr, r0
+ 3322098: e59f0024     	ldr	r0, [pc, #0x24]         @ 0x33220c4 <ZNetUpdateCloudSyncStatus+0x38>
+ 332209c: e3a0405b     	mov	r4, #91
+ 33220a0: e3a0200c     	mov	r2, #12
+ 33220a4: e590300c     	ldr	r3, [r0, #0xc]
+ 33220a8: e28d1000     	add	r1, sp, #0
+ 33220ac: e1cd40b0     	strh	r4, [sp]
+ 33220b0: e58d3004     	str	r3, [sp, #0x4]
+ 33220b4: e58de008     	str	lr, [sp, #0x8]
+ 33220b8: ebfffc1b     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0xf94
+ 33220bc: e28dd00c     	add	sp, sp, #12
+ 33220c0: e8bd8010     	pop	{r4, pc}
+ 33220c4: 01f0506c     	mvnseq	r5, r12, rrx
+
+033220c8 <ZNetCloudDriveSched>:
+ 33220c8: e92d4070     	push	{r4, r5, r6, lr}
+ 33220cc: e24dd014     	sub	sp, sp, #20
+ 33220d0: e1a05002     	mov	r5, r2
+ 33220d4: e1a04001     	mov	r4, r1
+ 33220d8: e1a0e000     	mov	lr, r0
+ 33220dc: e59f002c     	ldr	r0, [pc, #0x2c]         @ 0x3322110 <ZNetCloudDriveSched+0x48>
+ 33220e0: e3a0605c     	mov	r6, #92
+ 33220e4: e3a02014     	mov	r2, #20
+ 33220e8: e590300c     	ldr	r3, [r0, #0xc]
+ 33220ec: e28d1000     	add	r1, sp, #0
+ 33220f0: e1cd60b0     	strh	r6, [sp]
+ 33220f4: e58d3004     	str	r3, [sp, #0x4]
+ 33220f8: e58de008     	str	lr, [sp, #0x8]
+ 33220fc: e58d400c     	str	r4, [sp, #0xc]
+ 3322100: e58d5010     	str	r5, [sp, #0x10]
+ 3322104: ebfffc08     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0xfe0
+ 3322108: e28dd014     	add	sp, sp, #20
+ 332210c: e8bd8070     	pop	{r4, r5, r6, pc}
+ 3322110: 01f0506c     	mvnseq	r5, r12, rrx
+
+03322114 <ZNetCloudWaitForConnection>:
+ 3322114: e92d4010     	push	{r4, lr}
+ 3322118: e24dd00c     	sub	sp, sp, #12
+ 332211c: e1a0e000     	mov	lr, r0
+ 3322120: e59f0024     	ldr	r0, [pc, #0x24]         @ 0x332214c <ZNetCloudWaitForConnection+0x38>
+ 3322124: e3a0405d     	mov	r4, #93
+ 3322128: e3a0200c     	mov	r2, #12
+ 332212c: e590300c     	ldr	r3, [r0, #0xc]
+ 3322130: e28d1000     	add	r1, sp, #0
+ 3322134: e1cd40b0     	strh	r4, [sp]
+ 3322138: e58d3004     	str	r3, [sp, #0x4]
+ 332213c: e58de008     	str	lr, [sp, #0x8]
+ 3322140: ebfffbf9     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x101c
+ 3322144: e28dd00c     	add	sp, sp, #12
+ 3322148: e8bd8010     	pop	{r4, pc}
+ 332214c: 01f0506c     	mvnseq	r5, r12, rrx
+
+03322150 <ZNetCloudThrottleDownloads>:
+ 3322150: e92d4010     	push	{r4, lr}
+ 3322154: e24dd00c     	sub	sp, sp, #12
+ 3322158: e1a0e000     	mov	lr, r0
+ 332215c: e59f0024     	ldr	r0, [pc, #0x24]         @ 0x3322188 <ZNetCloudThrottleDownloads+0x38>
+ 3322160: e3a0405e     	mov	r4, #94
+ 3322164: e3a0200c     	mov	r2, #12
+ 3322168: e590300c     	ldr	r3, [r0, #0xc]
+ 332216c: e28d1000     	add	r1, sp, #0
+ 3322170: e1cd40b0     	strh	r4, [sp]
+ 3322174: e58d3004     	str	r3, [sp, #0x4]
+ 3322178: e58de008     	str	lr, [sp, #0x8]
+ 332217c: ebfffbea     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x1058
+ 3322180: e28dd00c     	add	sp, sp, #12
+ 3322184: e8bd8010     	pop	{r4, pc}
+ 3322188: 01f0506c     	mvnseq	r5, r12, rrx
+
+0332218c <ZNetGetPeerWithID>:
+ 332218c: e92d4030     	push	{r4, r5, lr}
+ 3322190: e24dd010     	sub	sp, sp, #16
+ 3322194: e1a04001     	mov	r4, r1
+ 3322198: e1a0e000     	mov	lr, r0
+ 332219c: e59f0028     	ldr	r0, [pc, #0x28]         @ 0x33221cc <ZNetGetPeerWithID+0x40>
+ 33221a0: e3a05002     	mov	r5, #2
+ 33221a4: e3a02010     	mov	r2, #16
+ 33221a8: e590300c     	ldr	r3, [r0, #0xc]
+ 33221ac: e28d1000     	add	r1, sp, #0
+ 33221b0: e1cd50b0     	strh	r5, [sp]
+ 33221b4: e58d3004     	str	r3, [sp, #0x4]
+ 33221b8: e58de008     	str	lr, [sp, #0x8]
+ 33221bc: e58d400c     	str	r4, [sp, #0xc]
+ 33221c0: ebfffbd9     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x109c
+ 33221c4: e28dd010     	add	sp, sp, #16
+ 33221c8: e8bd8030     	pop	{r4, r5, pc}
+ 33221cc: 01f0506c     	mvnseq	r5, r12, rrx
+
+033221d0 <ZNetRequestToSend>:
+ 33221d0: e92d4070     	push	{r4, r5, r6, lr}
+ 33221d4: e24dd014     	sub	sp, sp, #20
+ 33221d8: e1a05002     	mov	r5, r2
+ 33221dc: e1a04001     	mov	r4, r1
+ 33221e0: e1a0e000     	mov	lr, r0
+ 33221e4: e59f002c     	ldr	r0, [pc, #0x2c]         @ 0x3322218 <ZNetRequestToSend+0x48>
+ 33221e8: e3a06003     	mov	r6, #3
+ 33221ec: e3a02014     	mov	r2, #20
+ 33221f0: e590300c     	ldr	r3, [r0, #0xc]
+ 33221f4: e28d1000     	add	r1, sp, #0
+ 33221f8: e1cd60b0     	strh	r6, [sp]
+ 33221fc: e58d3004     	str	r3, [sp, #0x4]
+ 3322200: e58de008     	str	lr, [sp, #0x8]
+ 3322204: e5cd400c     	strb	r4, [sp, #0xc]
+ 3322208: e58d5010     	str	r5, [sp, #0x10]
+ 332220c: ebfffbc6     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x10e8
+ 3322210: e28dd014     	add	sp, sp, #20
+ 3322214: e8bd8070     	pop	{r4, r5, r6, pc}
+ 3322218: 01f0506c     	mvnseq	r5, r12, rrx
+
+0332221c <ZNetSetUserBusy>:
+ 332221c: e92d4070     	push	{r4, r5, r6, lr}
+ 3322220: e24dd014     	sub	sp, sp, #20
+ 3322224: e1b04001     	movs	r4, r1
+ 3322228: e1a05000     	mov	r5, r0
+ 332222c: 0a000003     	beq	0x3322240 <ZNetSetUserBusy+0x24> @ imm = #0xc
+ 3322230: e1a00004     	mov	r0, r4
+ 3322234: eb00032d     	bl	0x3322ef0 <ZNetGetCloudSchedulerStatus+0x3dc> @ imm = #0xcb4
+ 3322238: e1a0e000     	mov	lr, r0
+ 332223c: ea000000     	b	0x3322244 <ZNetSetUserBusy+0x28> @ imm = #0x0
+ 3322240: e3a0e000     	mov	lr, #0
+ 3322244: e59f002c     	ldr	r0, [pc, #0x2c]         @ 0x3322278 <ZNetSetUserBusy+0x5c>
+ 3322248: e3a0600d     	mov	r6, #13
+ 332224c: e3a02014     	mov	r2, #20
+ 3322250: e590300c     	ldr	r3, [r0, #0xc]
+ 3322254: e28d1000     	add	r1, sp, #0
+ 3322258: e1cd60b0     	strh	r6, [sp]
+ 332225c: e58d3004     	str	r3, [sp, #0x4]
+ 3322260: e58d5008     	str	r5, [sp, #0x8]
+ 3322264: e58d400c     	str	r4, [sp, #0xc]
+ 3322268: e58de010     	str	lr, [sp, #0x10]
+ 332226c: ebfffbae     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x1148
+ 3322270: e28dd014     	add	sp, sp, #20
+ 3322274: e8bd8070     	pop	{r4, r5, r6, pc}
+ 3322278: 01f0506c     	mvnseq	r5, r12, rrx
+
+0332227c <ZNetReleaseMode>:
+ 332227c: e92d4030     	push	{r4, r5, lr}
+ 3322280: e24dd010     	sub	sp, sp, #16
+ 3322284: e1a04001     	mov	r4, r1
+ 3322288: e1a0e000     	mov	lr, r0
+ 332228c: e59f0028     	ldr	r0, [pc, #0x28]         @ 0x33222bc <ZNetReleaseMode+0x40>
+ 3322290: e3a05019     	mov	r5, #25
+ 3322294: e3a02010     	mov	r2, #16
+ 3322298: e590300c     	ldr	r3, [r0, #0xc]
+ 332229c: e28d1000     	add	r1, sp, #0
+ 33222a0: e1cd50b0     	strh	r5, [sp]
+ 33222a4: e58d3004     	str	r3, [sp, #0x4]
+ 33222a8: e58de008     	str	lr, [sp, #0x8]
+ 33222ac: e58d400c     	str	r4, [sp, #0xc]
+ 33222b0: ebfffb9d     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x118c
+ 33222b4: e28dd010     	add	sp, sp, #16
+ 33222b8: e8bd8030     	pop	{r4, r5, pc}
+ 33222bc: 01f0506c     	mvnseq	r5, r12, rrx
+
+033222c0 <ZNetGetMode>:
+ 33222c0: e92d4030     	push	{r4, r5, lr}
+ 33222c4: e24dd010     	sub	sp, sp, #16
+ 33222c8: e1a04001     	mov	r4, r1
+ 33222cc: e1a0e000     	mov	lr, r0
+ 33222d0: e59f0028     	ldr	r0, [pc, #0x28]         @ 0x3322300 <ZNetGetMode+0x40>
+ 33222d4: e3a0501a     	mov	r5, #26
+ 33222d8: e3a02010     	mov	r2, #16
+ 33222dc: e590300c     	ldr	r3, [r0, #0xc]
+ 33222e0: e28d1000     	add	r1, sp, #0
+ 33222e4: e1cd50b0     	strh	r5, [sp]
+ 33222e8: e58d3004     	str	r3, [sp, #0x4]
+ 33222ec: e58de008     	str	lr, [sp, #0x8]
+ 33222f0: e58d400c     	str	r4, [sp, #0xc]
+ 33222f4: ebfffb8c     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x11d0
+ 33222f8: e28dd010     	add	sp, sp, #16
+ 33222fc: e8bd8030     	pop	{r4, r5, pc}
+ 3322300: 01f0506c     	mvnseq	r5, r12, rrx
+
+03322304 <ZNetGetNetworkInfo>:
+ 3322304: e92d4030     	push	{r4, r5, lr}
+ 3322308: e24dd010     	sub	sp, sp, #16
+ 332230c: e1a04001     	mov	r4, r1
+ 3322310: e1a0e000     	mov	lr, r0
+ 3322314: e59f0028     	ldr	r0, [pc, #0x28]         @ 0x3322344 <ZNetGetNetworkInfo+0x40>
+ 3322318: e3a0501c     	mov	r5, #28
+ 332231c: e3a02010     	mov	r2, #16
+ 3322320: e590300c     	ldr	r3, [r0, #0xc]
+ 3322324: e28d1000     	add	r1, sp, #0
+ 3322328: e1cd50b0     	strh	r5, [sp]
+ 332232c: e58d3004     	str	r3, [sp, #0x4]
+ 3322330: e58de008     	str	lr, [sp, #0x8]
+ 3322334: e58d400c     	str	r4, [sp, #0xc]
+ 3322338: ebfffb7b     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x1214
+ 332233c: e28dd010     	add	sp, sp, #16
+ 3322340: e8bd8030     	pop	{r4, r5, pc}
+ 3322344: 01f0506c     	mvnseq	r5, r12, rrx
+
+03322348 <ZNetTestConnectivity>:
+ 3322348: e92d4030     	push	{r4, r5, lr}
+ 332234c: e24dd010     	sub	sp, sp, #16
+ 3322350: e1a04001     	mov	r4, r1
+ 3322354: e1a0e000     	mov	lr, r0
+ 3322358: e59f0028     	ldr	r0, [pc, #0x28]         @ 0x3322388 <ZNetTestConnectivity+0x40>
+ 332235c: e3a05029     	mov	r5, #41
+ 3322360: e3a02010     	mov	r2, #16
+ 3322364: e590300c     	ldr	r3, [r0, #0xc]
+ 3322368: e28d1000     	add	r1, sp, #0
+ 332236c: e1cd50b0     	strh	r5, [sp]
+ 3322370: e58d3004     	str	r3, [sp, #0x4]
+ 3322374: e58de008     	str	lr, [sp, #0x8]
+ 3322378: e58d400c     	str	r4, [sp, #0xc]
+ 332237c: ebfffb6a     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x1258
+ 3322380: e28dd010     	add	sp, sp, #16
+ 3322384: e8bd8030     	pop	{r4, r5, pc}
+ 3322388: 01f0506c     	mvnseq	r5, r12, rrx
+
+0332238c <ZNetSetWifiProfile>:
+ 332238c: e92d4070     	push	{r4, r5, r6, lr}
+ 3322390: e24dd014     	sub	sp, sp, #20
+ 3322394: e1a05002     	mov	r5, r2
+ 3322398: e1a04001     	mov	r4, r1
+ 332239c: e1a0e000     	mov	lr, r0
+ 33223a0: e59f002c     	ldr	r0, [pc, #0x2c]         @ 0x33223d4 <ZNetSetWifiProfile+0x48>
+ 33223a4: e3a0602b     	mov	r6, #43
+ 33223a8: e3a02014     	mov	r2, #20
+ 33223ac: e590300c     	ldr	r3, [r0, #0xc]
+ 33223b0: e28d1000     	add	r1, sp, #0
+ 33223b4: e1cd60b0     	strh	r6, [sp]
+ 33223b8: e58d3004     	str	r3, [sp, #0x4]
+ 33223bc: e58de008     	str	lr, [sp, #0x8]
+ 33223c0: e58d400c     	str	r4, [sp, #0xc]
+ 33223c4: e58d5010     	str	r5, [sp, #0x10]
+ 33223c8: ebfffb57     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x12a4
+ 33223cc: e28dd014     	add	sp, sp, #20
+ 33223d0: e8bd8070     	pop	{r4, r5, r6, pc}
+ 33223d4: 01f0506c     	mvnseq	r5, r12, rrx
+
+033223d8 <ZNetGetWifiProfile>:
+ 33223d8: e92d4070     	push	{r4, r5, r6, lr}
+ 33223dc: e24dd014     	sub	sp, sp, #20
+ 33223e0: e1a05002     	mov	r5, r2
+ 33223e4: e1a04001     	mov	r4, r1
+ 33223e8: e1a0e000     	mov	lr, r0
+ 33223ec: e59f002c     	ldr	r0, [pc, #0x2c]         @ 0x3322420 <ZNetGetWifiProfile+0x48>
+ 33223f0: e3a0602c     	mov	r6, #44
+ 33223f4: e3a02014     	mov	r2, #20
+ 33223f8: e590300c     	ldr	r3, [r0, #0xc]
+ 33223fc: e28d1000     	add	r1, sp, #0
+ 3322400: e1cd60b0     	strh	r6, [sp]
+ 3322404: e58d3004     	str	r3, [sp, #0x4]
+ 3322408: e58de008     	str	lr, [sp, #0x8]
+ 332240c: e58d400c     	str	r4, [sp, #0xc]
+ 3322410: e58d5010     	str	r5, [sp, #0x10]
+ 3322414: ebfffb44     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x12f0
+ 3322418: e28dd014     	add	sp, sp, #20
+ 332241c: e8bd8070     	pop	{r4, r5, r6, pc}
+ 3322420: 01f0506c     	mvnseq	r5, r12, rrx
+
+03322424 <ZNetAddWifiProfile>:
+ 3322424: e92d4070     	push	{r4, r5, r6, lr}
+ 3322428: e24dd014     	sub	sp, sp, #20
+ 332242c: e1a05002     	mov	r5, r2
+ 3322430: e1a04001     	mov	r4, r1
+ 3322434: e1a0e000     	mov	lr, r0
+ 3322438: e59f002c     	ldr	r0, [pc, #0x2c]         @ 0x332246c <ZNetAddWifiProfile+0x48>
+ 332243c: e3a0602d     	mov	r6, #45
+ 3322440: e3a02014     	mov	r2, #20
+ 3322444: e590300c     	ldr	r3, [r0, #0xc]
+ 3322448: e28d1000     	add	r1, sp, #0
+ 332244c: e1cd60b0     	strh	r6, [sp]
+ 3322450: e58d3004     	str	r3, [sp, #0x4]
+ 3322454: e58de008     	str	lr, [sp, #0x8]
+ 3322458: e58d400c     	str	r4, [sp, #0xc]
+ 332245c: e58d5010     	str	r5, [sp, #0x10]
+ 3322460: ebfffb31     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x133c
+ 3322464: e28dd014     	add	sp, sp, #20
+ 3322468: e8bd8070     	pop	{r4, r5, r6, pc}
+ 332246c: 01f0506c     	mvnseq	r5, r12, rrx
+
+03322470 <ZNetRequireWifiPower>:
+ 3322470: e92d4030     	push	{r4, r5, lr}
+ 3322474: e24dd010     	sub	sp, sp, #16
+ 3322478: e1a04001     	mov	r4, r1
+ 332247c: e1a0e000     	mov	lr, r0
+ 3322480: e59f0028     	ldr	r0, [pc, #0x28]         @ 0x33224b0 <ZNetRequireWifiPower+0x40>
+ 3322484: e3a05030     	mov	r5, #48
+ 3322488: e3a02010     	mov	r2, #16
+ 332248c: e590300c     	ldr	r3, [r0, #0xc]
+ 3322490: e28d1000     	add	r1, sp, #0
+ 3322494: e1cd50b0     	strh	r5, [sp]
+ 3322498: e58d3004     	str	r3, [sp, #0x4]
+ 332249c: e58de008     	str	lr, [sp, #0x8]
+ 33224a0: e58d400c     	str	r4, [sp, #0xc]
+ 33224a4: ebfffb20     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x1380
+ 33224a8: e28dd010     	add	sp, sp, #16
+ 33224ac: e8bd8030     	pop	{r4, r5, pc}
+ 33224b0: 01f0506c     	mvnseq	r5, r12, rrx
+
+033224b4 <ZNetCloudGetObjectExecutionState>:
+ 33224b4: e92d4070     	push	{r4, r5, r6, lr}
+ 33224b8: e24dd014     	sub	sp, sp, #20
+ 33224bc: e1a05002     	mov	r5, r2
+ 33224c0: e1a04001     	mov	r4, r1
+ 33224c4: e1a0e000     	mov	lr, r0
+ 33224c8: e59f002c     	ldr	r0, [pc, #0x2c]         @ 0x33224fc <ZNetCloudGetObjectExecutionState+0x48>
+ 33224cc: e3a06033     	mov	r6, #51
+ 33224d0: e3a02014     	mov	r2, #20
+ 33224d4: e590300c     	ldr	r3, [r0, #0xc]
+ 33224d8: e28d1000     	add	r1, sp, #0
+ 33224dc: e1cd60b0     	strh	r6, [sp]
+ 33224e0: e58d3004     	str	r3, [sp, #0x4]
+ 33224e4: e58de008     	str	lr, [sp, #0x8]
+ 33224e8: e58d400c     	str	r4, [sp, #0xc]
+ 33224ec: e58d5010     	str	r5, [sp, #0x10]
+ 33224f0: ebfffb0d     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x13cc
+ 33224f4: e28dd014     	add	sp, sp, #20
+ 33224f8: e8bd8070     	pop	{r4, r5, r6, pc}
+ 33224fc: 01f0506c     	mvnseq	r5, r12, rrx
+
+03322500 <ZNetGetSignInInfo>:
+ 3322500: e92d4030     	push	{r4, r5, lr}
+ 3322504: e24dd010     	sub	sp, sp, #16
+ 3322508: e1a04001     	mov	r4, r1
+ 332250c: e1a0e000     	mov	lr, r0
+ 3322510: e59f0028     	ldr	r0, [pc, #0x28]         @ 0x3322540 <ZNetGetSignInInfo+0x40>
+ 3322514: e3a05046     	mov	r5, #70
+ 3322518: e3a02010     	mov	r2, #16
+ 332251c: e590300c     	ldr	r3, [r0, #0xc]
+ 3322520: e28d1000     	add	r1, sp, #0
+ 3322524: e1cd50b0     	strh	r5, [sp]
+ 3322528: e58d3004     	str	r3, [sp, #0x4]
+ 332252c: e58de008     	str	lr, [sp, #0x8]
+ 3322530: e58d400c     	str	r4, [sp, #0xc]
+ 3322534: ebfffafc     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x1410
+ 3322538: e28dd010     	add	sp, sp, #16
+ 332253c: e8bd8030     	pop	{r4, r5, pc}
+ 3322540: 01f0506c     	mvnseq	r5, r12, rrx
+
+03322544 <ZNetCloudAssociateSemaphoreWithObject>:
+ 3322544: e92d40f0     	push	{r4, r5, r6, r7, lr}
+ 3322548: e24dd018     	sub	sp, sp, #24
+ 332254c: e1a06002     	mov	r6, r2
+ 3322550: e1a05001     	mov	r5, r1
+ 3322554: e1a04000     	mov	r4, r0
+ 3322558: e59f003c     	ldr	r0, [pc, #0x3c]         @ 0x332259c <ZNetCloudAssociateSemaphoreWithObject+0x58>
+ 332255c: e3a0300c     	mov	r3, #12
+ 3322560: e2433b0e     	sub	r3, r3, #14336
+ 3322564: e590e00c     	ldr	lr, [r0, #0xc]
+ 3322568: e5933000     	ldr	r3, [r3]
+ 332256c: e3a0704f     	mov	r7, #79
+ 3322570: e3a02018     	mov	r2, #24
+ 3322574: e28d1000     	add	r1, sp, #0
+ 3322578: e58de004     	str	lr, [sp, #0x4]
+ 332257c: e58d300c     	str	r3, [sp, #0xc]
+ 3322580: e1cd70b0     	strh	r7, [sp]
+ 3322584: e58d4008     	str	r4, [sp, #0x8]
+ 3322588: e58d5010     	str	r5, [sp, #0x10]
+ 332258c: e58d6014     	str	r6, [sp, #0x14]
+ 3322590: ebfffae5     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x146c
+ 3322594: e28dd018     	add	sp, sp, #24
+ 3322598: e8bd80f0     	pop	{r4, r5, r6, r7, pc}
+ 332259c: 01f0506c     	mvnseq	r5, r12, rrx
+
+033225a0 <ZNetGetNearbyPeers>:
+ 33225a0: e92d40f0     	push	{r4, r5, r6, r7, lr}
+ 33225a4: e24dd018     	sub	sp, sp, #24
+ 33225a8: e1a06002     	mov	r6, r2
+ 33225ac: e1a05001     	mov	r5, r1
+ 33225b0: e1a04000     	mov	r4, r0
+ 33225b4: e59f0030     	ldr	r0, [pc, #0x30]         @ 0x33225ec <ZNetGetNearbyPeers+0x4c>
+ 33225b8: e3a07000     	mov	r7, #0
+ 33225bc: e3a02018     	mov	r2, #24
+ 33225c0: e590e00c     	ldr	lr, [r0, #0xc]
+ 33225c4: e28d1000     	add	r1, sp, #0
+ 33225c8: e1cd70b0     	strh	r7, [sp]
+ 33225cc: e58de004     	str	lr, [sp, #0x4]
+ 33225d0: e58d4008     	str	r4, [sp, #0x8]
+ 33225d4: e58d500c     	str	r5, [sp, #0xc]
+ 33225d8: e58d6010     	str	r6, [sp, #0x10]
+ 33225dc: e58d3014     	str	r3, [sp, #0x14]
+ 33225e0: ebfffad1     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x14bc
+ 33225e4: e28dd018     	add	sp, sp, #24
+ 33225e8: e8bd80f0     	pop	{r4, r5, r6, r7, pc}
+ 33225ec: 01f0506c     	mvnseq	r5, r12, rrx
+
+033225f0 <ZNetUpdateUserStatus>:
+ 33225f0: e92d4070     	push	{r4, r5, r6, lr}
+ 33225f4: e24dd014     	sub	sp, sp, #20
+ 33225f8: e1b04001     	movs	r4, r1
+ 33225fc: e1a05000     	mov	r5, r0
+ 3322600: 0a000003     	beq	0x3322614 <ZNetUpdateUserStatus+0x24> @ imm = #0xc
+ 3322604: e1a00004     	mov	r0, r4
+ 3322608: eb000238     	bl	0x3322ef0 <ZNetGetCloudSchedulerStatus+0x3dc> @ imm = #0x8e0
+ 332260c: e1a0e000     	mov	lr, r0
+ 3322610: ea000000     	b	0x3322618 <ZNetUpdateUserStatus+0x28> @ imm = #0x0
+ 3322614: e3a0e000     	mov	lr, #0
+ 3322618: e59f002c     	ldr	r0, [pc, #0x2c]         @ 0x332264c <ZNetUpdateUserStatus+0x5c>
+ 332261c: e3a0600c     	mov	r6, #12
+ 3322620: e3a02014     	mov	r2, #20
+ 3322624: e590300c     	ldr	r3, [r0, #0xc]
+ 3322628: e28d1000     	add	r1, sp, #0
+ 332262c: e1cd60b0     	strh	r6, [sp]
+ 3322630: e58d3004     	str	r3, [sp, #0x4]
+ 3322634: e5cd5008     	strb	r5, [sp, #0x8]
+ 3322638: e58d400c     	str	r4, [sp, #0xc]
+ 332263c: e58de010     	str	lr, [sp, #0x10]
+ 3322640: ebfffab9     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x151c
+ 3322644: e28dd014     	add	sp, sp, #20
+ 3322648: e8bd8070     	pop	{r4, r5, r6, pc}
+ 332264c: 01f0506c     	mvnseq	r5, r12, rrx
+
+03322650 <ZNetSetSessionInfo>:
+ 3322650: e92d4070     	push	{r4, r5, r6, lr}
+ 3322654: e24dd014     	sub	sp, sp, #20
+ 3322658: e1b04001     	movs	r4, r1
+ 332265c: e1a05000     	mov	r5, r0
+ 3322660: 0a000003     	beq	0x3322674 <ZNetSetSessionInfo+0x24> @ imm = #0xc
+ 3322664: e1a00004     	mov	r0, r4
+ 3322668: eb000220     	bl	0x3322ef0 <ZNetGetCloudSchedulerStatus+0x3dc> @ imm = #0x880
+ 332266c: e1a0e000     	mov	lr, r0
+ 3322670: ea000000     	b	0x3322678 <ZNetSetSessionInfo+0x28> @ imm = #0x0
+ 3322674: e3a0e000     	mov	lr, #0
+ 3322678: e59f002c     	ldr	r0, [pc, #0x2c]         @ 0x33226ac <ZNetSetSessionInfo+0x5c>
+ 332267c: e3a06010     	mov	r6, #16
+ 3322680: e3a02014     	mov	r2, #20
+ 3322684: e590300c     	ldr	r3, [r0, #0xc]
+ 3322688: e28d1000     	add	r1, sp, #0
+ 332268c: e1cd60b0     	strh	r6, [sp]
+ 3322690: e58d3004     	str	r3, [sp, #0x4]
+ 3322694: e58d5008     	str	r5, [sp, #0x8]
+ 3322698: e58d400c     	str	r4, [sp, #0xc]
+ 332269c: e58de010     	str	lr, [sp, #0x10]
+ 33226a0: ebfffaa1     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x157c
+ 33226a4: e28dd014     	add	sp, sp, #20
+ 33226a8: e8bd8070     	pop	{r4, r5, r6, pc}
+ 33226ac: 01f0506c     	mvnseq	r5, r12, rrx
+
+033226b0 <ZNetSetMode>:
+ 33226b0: e92d4070     	push	{r4, r5, r6, lr}
+ 33226b4: e24dd014     	sub	sp, sp, #20
+ 33226b8: e1a04001     	mov	r4, r1
+ 33226bc: e1a0e000     	mov	lr, r0
+ 33226c0: e59f0030     	ldr	r0, [pc, #0x30]         @ 0x33226f8 <ZNetSetMode+0x48>
+ 33226c4: e3a05018     	mov	r5, #24
+ 33226c8: e3a06000     	mov	r6, #0
+ 33226cc: e590300c     	ldr	r3, [r0, #0xc]
+ 33226d0: e3a02014     	mov	r2, #20
+ 33226d4: e28d1000     	add	r1, sp, #0
+ 33226d8: e58d3004     	str	r3, [sp, #0x4]
+ 33226dc: e1cd50b0     	strh	r5, [sp]
+ 33226e0: e58de008     	str	lr, [sp, #0x8]
+ 33226e4: e58d400c     	str	r4, [sp, #0xc]
+ 33226e8: e58d6010     	str	r6, [sp, #0x10]
+ 33226ec: ebfffa8e     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x15c8
+ 33226f0: e28dd014     	add	sp, sp, #20
+ 33226f4: e8bd8070     	pop	{r4, r5, r6, pc}
+ 33226f8: 01f0506c     	mvnseq	r5, r12, rrx
+
+033226fc <ZNetSetModeWaitForCompletion>:
+ 33226fc: e92d4070     	push	{r4, r5, r6, lr}
+ 3322700: e24dd014     	sub	sp, sp, #20
+ 3322704: e1a04001     	mov	r4, r1
+ 3322708: e1a0e000     	mov	lr, r0
+ 332270c: e59f0030     	ldr	r0, [pc, #0x30]         @ 0x3322744 <ZNetSetModeWaitForCompletion+0x48>
+ 3322710: e3a05018     	mov	r5, #24
+ 3322714: e3a06001     	mov	r6, #1
+ 3322718: e590300c     	ldr	r3, [r0, #0xc]
+ 332271c: e3a02014     	mov	r2, #20
+ 3322720: e28d1000     	add	r1, sp, #0
+ 3322724: e58d3004     	str	r3, [sp, #0x4]
+ 3322728: e1cd50b0     	strh	r5, [sp]
+ 332272c: e58de008     	str	lr, [sp, #0x8]
+ 3322730: e58d400c     	str	r4, [sp, #0xc]
+ 3322734: e58d6010     	str	r6, [sp, #0x10]
+ 3322738: ebfffa7b     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x1614
+ 332273c: e28dd014     	add	sp, sp, #20
+ 3322740: e8bd8070     	pop	{r4, r5, r6, pc}
+ 3322744: 01f0506c     	mvnseq	r5, r12, rrx
+
+03322748 <ZNetGetNetworkList>:
+ 3322748: e92d4070     	push	{r4, r5, r6, lr}
+ 332274c: e24dd014     	sub	sp, sp, #20
+ 3322750: e1a05002     	mov	r5, r2
+ 3322754: e1a04001     	mov	r4, r1
+ 3322758: e1a0e000     	mov	lr, r0
+ 332275c: e59f002c     	ldr	r0, [pc, #0x2c]         @ 0x3322790 <ZNetGetNetworkList+0x48>
+ 3322760: e3a06028     	mov	r6, #40
+ 3322764: e3a02014     	mov	r2, #20
+ 3322768: e590300c     	ldr	r3, [r0, #0xc]
+ 332276c: e28d1000     	add	r1, sp, #0
+ 3322770: e1cd60b0     	strh	r6, [sp]
+ 3322774: e58d3004     	str	r3, [sp, #0x4]
+ 3322778: e58de008     	str	lr, [sp, #0x8]
+ 332277c: e58d400c     	str	r4, [sp, #0xc]
+ 3322780: e58d5010     	str	r5, [sp, #0x10]
+ 3322784: ebfffa68     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x1660
+ 3322788: e28dd014     	add	sp, sp, #20
+ 332278c: e8bd8070     	pop	{r4, r5, r6, pc}
+ 3322790: 01f0506c     	mvnseq	r5, r12, rrx
+
+03322794 <ZNetGetWifiCapability>:
+ 3322794: e92d4070     	push	{r4, r5, r6, lr}
+ 3322798: e24dd014     	sub	sp, sp, #20
+ 332279c: e1a05002     	mov	r5, r2
+ 33227a0: e1a04001     	mov	r4, r1
+ 33227a4: e1a0e000     	mov	lr, r0
+ 33227a8: e59f002c     	ldr	r0, [pc, #0x2c]         @ 0x33227dc <ZNetGetWifiCapability+0x48>
+ 33227ac: e3a0602e     	mov	r6, #46
+ 33227b0: e3a02014     	mov	r2, #20
+ 33227b4: e590300c     	ldr	r3, [r0, #0xc]
+ 33227b8: e28d1000     	add	r1, sp, #0
+ 33227bc: e1cd60b0     	strh	r6, [sp]
+ 33227c0: e58d3004     	str	r3, [sp, #0x4]
+ 33227c4: e58de008     	str	lr, [sp, #0x8]
+ 33227c8: e58d400c     	str	r4, [sp, #0xc]
+ 33227cc: e58d5010     	str	r5, [sp, #0x10]
+ 33227d0: ebfffa55     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x16ac
+ 33227d4: e28dd014     	add	sp, sp, #20
+ 33227d8: e8bd8070     	pop	{r4, r5, r6, pc}
+ 33227dc: 01f0506c     	mvnseq	r5, r12, rrx
+
+033227e0 <ZNetCloudScheduleTask>:
+ 33227e0: e92d41f0     	push	{r4, r5, r6, r7, r8, lr}
+ 33227e4: e24dd01c     	sub	sp, sp, #28
+ 33227e8: e1a07002     	mov	r7, r2
+ 33227ec: e1a06001     	mov	r6, r1
+ 33227f0: e1a04000     	mov	r4, r0
+ 33227f4: e59f0038     	ldr	r0, [pc, #0x38]         @ 0x3322834 <ZNetCloudScheduleTask+0x54>
+ 33227f8: e59d5034     	ldr	r5, [sp, #0x34]
+ 33227fc: e3a08032     	mov	r8, #50
+ 3322800: e590e00c     	ldr	lr, [r0, #0xc]
+ 3322804: e3a0201c     	mov	r2, #28
+ 3322808: e28d1000     	add	r1, sp, #0
+ 332280c: e58de004     	str	lr, [sp, #0x4]
+ 3322810: e1cd80b0     	strh	r8, [sp]
+ 3322814: e58d4008     	str	r4, [sp, #0x8]
+ 3322818: e58d600c     	str	r6, [sp, #0xc]
+ 332281c: e58d7010     	str	r7, [sp, #0x10]
+ 3322820: e58d3014     	str	r3, [sp, #0x14]
+ 3322824: e58d5018     	str	r5, [sp, #0x18]
+ 3322828: ebfffa3f     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x1704
+ 332282c: e28dd01c     	add	sp, sp, #28
+ 3322830: e8bd81f0     	pop	{r4, r5, r6, r7, r8, pc}
+ 3322834: 01f0506c     	mvnseq	r5, r12, rrx
+
+03322838 <ZNetGetServiceEndPointUri>:
+ 3322838: e92d4070     	push	{r4, r5, r6, lr}
+ 332283c: e24dd014     	sub	sp, sp, #20
+ 3322840: e1a05002     	mov	r5, r2
+ 3322844: e1a04001     	mov	r4, r1
+ 3322848: e1a0e000     	mov	lr, r0
+ 332284c: e59f002c     	ldr	r0, [pc, #0x2c]         @ 0x3322880 <ZNetGetServiceEndPointUri+0x48>
+ 3322850: e3a06043     	mov	r6, #67
+ 3322854: e3a02014     	mov	r2, #20
+ 3322858: e590300c     	ldr	r3, [r0, #0xc]
+ 332285c: e28d1000     	add	r1, sp, #0
+ 3322860: e1cd60b0     	strh	r6, [sp]
+ 3322864: e58d3004     	str	r3, [sp, #0x4]
+ 3322868: e58de008     	str	lr, [sp, #0x8]
+ 332286c: e58d400c     	str	r4, [sp, #0xc]
+ 3322870: e58d5010     	str	r5, [sp, #0x10]
+ 3322874: ebfffa2c     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x1750
+ 3322878: e28dd014     	add	sp, sp, #20
+ 332287c: e8bd8070     	pop	{r4, r5, r6, pc}
+ 3322880: 01f0506c     	mvnseq	r5, r12, rrx
+
+03322884 <ZNetStoreUserCredentials>:
+ 3322884: e92d4070     	push	{r4, r5, r6, lr}
+ 3322888: e24dd014     	sub	sp, sp, #20
+ 332288c: e1a05002     	mov	r5, r2
+ 3322890: e1a04001     	mov	r4, r1
+ 3322894: e1a0e000     	mov	lr, r0
+ 3322898: e59f002c     	ldr	r0, [pc, #0x2c]         @ 0x33228cc <ZNetStoreUserCredentials+0x48>
+ 332289c: e3a06044     	mov	r6, #68
+ 33228a0: e3a02014     	mov	r2, #20
+ 33228a4: e590300c     	ldr	r3, [r0, #0xc]
+ 33228a8: e28d1000     	add	r1, sp, #0
+ 33228ac: e1cd60b0     	strh	r6, [sp]
+ 33228b0: e58d3004     	str	r3, [sp, #0x4]
+ 33228b4: e58de008     	str	lr, [sp, #0x8]
+ 33228b8: e58d400c     	str	r4, [sp, #0xc]
+ 33228bc: e58d5010     	str	r5, [sp, #0x10]
+ 33228c0: ebfffa19     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x179c
+ 33228c4: e28dd014     	add	sp, sp, #20
+ 33228c8: e8bd8070     	pop	{r4, r5, r6, pc}
+ 33228cc: 01f0506c     	mvnseq	r5, r12, rrx
+
+033228d0 <ZNetCloudScheduleFeatureTask>:
+ 33228d0: e92d41f0     	push	{r4, r5, r6, r7, r8, lr}
+ 33228d4: e24dd01c     	sub	sp, sp, #28
+ 33228d8: e1a07002     	mov	r7, r2
+ 33228dc: e1a06001     	mov	r6, r1
+ 33228e0: e1a04000     	mov	r4, r0
+ 33228e4: e59f0038     	ldr	r0, [pc, #0x38]         @ 0x3322924 <ZNetCloudScheduleFeatureTask+0x54>
+ 33228e8: e59d5034     	ldr	r5, [sp, #0x34]
+ 33228ec: e3a0803a     	mov	r8, #58
+ 33228f0: e590e00c     	ldr	lr, [r0, #0xc]
+ 33228f4: e3a0201c     	mov	r2, #28
+ 33228f8: e28d1000     	add	r1, sp, #0
+ 33228fc: e58de004     	str	lr, [sp, #0x4]
+ 3322900: e1cd80b0     	strh	r8, [sp]
+ 3322904: e58d4008     	str	r4, [sp, #0x8]
+ 3322908: e58d600c     	str	r6, [sp, #0xc]
+ 332290c: e58d7010     	str	r7, [sp, #0x10]
+ 3322910: e58d3014     	str	r3, [sp, #0x14]
+ 3322914: e58d5018     	str	r5, [sp, #0x18]
+ 3322918: ebfffa03     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x17f4
+ 332291c: e28dd01c     	add	sp, sp, #28
+ 3322920: e8bd81f0     	pop	{r4, r5, r6, r7, r8, pc}
+ 3322924: 01f0506c     	mvnseq	r5, r12, rrx
+
+03322928 <ZNetCloudCreateJob>:
+ 3322928: e92d4070     	push	{r4, r5, r6, lr}
+ 332292c: e24dd014     	sub	sp, sp, #20
+ 3322930: e1a05002     	mov	r5, r2
+ 3322934: e1a04001     	mov	r4, r1
+ 3322938: e1a0e000     	mov	lr, r0
+ 332293c: e59f002c     	ldr	r0, [pc, #0x2c]         @ 0x3322970 <ZNetCloudCreateJob+0x48>
+ 3322940: e3a0603b     	mov	r6, #59
+ 3322944: e3a02014     	mov	r2, #20
+ 3322948: e590300c     	ldr	r3, [r0, #0xc]
+ 332294c: e28d1000     	add	r1, sp, #0
+ 3322950: e1cd60b0     	strh	r6, [sp]
+ 3322954: e58d3004     	str	r3, [sp, #0x4]
+ 3322958: e58de008     	str	lr, [sp, #0x8]
+ 332295c: e58d400c     	str	r4, [sp, #0xc]
+ 3322960: e58d5010     	str	r5, [sp, #0x10]
+ 3322964: ebfff9f0     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x1840
+ 3322968: e28dd014     	add	sp, sp, #20
+ 332296c: e8bd8070     	pop	{r4, r5, r6, pc}
+ 3322970: 01f0506c     	mvnseq	r5, r12, rrx
+
+03322974 <ZNetSetDefaultProxy>:
+ 3322974: e92d40f0     	push	{r4, r5, r6, r7, lr}
+ 3322978: e24dd018     	sub	sp, sp, #24
+ 332297c: e1a06002     	mov	r6, r2
+ 3322980: e1a05001     	mov	r5, r1
+ 3322984: e1a04000     	mov	r4, r0
+ 3322988: e59f0030     	ldr	r0, [pc, #0x30]         @ 0x33229c0 <ZNetSetDefaultProxy+0x4c>
+ 332298c: e3a07041     	mov	r7, #65
+ 3322990: e3a02018     	mov	r2, #24
+ 3322994: e590e00c     	ldr	lr, [r0, #0xc]
+ 3322998: e28d1000     	add	r1, sp, #0
+ 332299c: e1cd70b0     	strh	r7, [sp]
+ 33229a0: e58de004     	str	lr, [sp, #0x4]
+ 33229a4: e58d4008     	str	r4, [sp, #0x8]
+ 33229a8: e58d500c     	str	r5, [sp, #0xc]
+ 33229ac: e58d6010     	str	r6, [sp, #0x10]
+ 33229b0: e58d3014     	str	r3, [sp, #0x14]
+ 33229b4: ebfff9dc     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x1890
+ 33229b8: e28dd018     	add	sp, sp, #24
+ 33229bc: e8bd80f0     	pop	{r4, r5, r6, r7, pc}
+ 33229c0: 01f0506c     	mvnseq	r5, r12, rrx
+
+033229c4 <ZNetGetDefaultProxy>:
+ 33229c4: e92d40f0     	push	{r4, r5, r6, r7, lr}
+ 33229c8: e24dd018     	sub	sp, sp, #24
+ 33229cc: e1a06002     	mov	r6, r2
+ 33229d0: e1a05001     	mov	r5, r1
+ 33229d4: e1a04000     	mov	r4, r0
+ 33229d8: e59f0030     	ldr	r0, [pc, #0x30]         @ 0x3322a10 <ZNetGetDefaultProxy+0x4c>
+ 33229dc: e3a07042     	mov	r7, #66
+ 33229e0: e3a02018     	mov	r2, #24
+ 33229e4: e590e00c     	ldr	lr, [r0, #0xc]
+ 33229e8: e28d1000     	add	r1, sp, #0
+ 33229ec: e1cd70b0     	strh	r7, [sp]
+ 33229f0: e58de004     	str	lr, [sp, #0x4]
+ 33229f4: e58d4008     	str	r4, [sp, #0x8]
+ 33229f8: e58d500c     	str	r5, [sp, #0xc]
+ 33229fc: e58d6010     	str	r6, [sp, #0x10]
+ 3322a00: e58d3014     	str	r3, [sp, #0x14]
+ 3322a04: ebfff9c8     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x18e0
+ 3322a08: e28dd018     	add	sp, sp, #24
+ 3322a0c: e8bd80f0     	pop	{r4, r5, r6, r7, pc}
+ 3322a10: 01f0506c     	mvnseq	r5, r12, rrx
+
+03322a14 <ZNetScanAndWaitForNetworks>:
+ 3322a14: e92d40f0     	push	{r4, r5, r6, r7, lr}
+ 3322a18: e24dd018     	sub	sp, sp, #24
+ 3322a1c: e1a06002     	mov	r6, r2
+ 3322a20: e1a05001     	mov	r5, r1
+ 3322a24: e1a04000     	mov	r4, r0
+ 3322a28: e59f0030     	ldr	r0, [pc, #0x30]         @ 0x3322a60 <ZNetScanAndWaitForNetworks+0x4c>
+ 3322a2c: e3a07026     	mov	r7, #38
+ 3322a30: e3a02018     	mov	r2, #24
+ 3322a34: e590e00c     	ldr	lr, [r0, #0xc]
+ 3322a38: e28d1000     	add	r1, sp, #0
+ 3322a3c: e1cd70b0     	strh	r7, [sp]
+ 3322a40: e58de004     	str	lr, [sp, #0x4]
+ 3322a44: e58d4008     	str	r4, [sp, #0x8]
+ 3322a48: e58d500c     	str	r5, [sp, #0xc]
+ 3322a4c: e58d6010     	str	r6, [sp, #0x10]
+ 3322a50: e58d3014     	str	r3, [sp, #0x14]
+ 3322a54: ebfff9b4     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x1930
+ 3322a58: e28dd018     	add	sp, sp, #24
+ 3322a5c: e8bd80f0     	pop	{r4, r5, r6, r7, pc}
+ 3322a60: 01f0506c     	mvnseq	r5, r12, rrx
+
+03322a64 <ZNetGetUserCredentials>:
+ 3322a64: e92d41f0     	push	{r4, r5, r6, r7, r8, lr}
+ 3322a68: e24dd01c     	sub	sp, sp, #28
+ 3322a6c: e1a07002     	mov	r7, r2
+ 3322a70: e1a06001     	mov	r6, r1
+ 3322a74: e1a04000     	mov	r4, r0
+ 3322a78: e59f0038     	ldr	r0, [pc, #0x38]         @ 0x3322ab8 <ZNetGetUserCredentials+0x54>
+ 3322a7c: e59d5034     	ldr	r5, [sp, #0x34]
+ 3322a80: e3a08045     	mov	r8, #69
+ 3322a84: e590e00c     	ldr	lr, [r0, #0xc]
+ 3322a88: e3a0201c     	mov	r2, #28
+ 3322a8c: e28d1000     	add	r1, sp, #0
+ 3322a90: e58de004     	str	lr, [sp, #0x4]
+ 3322a94: e1cd80b0     	strh	r8, [sp]
+ 3322a98: e58d4008     	str	r4, [sp, #0x8]
+ 3322a9c: e58d600c     	str	r6, [sp, #0xc]
+ 3322aa0: e58d7010     	str	r7, [sp, #0x10]
+ 3322aa4: e58d3014     	str	r3, [sp, #0x14]
+ 3322aa8: e58d5018     	str	r5, [sp, #0x18]
+ 3322aac: ebfff99e     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x1988
+ 3322ab0: e28dd01c     	add	sp, sp, #28
+ 3322ab4: e8bd81f0     	pop	{r4, r5, r6, r7, r8, pc}
+ 3322ab8: 01f0506c     	mvnseq	r5, r12, rrx
+ 3322abc: e92d43f0     	push	{r4, r5, r6, r7, r8, r9, lr}
+ 3322ac0: e24dd020     	sub	sp, sp, #32
+ 3322ac4: e1a09002     	mov	r9, r2
+ 3322ac8: e1a08001     	mov	r8, r1
+ 3322acc: e590e00c     	ldr	lr, [r0, #0xc]
+ 3322ad0: e59d403c     	ldr	r4, [sp, #0x3c]
+ 3322ad4: e59d5040     	ldr	r5, [sp, #0x40]
+ 3322ad8: e59d6044     	ldr	r6, [sp, #0x44]
+ 3322adc: e59d7048     	ldr	r7, [sp, #0x48]
+ 3322ae0: e3a02020     	mov	r2, #32
+ 3322ae4: e28d1000     	add	r1, sp, #0
+ 3322ae8: e58de004     	str	lr, [sp, #0x4]
+ 3322aec: e58d4010     	str	r4, [sp, #0x10]
+ 3322af0: e58d5014     	str	r5, [sp, #0x14]
+ 3322af4: e58d6018     	str	r6, [sp, #0x18]
+ 3322af8: e58d701c     	str	r7, [sp, #0x1c]
+ 3322afc: e1cd80b0     	strh	r8, [sp]
+ 3322b00: e58d9008     	str	r9, [sp, #0x8]
+ 3322b04: e58d300c     	str	r3, [sp, #0xc]
+ 3322b08: ebfff987     	bl	0x332112c <ZNetCloudReleaseBlob+0x34> @ imm = #-0x19e4
+ 3322b0c: e28dd020     	add	sp, sp, #32
+ 3322b10: e8bd83f0     	pop	{r4, r5, r6, r7, r8, r9, pc}
+
+03322b14 <ZNetGetCloudSchedulerStatus>:
+ 3322b14: e92d4030     	push	{r4, r5, lr}
+ 3322b18: e24dd010     	sub	sp, sp, #16
+ 3322b1c: e1a04003     	mov	r4, r3
+ 3322b20: e1a05002     	mov	r5, r2
+ 3322b24: e1a03001     	mov	r3, r1
+ 3322b28: e1a02000     	mov	r2, r0
+ 3322b2c: e59d1020     	ldr	r1, [sp, #0x20]
+ 3322b30: e59de01c     	ldr	lr, [sp, #0x1c]
+ 3322b34: e59f001c     	ldr	r0, [pc, #0x1c]         @ 0x3322b58 <ZNetGetCloudSchedulerStatus+0x44>
+ 3322b38: e58d100c     	str	r1, [sp, #0xc]
+ 3322b3c: e3a01049     	mov	r1, #73
+ 3322b40: e58de008     	str	lr, [sp, #0x8]
+ 3322b44: e58d4004     	str	r4, [sp, #0x4]
+ 3322b48: e58d5000     	str	r5, [sp]
+ 3322b4c: ebffffda     	bl	0x3322abc <ZNetGetUserCredentials+0x58> @ imm = #-0x98
+ 3322b50: e28dd010     	add	sp, sp, #16
+ 3322b54: e8bd8030     	pop	{r4, r5, pc}
+ 3322b58: 01f0506c     	mvnseq	r5, r12, rrx
+ 3322b5c: e52de004     	str	lr, [sp, #-0x4]!
+ 3322b60: e3510001     	cmp	r1, #1
+ 3322b64: 0b0000e5     	bleq	0x3322f00 <ZNetGetCloudSchedulerStatus+0x3ec> @ imm = #0x394
+ 3322b68: e3a00001     	mov	r0, #1
+ 3322b6c: e49df004     	ldr	pc, [sp], #4
+ 3322b70: e92d41f0     	push	{r4, r5, r6, r7, r8, lr}
+ 3322b74: e1a07002     	mov	r7, r2
+ 3322b78: e1a06001     	mov	r6, r1
+ 3322b7c: e1a08000     	mov	r8, r0
+ 3322b80: e59f5078     	ldr	r5, [pc, #0x78]         @ 0x3322c00 <ZNetGetCloudSchedulerStatus+0xec>
+ 3322b84: e3560001     	cmp	r6, #1
+ 3322b88: 1a000008     	bne	0x3322bb0 <ZNetGetCloudSchedulerStatus+0x9c> @ imm = #0x20
+ 3322b8c: e5953000     	ldr	r3, [r5]
+ 3322b90: e3530000     	cmp	r3, #0
+ 3322b94: 0a000004     	beq	0x3322bac <ZNetGetCloudSchedulerStatus+0x98> @ imm = #0x10
+ 3322b98: e3a01001     	mov	r1, #1
+ 3322b9c: e1a0e00f     	mov	lr, pc
+ 3322ba0: e595f000     	ldr	pc, [r5]
+ 3322ba4: e1b04000     	movs	r4, r0
+ 3322ba8: 0a000012     	beq	0x3322bf8 <ZNetGetCloudSchedulerStatus+0xe4> @ imm = #0x48
+ 3322bac: eb000045     	bl	0x3322cc8 <ZNetGetCloudSchedulerStatus+0x1b4> @ imm = #0x114
+ 3322bb0: e1a02007     	mov	r2, r7
+ 3322bb4: e1a01006     	mov	r1, r6
+ 3322bb8: e1a00008     	mov	r0, r8
+ 3322bbc: ebffffe6     	bl	0x3322b5c <ZNetGetCloudSchedulerStatus+0x48> @ imm = #-0x68
+ 3322bc0: e1a04000     	mov	r4, r0
+ 3322bc4: e3560000     	cmp	r6, #0
+ 3322bc8: 1a00000a     	bne	0x3322bf8 <ZNetGetCloudSchedulerStatus+0xe4> @ imm = #0x28
+ 3322bcc: eb000097     	bl	0x3322e30 <ZNetGetCloudSchedulerStatus+0x31c> @ imm = #0x25c
+ 3322bd0: e5953000     	ldr	r3, [r5]
+ 3322bd4: e3530000     	cmp	r3, #0
+ 3322bd8: 0a000006     	beq	0x3322bf8 <ZNetGetCloudSchedulerStatus+0xe4> @ imm = #0x18
+ 3322bdc: e1a02007     	mov	r2, r7
+ 3322be0: e3a01000     	mov	r1, #0
+ 3322be4: e1a00008     	mov	r0, r8
+ 3322be8: e1a0e00f     	mov	lr, pc
+ 3322bec: e595f000     	ldr	pc, [r5]
+ 3322bf0: e3500000     	cmp	r0, #0
+ 3322bf4: 03a04000     	moveq	r4, #0
+ 3322bf8: e1a00004     	mov	r0, r4
+ 3322bfc: e8bd81f0     	pop	{r4, r5, r6, r7, r8, pc}
+ 3322c00: 01f050a4     	mvnseq	r5, r4, lsr #1
+ 3322c04: e92d4070     	push	{r4, r5, r6, lr}
+ 3322c08: e1a04000     	mov	r4, r0
+ 3322c0c: e59f5098     	ldr	r5, [pc, #0x98]         @ 0x3322cac <ZNetGetCloudSchedulerStatus+0x198>
+ 3322c10: e59f6090     	ldr	r6, [pc, #0x90]         @ 0x3322ca8 <ZNetGetCloudSchedulerStatus+0x194>
+ 3322c14: e5950000     	ldr	r0, [r5]
+ 3322c18: e3500000     	cmp	r0, #0
+ 3322c1c: 0a000008     	beq	0x3322c44 <ZNetGetCloudSchedulerStatus+0x130> @ imm = #0x20
+ 3322c20: eb0000be     	bl	0x3322f20 <ZNetGetCloudSchedulerStatus+0x40c> @ imm = #0x2f8
+ 3322c24: e5962000     	ldr	r2, [r6]
+ 3322c28: e5951000     	ldr	r1, [r5]
+ 3322c2c: e0423001     	sub	r3, r2, r1
+ 3322c30: e2833004     	add	r3, r3, #4
+ 3322c34: e1500003     	cmp	r0, r3
+ 3322c38: 2a000016     	bhs	0x3322c98 <ZNetGetCloudSchedulerStatus+0x184> @ imm = #0x58
+ 3322c3c: e3510000     	cmp	r1, #0
+ 3322c40: 1a000003     	bne	0x3322c54 <ZNetGetCloudSchedulerStatus+0x140> @ imm = #0xc
+ 3322c44: e3a01010     	mov	r1, #16
+ 3322c48: e3a00000     	mov	r0, #0
+ 3322c4c: eb000083     	bl	0x3322e60 <ZNetGetCloudSchedulerStatus+0x34c> @ imm = #0x20c
+ 3322c50: ea000006     	b	0x3322c70 <ZNetGetCloudSchedulerStatus+0x15c> @ imm = #0x18
+ 3322c54: e1a00001     	mov	r0, r1
+ 3322c58: eb0000b0     	bl	0x3322f20 <ZNetGetCloudSchedulerStatus+0x40c> @ imm = #0x2c0
+ 3322c5c: e1a03000     	mov	r3, r0
+ 3322c60: e5950000     	ldr	r0, [r5]
+ 3322c64: e3a02002     	mov	r2, #2
+ 3322c68: e2831010     	add	r1, r3, #16
+ 3322c6c: eb0000a7     	bl	0x3322f10 <ZNetGetCloudSchedulerStatus+0x3fc> @ imm = #0x29c
+ 3322c70: e3500000     	cmp	r0, #0
+ 3322c74: 03a04000     	moveq	r4, #0
+ 3322c78: 01a00004     	moveq	r0, r4
+ 3322c7c: 08bd8070     	popeq	{r4, r5, r6, pc}
+ 3322c80: e5962000     	ldr	r2, [r6]
+ 3322c84: e5953000     	ldr	r3, [r5]
+ 3322c88: e5850000     	str	r0, [r5]
+ 3322c8c: e0423003     	sub	r3, r2, r3
+ 3322c90: e1a03143     	asr	r3, r3, #2
+ 3322c94: e0802103     	add	r2, r0, r3, lsl #2
+ 3322c98: e4824004     	str	r4, [r2], #4
+ 3322c9c: e1a00004     	mov	r0, r4
+ 3322ca0: e5862000     	str	r2, [r6]
+ 3322ca4: e8bd8070     	pop	{r4, r5, r6, pc}
+ 3322ca8: 01f05098     	<unknown>
+ 3322cac: 01f0509c     	<unknown>
+ 3322cb0: e52de004     	str	lr, [sp, #-0x4]!
+ 3322cb4: ebffffd2     	bl	0x3322c04 <ZNetGetCloudSchedulerStatus+0xf0> @ imm = #-0xb8
+ 3322cb8: e3500000     	cmp	r0, #0
+ 3322cbc: 13a00000     	movne	r0, #0
+ 3322cc0: 03e00000     	mvneq	r0, #0
+ 3322cc4: e49df004     	ldr	pc, [sp], #4
+ 3322cc8: e92d4030     	push	{r4, r5, lr}
+ 3322ccc: e59f4058     	ldr	r4, [pc, #0x58]         @ 0x3322d2c <ZNetGetCloudSchedulerStatus+0x218>
+ 3322cd0: e59f5050     	ldr	r5, [pc, #0x50]         @ 0x3322d28 <ZNetGetCloudSchedulerStatus+0x214>
+ 3322cd4: ea000004     	b	0x3322cec <ZNetGetCloudSchedulerStatus+0x1d8> @ imm = #0x10
+ 3322cd8: e5943000     	ldr	r3, [r4]
+ 3322cdc: e3530000     	cmp	r3, #0
+ 3322ce0: 11a0e00f     	movne	lr, pc
+ 3322ce4: 11a0f003     	movne	pc, r3
+ 3322ce8: e2844004     	add	r4, r4, #4
+ 3322cec: e1540005     	cmp	r4, r5
+ 3322cf0: 3afffff8     	blo	0x3322cd8 <ZNetGetCloudSchedulerStatus+0x1c4> @ imm = #-0x20
+ 3322cf4: e59f4028     	ldr	r4, [pc, #0x28]         @ 0x3322d24 <ZNetGetCloudSchedulerStatus+0x210>
+ 3322cf8: e59f5020     	ldr	r5, [pc, #0x20]         @ 0x3322d20 <ZNetGetCloudSchedulerStatus+0x20c>
+ 3322cfc: ea000004     	b	0x3322d14 <ZNetGetCloudSchedulerStatus+0x200> @ imm = #0x10
+ 3322d00: e5943000     	ldr	r3, [r4]
+ 3322d04: e3530000     	cmp	r3, #0
+ 3322d08: 11a0e00f     	movne	lr, pc
+ 3322d0c: 11a0f003     	movne	pc, r3
+ 3322d10: e2844004     	add	r4, r4, #4
+ 3322d14: e1540005     	cmp	r4, r5
+ 3322d18: 3afffff8     	blo	0x3322d00 <ZNetGetCloudSchedulerStatus+0x1ec> @ imm = #-0x20
+ 3322d1c: e8bd8030     	pop	{r4, r5, pc}
+ 3322d20: 01f05050     	mvnseq	r5, r0, asr r0
+ 3322d24: 01f05040     	mvnseq	r5, r0, asr #32
+ 3322d28: 01f05058     	mvnseq	r5, r8, asr r0
+ 3322d2c: 01f05054     	mvnseq	r5, r4, asr r0
+ 3322d30: e92d41f0     	push	{r4, r5, r6, r7, r8, lr}
+ 3322d34: e1a07002     	mov	r7, r2
+ 3322d38: e3510000     	cmp	r1, #0
+ 3322d3c: e1a08000     	mov	r8, r0
+ 3322d40: e59f30e4     	ldr	r3, [pc, #0xe4]         @ 0x3322e2c <ZNetGetCloudSchedulerStatus+0x318>
+ 3322d44: e5c37000     	strb	r7, [r3]
+ 3322d48: 1a00001f     	bne	0x3322dcc <ZNetGetCloudSchedulerStatus+0x2b8> @ imm = #0x7c
+ 3322d4c: e59f50d4     	ldr	r5, [pc, #0xd4]         @ 0x3322e28 <ZNetGetCloudSchedulerStatus+0x314>
+ 3322d50: e5950000     	ldr	r0, [r5]
+ 3322d54: e3500000     	cmp	r0, #0
+ 3322d58: 0a000011     	beq	0x3322da4 <ZNetGetCloudSchedulerStatus+0x290> @ imm = #0x44
+ 3322d5c: e59f60c0     	ldr	r6, [pc, #0xc0]         @ 0x3322e24 <ZNetGetCloudSchedulerStatus+0x310>
+ 3322d60: e5963000     	ldr	r3, [r6]
+ 3322d64: e2434004     	sub	r4, r3, #4
+ 3322d68: ea000006     	b	0x3322d88 <ZNetGetCloudSchedulerStatus+0x274> @ imm = #0x18
+ 3322d6c: e5943000     	ldr	r3, [r4]
+ 3322d70: e3530000     	cmp	r3, #0
+ 3322d74: 0a000002     	beq	0x3322d84 <ZNetGetCloudSchedulerStatus+0x270> @ imm = #0x8
+ 3322d78: e1a0e00f     	mov	lr, pc
+ 3322d7c: e1a0f003     	mov	pc, r3
+ 3322d80: e5950000     	ldr	r0, [r5]
+ 3322d84: e2444004     	sub	r4, r4, #4
+ 3322d88: e1540000     	cmp	r4, r0
+ 3322d8c: 2afffff6     	bhs	0x3322d6c <ZNetGetCloudSchedulerStatus+0x258> @ imm = #-0x28
+ 3322d90: eb00003a     	bl	0x3322e80 <ZNetGetCloudSchedulerStatus+0x36c> @ imm = #0xe8
+ 3322d94: e3a03000     	mov	r3, #0
+ 3322d98: e3a02000     	mov	r2, #0
+ 3322d9c: e5863000     	str	r3, [r6]
+ 3322da0: e5852000     	str	r2, [r5]
+ 3322da4: e59f4074     	ldr	r4, [pc, #0x74]         @ 0x3322e20 <ZNetGetCloudSchedulerStatus+0x30c>
+ 3322da8: e59f506c     	ldr	r5, [pc, #0x6c]         @ 0x3322e1c <ZNetGetCloudSchedulerStatus+0x308>
+ 3322dac: ea000004     	b	0x3322dc4 <ZNetGetCloudSchedulerStatus+0x2b0> @ imm = #0x10
+ 3322db0: e5943000     	ldr	r3, [r4]
+ 3322db4: e3530000     	cmp	r3, #0
+ 3322db8: 11a0e00f     	movne	lr, pc
+ 3322dbc: 11a0f003     	movne	pc, r3
+ 3322dc0: e2844004     	add	r4, r4, #4
+ 3322dc4: e1540005     	cmp	r4, r5
+ 3322dc8: 3afffff8     	blo	0x3322db0 <ZNetGetCloudSchedulerStatus+0x29c> @ imm = #-0x20
+ 3322dcc: e59f4044     	ldr	r4, [pc, #0x44]         @ 0x3322e18 <ZNetGetCloudSchedulerStatus+0x304>
+ 3322dd0: e59f503c     	ldr	r5, [pc, #0x3c]         @ 0x3322e14 <ZNetGetCloudSchedulerStatus+0x300>
+ 3322dd4: ea000004     	b	0x3322dec <ZNetGetCloudSchedulerStatus+0x2d8> @ imm = #0x10
+ 3322dd8: e5943000     	ldr	r3, [r4]
+ 3322ddc: e3530000     	cmp	r3, #0
+ 3322de0: 11a0e00f     	movne	lr, pc
+ 3322de4: 11a0f003     	movne	pc, r3
+ 3322de8: e2844004     	add	r4, r4, #4
+ 3322dec: e1540005     	cmp	r4, r5
+ 3322df0: 3afffff8     	blo	0x3322dd8 <ZNetGetCloudSchedulerStatus+0x2c4> @ imm = #-0x20
+ 3322df4: e3570000     	cmp	r7, #0
+ 3322df8: 059f3010     	ldreq	r3, [pc, #0x10]         @ 0x3322e10 <ZNetGetCloudSchedulerStatus+0x2fc>
+ 3322dfc: 01a01008     	moveq	r1, r8
+ 3322e00: 03a00042     	moveq	r0, #66
+ 3322e04: 01a0e00f     	moveq	lr, pc
+ 3322e08: 01a0f003     	moveq	pc, r3
+ 3322e0c: e8bd81f0     	pop	{r4, r5, r6, r7, r8, pc}
+ 3322e10: f000f7f8     	<unknown>
+ 3322e14: 01f05068     	mvnseq	r5, r8, rrx
+ 3322e18: 01f05064     	mvnseq	r5, r4, rrx
+ 3322e1c: 01f05060     	mvnseq	r5, r0, rrx
+ 3322e20: 01f0505c     	mvnseq	r5, r12, asr r0
+ 3322e24: 01f05098     	<unknown>
+ 3322e28: 01f0509c     	<unknown>
+ 3322e2c: 01f050a0     	mvnseq	r5, r0, lsr #1
+ 3322e30: e3a02001     	mov	r2, #1
+ 3322e34: e3a01000     	mov	r1, #0
+ 3322e38: e3a00000     	mov	r0, #0
+ 3322e3c: eaffffbb     	b	0x3322d30 <ZNetGetCloudSchedulerStatus+0x21c> @ imm = #-0x114
+ 3322e40: e59fc004     	ldr	r12, [pc, #0x4]         @ 0x3322e4c <ZNetGetCloudSchedulerStatus+0x338>
+ 3322e44: e59cc000     	ldr	r12, [r12]
+ 3322e48: e12fff1c     	<unknown>
+ 3322e4c: 01f05000     	mvnseq	r5, r0
+ 3322e50: e59fc004     	ldr	r12, [pc, #0x4]         @ 0x3322e5c <ZNetGetCloudSchedulerStatus+0x348>
+ 3322e54: e59cc000     	ldr	r12, [r12]
+ 3322e58: e12fff1c     	<unknown>
+ 3322e5c: 01f05004     	mvnseq	r5, r4
+ 3322e60: e59fc004     	ldr	r12, [pc, #0x4]         @ 0x3322e6c <ZNetGetCloudSchedulerStatus+0x358>
+ 3322e64: e59cc000     	ldr	r12, [r12]
+ 3322e68: e12fff1c     	<unknown>
+ 3322e6c: 01f05008     	mvnseq	r5, r8
+ 3322e70: e59fc004     	ldr	r12, [pc, #0x4]         @ 0x3322e7c <ZNetGetCloudSchedulerStatus+0x368>
+ 3322e74: e59cc000     	ldr	r12, [r12]
+ 3322e78: e12fff1c     	<unknown>
+ 3322e7c: 01f0500c     	mvnseq	r5, r12
+ 3322e80: e59fc004     	ldr	r12, [pc, #0x4]         @ 0x3322e8c <ZNetGetCloudSchedulerStatus+0x378>
+ 3322e84: e59cc000     	ldr	r12, [r12]
+ 3322e88: e12fff1c     	<unknown>
+ 3322e8c: 01f05010     	mvnseq	r5, r0, lsl r0
+ 3322e90: e59fc004     	ldr	r12, [pc, #0x4]         @ 0x3322e9c <ZNetGetCloudSchedulerStatus+0x388>
+ 3322e94: e59cc000     	ldr	r12, [r12]
+ 3322e98: e12fff1c     	<unknown>
+ 3322e9c: 01f05014     	mvnseq	r5, r4, lsl r0
+ 3322ea0: e59fc004     	ldr	r12, [pc, #0x4]         @ 0x3322eac <ZNetGetCloudSchedulerStatus+0x398>
+ 3322ea4: e59cc000     	ldr	r12, [r12]
+ 3322ea8: e12fff1c     	<unknown>
+ 3322eac: 01f05018     	mvnseq	r5, r8, lsl r0
+ 3322eb0: e59fc004     	ldr	r12, [pc, #0x4]         @ 0x3322ebc <ZNetGetCloudSchedulerStatus+0x3a8>
+ 3322eb4: e59cc000     	ldr	r12, [r12]
+ 3322eb8: e12fff1c     	<unknown>
+ 3322ebc: 01f0501c     	mvnseq	r5, r12, lsl r0
+ 3322ec0: e59fc004     	ldr	r12, [pc, #0x4]         @ 0x3322ecc <ZNetGetCloudSchedulerStatus+0x3b8>
+ 3322ec4: e59cc000     	ldr	r12, [r12]
+ 3322ec8: e12fff1c     	<unknown>
+ 3322ecc: 01f05020     	mvnseq	r5, r0, lsr #32
+ 3322ed0: e59fc004     	ldr	r12, [pc, #0x4]         @ 0x3322edc <ZNetGetCloudSchedulerStatus+0x3c8>
+ 3322ed4: e59cc000     	ldr	r12, [r12]
+ 3322ed8: e12fff1c     	<unknown>
+ 3322edc: 01f05024     	mvnseq	r5, r4, lsr #32
+ 3322ee0: e59fc004     	ldr	r12, [pc, #0x4]         @ 0x3322eec <ZNetGetCloudSchedulerStatus+0x3d8>
+ 3322ee4: e59cc000     	ldr	r12, [r12]
+ 3322ee8: e12fff1c     	<unknown>
+ 3322eec: 01f05028     	mvnseq	r5, r8, lsr #32
+ 3322ef0: e59fc004     	ldr	r12, [pc, #0x4]         @ 0x3322efc <ZNetGetCloudSchedulerStatus+0x3e8>
+ 3322ef4: e59cc000     	ldr	r12, [r12]
+ 3322ef8: e12fff1c     	<unknown>
+ 3322efc: 01f0502c     	mvnseq	r5, r12, lsr #32
+ 3322f00: e59fc004     	ldr	r12, [pc, #0x4]         @ 0x3322f0c <ZNetGetCloudSchedulerStatus+0x3f8>
+ 3322f04: e59cc000     	ldr	r12, [r12]
+ 3322f08: e12fff1c     	<unknown>
+ 3322f0c: 01f05030     	mvnseq	r5, r0, lsr r0
+ 3322f10: e59fc004     	ldr	r12, [pc, #0x4]         @ 0x3322f1c <ZNetGetCloudSchedulerStatus+0x408>
+ 3322f14: e59cc000     	ldr	r12, [r12]
+ 3322f18: e12fff1c     	<unknown>
+ 3322f1c: 01f05034     	mvnseq	r5, r4, lsr r0
+ 3322f20: e59fc004     	ldr	r12, [pc, #0x4]         @ 0x3322f2c <ZNetGetCloudSchedulerStatus+0x418>
+ 3322f24: e59cc000     	ldr	r12, [r12]
+ 3322f28: e12fff1c     	<unknown>
+ 3322f2c: 01f05038     	mvnseq	r5, r8, lsr r0
+ 3322f30: e59f0000     	ldr	r0, [pc]                @ 0x3322f38 <ZNetGetCloudSchedulerStatus+0x424>
+ 3322f34: eaffff5d     	b	0x3322cb0 <ZNetGetCloudSchedulerStatus+0x19c> @ imm = #-0x28c
+ 3322f38: 03322f4c     	teqeq	r2, #76, #30
+ 3322f3c: eafff8a8     	b	0x33211e4 <ZNetCloudReleaseBlob+0xec> @ imm = #-0x1d60
+ 3322f40: e59f0000     	ldr	r0, [pc]                @ 0x3322f48 <ZNetGetCloudSchedulerStatus+0x434>
+ 3322f44: eaffffc1     	b	0x3322e50 <ZNetGetCloudSchedulerStatus+0x33c> @ imm = #-0xfc
+ 3322f48: 01f05080     	mvnseq	r5, r0, lsl #1
+ 3322f4c: e52de004     	str	lr, [sp, #-0x4]!
+ 3322f50: e59f300c     	ldr	r3, [pc, #0xc]          @ 0x3322f64 <ZNetGetCloudSchedulerStatus+0x450>
+ 3322f54: e5930000     	ldr	r0, [r3]
+ 3322f58: e3700001     	cmn	r0, #1
+ 3322f5c: 1bffffcf     	blne	0x3322ea0 <ZNetGetCloudSchedulerStatus+0x38c> @ imm = #-0xc4
+ 3322f60: e49df004     	ldr	pc, [sp], #4
+ 3322f64: 01f0506c     	mvnseq	r5, r12, rrx
+ 3322f68: 00002f90     	<unknown>
+		...
+ 3322f74: 00002fd0     	ldrdeq	r2, r3, [r0], -r0
+ 3322f78: 00004000     	andeq	r4, r0, r0
+		...
+ 3322f90: 80000002     	andhi	r0, r0, r2
+ 3322f94: 80000003     	andhi	r0, r0, r3
+ 3322f98: 80000021     	andhi	r0, r0, r1, lsr #32
+ 3322f9c: 80000417     	andhi	r0, r0, r7, lsl r4
+ 3322fa0: 80000024     	andhi	r0, r0, r4, lsr #32
+ 3322fa4: 8000000b     	andhi	r0, r0, r11
+ 3322fa8: 80000229     	andhi	r0, r0, r9, lsr #4
+ 3322fac: 80000204     	andhi	r0, r0, r4, lsl #4
+ 3322fb0: 800000b3     	strhhi	r0, [r0], -r3
+ 3322fb4: 800005d4     	ldrdhi	r0, r1, [r0], -r4
+ 3322fb8: 800000a8     	andhi	r0, r0, r8, lsr #1
+ 3322fbc: 8000003f     	andhi	r0, r0, pc, lsr r0
+ 3322fc0: 800004d0     	ldrdhi	r0, r1, [r0], -r0
+ 3322fc4: 80000022     	andhi	r0, r0, r2, lsr #32
+ 3322fc8: 80000023     	andhi	r0, r0, r3, lsr #32
+ 3322fcc: 00000000     	andeq	r0, r0, r0
+ 3322fd0: 45524f43     	ldrbmi	r4, [r2, #-0xf43]
+ 3322fd4: 2e4c4c44     	cdphs	p12, #0x4, c4, c12, c4, #0x2
+ 3322fd8: 006c6c64     	rsbeq	r6, r12, r4, ror #24
+		...
+ 3322fe4: 4b43f1cc     	blmi	0x441f71c               @ imm = #0x10fc730
+ 3322fe8: 00000000     	andeq	r0, r0, r0
+ 3322fec: 000033dc     	ldrdeq	r3, r4, [r0], -r12
+ 3322ff0: 00000001     	andeq	r0, r0, r1
+ 3322ff4: 00000062     	andeq	r0, r0, r2, rrx
+ 3322ff8: 00000062     	andeq	r0, r0, r2, rrx
+ 3322ffc: 00003008     	andeq	r3, r0, r8
+ 3323000: 00003190     	<unknown>
+ 3323004: 00003318     	andeq	r3, r0, r8, lsl r3
+ 3323008: 00002424     	andeq	r2, r0, r4, lsr #8
+ 332300c: 00001838     	andeq	r1, r0, r8, lsr r8
+ 3323010: 0000186c     	andeq	r1, r0, r12, ror #16
+ 3323014: 00001c48     	andeq	r1, r0, r8, asr #24
+ 3323018: 00001088     	andeq	r1, r0, r8, lsl #1
+ 332301c: 00002544     	andeq	r2, r0, r4, asr #10
+ 3323020: 00001dd0     	ldrdeq	r1, r2, [r0], -r0
+ 3323024: 00001980     	andeq	r1, r0, r0, lsl #19
+ 3323028: 000019bc     	strheq	r1, [r0], -r12
+ 332302c: 00001e50     	andeq	r1, r0, r0, asr lr
+ 3323030: 00002928     	andeq	r2, r0, r8, lsr #18
+ 3323034: 000020c8     	andeq	r2, r0, r8, asr #1
+ 3323038: 00001bd0     	ldrdeq	r1, r2, [r0], -r0
+ 332303c: 00001d8c     	andeq	r1, r0, r12, lsl #27
+ 3323040: 00001d48     	andeq	r1, r0, r8, asr #26
+ 3323044: 00001ec8     	andeq	r1, r0, r8, asr #29
+ 3323048: 00001f0c     	andeq	r1, r0, r12, lsl #30
+ 332304c: 000024b4     	strheq	r2, [r0], -r4
+ 3323050: 00001e14     	andeq	r1, r0, r4, lsl lr
+ 3323054: 000019f8     	strdeq	r1, r2, [r0], -r8
+ 3323058: 00001a80     	andeq	r1, r0, r0, lsl #21
+ 332305c: 00001e8c     	andeq	r1, r0, r12, lsl #29
+ 3323060: 00001f9c     	<unknown>
+ 3323064: 00001f58     	andeq	r1, r0, r8, asr pc
+ 3323068: 000010f8     	strdeq	r1, r2, [r0], -r8
+ 332306c: 00001fe0     	andeq	r1, r0, r0, ror #31
+ 3323070: 000028d0     	ldrdeq	r2, r3, [r0], -r0
+ 3323074: 00001c04     	andeq	r1, r0, r4, lsl #24
+ 3323078: 00001cc0     	andeq	r1, r0, r0, asr #25
+ 332307c: 000027e0     	andeq	r2, r0, r0, ror #15
+ 3323080: 00001d04     	andeq	r1, r0, r4, lsl #26
+ 3323084: 00001a3c     	andeq	r1, r0, r12, lsr r10
+ 3323088: 00002150     	andeq	r2, r0, r0, asr r1
+ 332308c: 00002114     	andeq	r2, r0, r4, lsl r1
+ 3323090: 00001580     	andeq	r1, r0, r0, lsl #11
+ 3323094: 00001910     	andeq	r1, r0, r0, lsl r9
+ 3323098: 000015bc     	strheq	r1, [r0], -r12
+ 332309c: 00001510     	andeq	r1, r0, r0, lsl r5
+ 33230a0: 00001af8     	strdeq	r1, r2, [r0], -r8
+ 33230a4: 00001c84     	andeq	r1, r0, r4, lsl #25
+ 33230a8: 00002b14     	andeq	r2, r0, r4, lsl r11
+ 33230ac: 000029c4     	andeq	r2, r0, r4, asr #19
+ 33230b0: 00001238     	andeq	r1, r0, r8, lsr r2
+ 33230b4: 000022c0     	andeq	r2, r0, r0, asr #5
+ 33230b8: 000025a0     	andeq	r2, r0, r0, lsr #11
+ 33230bc: 00002304     	andeq	r2, r0, r4, lsl #6
+ 33230c0: 00002748     	andeq	r2, r0, r8, asr #14
+ 33230c4: 00001748     	andeq	r1, r0, r8, asr #14
+ 33230c8: 00001b2c     	andeq	r1, r0, r12, lsr #22
+ 33230cc: 0000218c     	andeq	r2, r0, r12, lsl #3
+ 33230d0: 00002838     	andeq	r2, r0, r8, lsr r8
+ 33230d4: 000016a4     	andeq	r1, r0, r4, lsr #13
+ 33230d8: 00002500     	andeq	r2, r0, r0, lsl #10
+ 33230dc: 00001498     	<unknown>
+ 33230e0: 00001420     	andeq	r1, r0, r0, lsr #8
+ 33230e4: 000018a0     	andeq	r1, r0, r0, lsr #17
+ 33230e8: 000017fc     	strdeq	r1, r2, [r0], -r12
+ 33230ec: 00002a64     	andeq	r2, r0, r4, ror #20
+ 33230f0: 00002794     	<unknown>
+ 33230f4: 000023d8     	ldrdeq	r2, r3, [r0], -r8
+ 33230f8: 00001330     	andeq	r1, r0, r0, lsr r3
+ 33230fc: 000013a8     	andeq	r1, r0, r8, lsr #7
+ 3323100: 00001ac4     	andeq	r1, r0, r4, asr #21
+ 3323104: 00001714     	andeq	r1, r0, r4, lsl r7
+ 3323108: 00002024     	andeq	r2, r0, r4, lsr #32
+ 332310c: 00001b68     	andeq	r1, r0, r8, ror #22
+ 3323110: 00001b9c     	<unknown>
+ 3323114: 0000154c     	andeq	r1, r0, r12, asr #10
+ 3323118: 00001784     	andeq	r1, r0, r4, lsl #15
+ 332311c: 00002058     	andeq	r2, r0, r8, asr r0
+ 3323120: 0000227c     	andeq	r2, r0, r12, ror r2
+ 3323124: 00001944     	andeq	r1, r0, r4, asr #18
+ 3323128: 00001274     	andeq	r1, r0, r4, ror r2
+ 332312c: 000021d0     	ldrdeq	r2, r3, [r0], -r0
+ 3323130: 00002470     	andeq	r2, r0, r0, ror r4
+ 3323134: 00002a14     	andeq	r2, r0, r4, lsl r10
+ 3323138: 000018dc     	ldrdeq	r1, r2, [r0], -r12
+ 332313c: 00002974     	andeq	r2, r0, r4, ror r9
+ 3323140: 000026b0     	strheq	r2, [r0], -r0
+ 3323144: 000026fc     	strdeq	r2, r3, [r0], -r12
+ 3323148: 000012f4     	strdeq	r1, r2, [r0], -r4
+ 332314c: 000017c0     	andeq	r1, r0, r0, asr #15
+ 3323150: 00002650     	andeq	r2, r0, r0, asr r6
+ 3323154: 00001668     	andeq	r1, r0, r8, ror #12
+ 3323158: 0000145c     	andeq	r1, r0, r12, asr r4
+ 332315c: 000013e4     	andeq	r1, r0, r4, ror #7
+ 3323160: 0000136c     	andeq	r1, r0, r12, ror #6
+ 3323164: 0000221c     	andeq	r2, r0, r12, lsl r2
+ 3323168: 0000162c     	andeq	r1, r0, r12, lsr #12
+ 332316c: 000014d4     	ldrdeq	r1, r2, [r0], -r4
+ 3323170: 000015f0     	strdeq	r1, r2, [r0], -r0
+ 3323174: 0000238c     	andeq	r2, r0, r12, lsl #7
+ 3323178: 000012b8     	strheq	r1, [r0], -r8
+ 332317c: 00002884     	andeq	r2, r0, r4, lsl #17
+ 3323180: 00002348     	andeq	r2, r0, r8, asr #6
+ 3323184: 0000208c     	andeq	r2, r0, r12, lsl #1
+ 3323188: 000016e0     	andeq	r1, r0, r0, ror #13
+ 332318c: 000025f0     	strdeq	r2, r3, [r0], -r0
+ 3323190: 000033e5     	andeq	r3, r0, r5, ror #7
+ 3323194: 000033f8     	strdeq	r3, r4, [r0], -r8
+ 3323198: 00003407     	andeq	r3, r0, r7, lsl #8
+ 332319c: 0000341a     	andeq	r3, r0, r10, lsl r4
+ 33231a0: 00003438     	andeq	r3, r0, r8, lsr r4
+ 33231a4: 0000344b     	andeq	r3, r0, r11, asr #8
+ 33231a8: 00003471     	andeq	r3, r0, r1, ror r4
+ 33231ac: 0000348a     	andeq	r3, r0, r10, lsl #9
+ 33231b0: 000034a2     	andeq	r3, r0, r2, lsr #9
+ 33231b4: 000034b7     	strheq	r3, [r0], -r7
+ 33231b8: 000034d5     	ldrdeq	r3, r4, [r0], -r5
+ 33231bc: 000034e8     	andeq	r3, r0, r8, ror #9
+ 33231c0: 000034fc     	strdeq	r3, r4, [r0], -r12
+ 33231c4: 00003513     	andeq	r3, r0, r3, lsl r5
+ 33231c8: 00003531     	andeq	r3, r0, r1, lsr r5
+ 33231cc: 00003553     	andeq	r3, r0, r3, asr r5
+ 33231d0: 0000356d     	andeq	r3, r0, sp, ror #10
+ 33231d4: 00003584     	andeq	r3, r0, r4, lsl #11
+ 33231d8: 000035a5     	andeq	r3, r0, r5, lsr #11
+ 33231dc: 000035c1     	andeq	r3, r0, r1, asr #11
+ 33231e0: 000035d8     	ldrdeq	r3, r4, [r0], -r8
+ 33231e4: 000035f3     	strdeq	r3, r4, [r0], -r3
+ 33231e8: 0000360d     	andeq	r3, r0, sp, lsl #12
+ 33231ec: 00003626     	andeq	r3, r0, r6, lsr #12
+ 33231f0: 00003643     	andeq	r3, r0, r3, asr #12
+ 33231f4: 00003658     	andeq	r3, r0, r8, asr r6
+ 33231f8: 0000366c     	andeq	r3, r0, r12, ror #12
+ 33231fc: 00003689     	andeq	r3, r0, r9, lsl #13
+ 3323200: 0000369e     	<unknown>
+ 3323204: 000036bc     	strheq	r3, [r0], -r12
+ 3323208: 000036d2     	ldrdeq	r3, r4, [r0], -r2
+ 332320c: 000036f0     	strdeq	r3, r4, [r0], -r0
+ 3323210: 00003707     	andeq	r3, r0, r7, lsl #14
+ 3323214: 00003722     	andeq	r3, r0, r2, lsr #14
+ 3323218: 0000373d     	andeq	r3, r0, sp, lsr r7
+ 332321c: 0000374d     	andeq	r3, r0, sp, asr #14
+ 3323220: 0000375c     	andeq	r3, r0, r12, asr r7
+ 3323224: 00003770     	andeq	r3, r0, r0, ror r7
+ 3323228: 00003787     	andeq	r3, r0, r7, lsl #15
+ 332322c: 000037a0     	andeq	r3, r0, r0, lsr #15
+ 3323230: 000037b6     	strheq	r3, [r0], -r6
+ 3323234: 000037d2     	ldrdeq	r3, r4, [r0], -r2
+ 3323238: 000037e6     	andeq	r3, r0, r6, ror #15
+ 332323c: 000037f6     	strdeq	r3, r4, [r0], -r6
+ 3323240: 00003802     	andeq	r3, r0, r2, lsl #16
+ 3323244: 00003815     	andeq	r3, r0, r5, lsl r8
+ 3323248: 00003828     	andeq	r3, r0, r8, lsr #16
+ 332324c: 0000383b     	andeq	r3, r0, r11, lsr r8
+ 3323250: 0000384f     	andeq	r3, r0, pc, asr #16
+ 3323254: 0000386b     	andeq	r3, r0, r11, ror #16
+ 3323258: 0000387d     	andeq	r3, r0, sp, ror r8
+ 332325c: 00003897     	<unknown>
+ 3323260: 000038ac     	andeq	r3, r0, r12, lsr #17
+ 3323264: 000038be     	strheq	r3, [r0], -lr
+ 3323268: 000038d2     	ldrdeq	r3, r4, [r0], -r2
+ 332326c: 000038e3     	andeq	r3, r0, r3, ror #17
+ 3323270: 000038f3     	strdeq	r3, r4, [r0], -r3
+ 3323274: 0000390b     	andeq	r3, r0, r11, lsl #18
+ 3323278: 00003922     	andeq	r3, r0, r2, lsr #18
+ 332327c: 00003938     	andeq	r3, r0, r8, lsr r9
+ 3323280: 0000394b     	andeq	r3, r0, r11, asr #18
+ 3323284: 0000395c     	andeq	r3, r0, r12, asr r9
+ 3323288: 00003970     	andeq	r3, r0, r0, ror r9
+ 332328c: 00003981     	andeq	r3, r0, r1, lsl #19
+ 3323290: 0000399a     	<unknown>
+ 3323294: 000039b2     	strheq	r3, [r0], -r2
+ 3323298: 000039c9     	andeq	r3, r0, r9, asr #19
+ 332329c: 000039e3     	andeq	r3, r0, r3, ror #19
+ 33232a0: 000039fa     	strdeq	r3, r4, [r0], -r10
+ 33232a4: 00003a0f     	andeq	r3, r0, pc, lsl #20
+ 33232a8: 00003a2a     	andeq	r3, r0, r10, lsr #20
+ 33232ac: 00003a3a     	andeq	r3, r0, r10, lsr r10
+ 33232b0: 00003a4f     	andeq	r3, r0, pc, asr #20
+ 33232b4: 00003a5f     	andeq	r3, r0, pc, asr r10
+ 33232b8: 00003a71     	andeq	r3, r0, r1, ror r10
+ 33232bc: 00003a86     	andeq	r3, r0, r6, lsl #21
+ 33232c0: 00003aa1     	andeq	r3, r0, r1, lsr #21
+ 33232c4: 00003ab2     	strheq	r3, [r0], -r2
+ 33232c8: 00003ac6     	andeq	r3, r0, r6, asr #21
+ 33232cc: 00003ad2     	ldrdeq	r3, r4, [r0], -r2
+ 33232d0: 00003aef     	andeq	r3, r0, pc, ror #21
+ 33232d4: 00003b07     	andeq	r3, r0, r7, lsl #22
+ 33232d8: 00003b1e     	andeq	r3, r0, lr, lsl r11
+ 33232dc: 00003b31     	andeq	r3, r0, r1, lsr r11
+ 33232e0: 00003b4d     	andeq	r3, r0, sp, asr #22
+ 33232e4: 00003b61     	andeq	r3, r0, r1, ror #22
+ 33232e8: 00003b72     	andeq	r3, r0, r2, ror r11
+ 33232ec: 00003b86     	andeq	r3, r0, r6, lsl #23
+ 33232f0: 00003b96     	<unknown>
+ 33232f4: 00003ba6     	andeq	r3, r0, r6, lsr #23
+ 33232f8: 00003bbd     	strheq	r3, [r0], -sp
+ 33232fc: 00003bd6     	ldrdeq	r3, r4, [r0], -r6
+ 3323300: 00003be9     	andeq	r3, r0, r9, ror #23
+ 3323304: 00003bfa     	strdeq	r3, r4, [r0], -r10
+ 3323308: 00003c13     	andeq	r3, r0, r3, lsl r12
+ 332330c: 00003c28     	andeq	r3, r0, r8, lsr #24
+ 3323310: 00003c42     	andeq	r3, r0, r2, asr #24
+ 3323314: 00003c57     	andeq	r3, r0, r7, asr r12
+ 3323318: 00010000     	andeq	r0, r1, r0
+ 332331c: 00030002     	andeq	r0, r3, r2
+ 3323320: 00050004     	andeq	r0, r5, r4
+ 3323324: 00070006     	andeq	r0, r7, r6
+ 3323328: 00090008     	andeq	r0, r9, r8
+ 332332c: 000b000a     	andeq	r0, r11, r10
+ 3323330: 000d000c     	andeq	r0, sp, r12
+ 3323334: 000f000e     	andeq	r0, pc, lr
+ 3323338: 00110010     	andseq	r0, r1, r0, lsl r0
+ 332333c: 00130012     	andseq	r0, r3, r2, lsl r0
+ 3323340: 00150014     	andseq	r0, r5, r4, lsl r0
+ 3323344: 00170016     	andseq	r0, r7, r6, lsl r0
+ 3323348: 00190018     	andseq	r0, r9, r8, lsl r0
+ 332334c: 001b001a     	andseq	r0, r11, r10, lsl r0
+ 3323350: 001d001c     	andseq	r0, sp, r12, lsl r0
+ 3323354: 001f001e     	andseq	r0, pc, lr, lsl r0
+ 3323358: 00210020     	eoreq	r0, r1, r0, lsr #32
+ 332335c: 00230022     	eoreq	r0, r3, r2, lsr #32
+ 3323360: 00250024     	eoreq	r0, r5, r4, lsr #32
+ 3323364: 00270026     	eoreq	r0, r7, r6, lsr #32
+ 3323368: 00290028     	eoreq	r0, r9, r8, lsr #32
+ 332336c: 002b002a     	eoreq	r0, r11, r10, lsr #32
+ 3323370: 002d002c     	eoreq	r0, sp, r12, lsr #32
+ 3323374: 002f002e     	eoreq	r0, pc, lr, lsr #32
+ 3323378: 00310030     	eorseq	r0, r1, r0, lsr r0
+ 332337c: 00330032     	eorseq	r0, r3, r2, lsr r0
+ 3323380: 00350034     	eorseq	r0, r5, r4, lsr r0
+ 3323384: 00370036     	eorseq	r0, r7, r6, lsr r0
+ 3323388: 00390038     	eorseq	r0, r9, r8, lsr r0
+ 332338c: 003b003a     	eorseq	r0, r11, r10, lsr r0
+ 3323390: 003d003c     	eorseq	r0, sp, r12, lsr r0
+ 3323394: 003f003e     	eorseq	r0, pc, lr, lsr r0
+ 3323398: 00410040     	subeq	r0, r1, r0, asr #32
+ 332339c: 00430042     	subeq	r0, r3, r2, asr #32
+ 33233a0: 00450044     	subeq	r0, r5, r4, asr #32
+ 33233a4: 00470046     	subeq	r0, r7, r6, asr #32
+ 33233a8: 00490048     	subeq	r0, r9, r8, asr #32
+ 33233ac: 004b004a     	subeq	r0, r11, r10, asr #32
+ 33233b0: 004d004c     	subeq	r0, sp, r12, asr #32
+ 33233b4: 004f004e     	subeq	r0, pc, lr, asr #32
+ 33233b8: 00510050     	subseq	r0, r1, r0, asr r0
+ 33233bc: 00530052     	subseq	r0, r3, r2, asr r0
+ 33233c0: 00550054     	subseq	r0, r5, r4, asr r0
+ 33233c4: 00570056     	subseq	r0, r7, r6, asr r0
+ 33233c8: 00590058     	subseq	r0, r9, r8, asr r0
+ 33233cc: 005b005a     	subseq	r0, r11, r10, asr r0
+ 33233d0: 005d005c     	subseq	r0, sp, r12, asr r0
+ 33233d4: 005f005e     	subseq	r0, pc, lr, asr r0
+ 33233d8: 00610060     	rsbeq	r0, r1, r0, rrx
+ 33233dc: 74656e7a     	strbtvc	r6, [r5], #-3706
+ 33233e0: 6c6c642e     	stclvs	p4, c6, [r12], #-184
+ 33233e4: 654e5a00     	strbvs	r5, [lr, #-0xa00]
+ 33233e8: 64644174     	strbtvs	r4, [r4], #-372
+ 33233ec: 69666957     	stmdbvs	r6!, {r0, r1, r2, r4, r6, r8, r11, sp, lr} ^
+ 33233f0: 666f7250     	uqsaxvs	r7, pc, r0
+ 33233f4: 00656c69     	rsbeq	r6, r5, r9, ror #24
+ 33233f8: 74654e5a     	strbtvc	r4, [r5], #-3674
+ 33233fc: 636e6143     	<unknown>
+ 3323400: 65536c65     	ldrbvs	r6, [r3, #-0xc65]
+ 3323404: 5a00646e     	bpl	0x333c5c4               @ imm = #0x191b8
+ 3323408: 4374654e     	cmnmi	r4, #327155712
+ 332340c: 65636e61     	strbvs	r6, [r3, #-0xe61]!
+ 3323410: 6669576c     	strbtvs	r5, [r9], -r12, ror #14
+ 3323414: 6e795369     	cdpvs	p3, #0x7, c5, c9, c9, #0x3
+ 3323418: 4e5a0063     	cdpmi	p0, #0x5, c0, c10, c3, #0x3
+ 332341c: 68437465     	stmdavs	r3, {r0, r2, r5, r6, r10, r12, sp, lr} ^
+ 3323420: 65676e61     	strbvs	r6, [r7, #-0xe61]!
+ 3323424: 756f6c43     	strbvc	r6, [pc, #-0xc43]!
+ 3323428: 68635364     	stmdavs	r3!, {r2, r5, r6, r8, r9, r12, lr} ^
+ 332342c: 6c756465     	ldclvs	p4, c6, [r5], #-404
+ 3323430: 74537265     	ldrbvc	r7, [r3], #-613
+ 3323434: 00657461     	rsbeq	r7, r5, r1, ror #8
+ 3323438: 74654e5a     	strbtvc	r4, [r5], #-3674
+ 332343c: 756f6c43     	strbvc	r6, [pc, #-0xc43]!
+ 3323440: 6c6c4164     	stclvs	p1, c4, [r12], #-400
+ 3323444: 6c42636f     	mcrrvs	p3, #0x6, r6, r2, c15
+ 3323448: 5a00626f     	bpl	0x333be0c               @ imm = #0x189bc
+ 332344c: 4374654e     	cmnmi	r4, #327155712
+ 3323450: 64756f6c     	ldrbtvs	r6, [r5], #-3948
+ 3323454: 6f737341     	svcvs	#0x737341
+ 3323458: 74616963     	strbtvc	r6, [r1], #-2403
+ 332345c: 6d655365     	stclvs	p3, c5, [r5, #-404]!
+ 3323460: 6f687061     	svcvs	#0x687061
+ 3323464: 69576572     	ldmdbvs	r7, {r1, r4, r5, r6, r8, r10, sp, lr} ^
+ 3323468: 624f6874     	subvs	r6, pc, #116, #16
+ 332346c: 7463656a     	strbtvc	r6, [r3], #-1386
+ 3323470: 654e5a00     	strbvs	r5, [lr, #-0xa00]
+ 3323474: 6f6c4374     	svcvs	#0x6c4374
+ 3323478: 6c426475     	mcrrvs	p4, #0x7, r6, r2, c5
+ 332347c: 506b636f     	rsbpl	r6, r11, pc, ror #6
+ 3323480: 65636f72     	strbvs	r6, [r3, #-0xf72]!
+ 3323484: 6e697373     	mcrvs	p3, #0x3, r7, c9, c3, #0x3
+ 3323488: 4e5a0067     	cdpmi	p0, #0x5, c0, c10, c7, #0x3
+ 332348c: 6c437465     	mcrrvs	p4, #0x6, r7, r3, c5
+ 3323490: 4364756f     	<unknown>
+ 3323494: 65636e61     	strbvs	r6, [r3, #-0xe61]!
+ 3323498: 6a624f6c     	bvs	0x4bb7250               @ imm = #0x1893db0
+ 332349c: 6e797341     	cdpvs	p3, #0x7, c7, c9, c1, #0x2
+ 33234a0: 4e5a0063     	cdpmi	p0, #0x5, c0, c10, c3, #0x3
+ 33234a4: 6c437465     	mcrrvs	p4, #0x6, r7, r3, c5
+ 33234a8: 4364756f     	<unknown>
+ 33234ac: 65736f6c     	ldrbvs	r6, [r3, #-0xf6c]!
+ 33234b0: 646e6148     	strbtvs	r6, [lr], #-328
+ 33234b4: 5a00656c     	bpl	0x333ca6c               @ imm = #0x195b0
+ 33234b8: 4374654e     	cmnmi	r4, #327155712
+ 33234bc: 64756f6c     	ldrbtvs	r6, [r5], #-3948
+ 33234c0: 736f6c43     	<unknown>
+ 33234c4: 72655065     	rsbvc	r5, r5, #101
+ 33234c8: 74736973     	ldrbtvc	r6, [r3], #-2419
+ 33234cc: 61486465     	<unknown>
+ 33234d0: 656c646e     	strbvs	r6, [r12, #-0x46e]!
+ 33234d4: 654e5a00     	strbvs	r5, [lr, #-0xa00]
+ 33234d8: 6f6c4374     	svcvs	#0x6c4374
+ 33234dc: 72436475     	subvc	r6, r3, #1962934272
+ 33234e0: 65746165     	ldrbvs	r6, [r4, #-0x165]!
+ 33234e4: 00626f4a     	rsbeq	r6, r2, r10, asr #30
+ 33234e8: 74654e5a     	strbtvc	r4, [r5], #-3674
+ 33234ec: 756f6c43     	strbvc	r6, [pc, #-0xc43]!
+ 33234f0: 69724464     	ldmdbvs	r2!, {r2, r5, r6, r10, lr} ^
+ 33234f4: 63536576     	cmpvs	r3, #494927872
+ 33234f8: 00646568     	rsbeq	r6, r4, r8, ror #10
+ 33234fc: 74654e5a     	strbtvc	r4, [r5], #-3674
+ 3323500: 756f6c43     	strbvc	r6, [pc, #-0xc43]!
+ 3323504: 74654764     	strbtvc	r4, [r5], #-1892
+ 3323508: 72727543     	rsbsvc	r7, r2, #281018368
+ 332350c: 4a746e65     	bmi	0x503eea8               @ imm = #0x1d1b994
+ 3323510: 5a00626f     	bpl	0x333bed4               @ imm = #0x189bc
+ 3323514: 4374654e     	cmnmi	r4, #327155712
+ 3323518: 64756f6c     	ldrbtvs	r6, [r5], #-3948
+ 332351c: 44746547     	ldrbtmi	r6, [r4], #-1351
+ 3323520: 6c707369     	ldclvs	p3, c7, [r0], #-420
+ 3323524: 74537961     	ldrbvc	r7, [r3], #-2401
+ 3323528: 73757461     	cmnvc	r5, #1627389952
+ 332352c: 626f6c42     	rsbvs	r6, pc, #16896
+ 3323530: 654e5a00     	strbvs	r5, [lr, #-0xa00]
+ 3323534: 6f6c4374     	svcvs	#0x6c4374
+ 3323538: 65476475     	strbvs	r6, [r7, #-0x475]
+ 332353c: 73694474     	<unknown>
+ 3323540: 79616c70     	stmdbvc	r1!, {r4, r5, r6, r10, r11, sp, lr} ^
+ 3323544: 74617453     	strbtvc	r7, [r1], #-1107
+ 3323548: 6c427375     	mcrrvs	p3, #0x7, r7, r2, c5
+ 332354c: 6e49626f     	cdpvs	p2, #0x4, c6, c9, c15, #0x3
+ 3323550: 5a006f66     	bpl	0x333f2f0               @ imm = #0x1bd98
+ 3323554: 4374654e     	cmnmi	r4, #327155712
+ 3323558: 64756f6c     	ldrbtvs	r6, [r5], #-3948
+ 332355c: 4a746547     	bmi	0x503ca80               @ imm = #0x1d1951c
+ 3323560: 6e45626f     	cdpvs	p2, #0x4, c6, c5, c15, #0x3
+ 3323564: 72656d75     	rsbvc	r6, r5, #7488
+ 3323568: 726f7461     	rsbvc	r7, pc, #1627389952
+ 332356c: 654e5a00     	strbvs	r5, [lr, #-0xa00]
+ 3323570: 6f6c4374     	svcvs	#0x6c4374
+ 3323574: 65476475     	strbvs	r6, [r7, #-0x475]
+ 3323578: 78654e74     	stmdavc	r5!, {r2, r4, r5, r6, r9, r10, r11, lr} ^
+ 332357c: 6a624f74     	bvs	0x4bb7354               @ imm = #0x1893dd0
+ 3323580: 00746365     	rsbseq	r6, r4, r5, ror #6
+ 3323584: 74654e5a     	strbtvc	r4, [r5], #-3674
+ 3323588: 756f6c43     	strbvc	r6, [pc, #-0xc43]!
+ 332358c: 74654764     	strbtvc	r4, [r5], #-1892
+ 3323590: 656a624f     	strbvs	r6, [r10, #-0x24f]!
+ 3323594: 78457463     	stmdavc	r5, {r0, r1, r5, r6, r10, r12, sp, lr} ^
+ 3323598: 74756365     	ldrbtvc	r6, [r5], #-869
+ 332359c: 536e6f69     	<unknown>
+ 33235a0: 65746174     	ldrbvs	r6, [r4, #-0x174]!
+ 33235a4: 654e5a00     	strbvs	r5, [lr, #-0xa00]
+ 33235a8: 6f6c4374     	svcvs	#0x6c4374
+ 33235ac: 65476475     	strbvs	r6, [r7, #-0x475]
+ 33235b0: 72655074     	rsbvc	r5, r5, #116
+ 33235b4: 74736973     	ldrbtvc	r6, [r3], #-2419
+ 33235b8: 61486465     	<unknown>
+ 33235bc: 656c646e     	strbvs	r6, [r12, #-0x46e]!
+ 33235c0: 654e5a00     	strbvs	r5, [lr, #-0xa00]
+ 33235c4: 6f6c4374     	svcvs	#0x6c4374
+ 33235c8: 65476475     	strbvs	r6, [r7, #-0x475]
+ 33235cc: 73655274     	<unknown>
+ 33235d0: 42746c75     	rsbsmi	r6, r4, #29952
+ 33235d4: 00626f6c     	rsbeq	r6, r2, r12, ror #30
+ 33235d8: 74654e5a     	strbtvc	r4, [r5], #-3674
+ 33235dc: 756f6c43     	strbvc	r6, [pc, #-0xc43]!
+ 33235e0: 74654764     	strbtvc	r4, [r5], #-1892
+ 33235e4: 75736552     	ldrbvc	r6, [r3, #-0x552]!
+ 33235e8: 6c42746c     	mcrrvs	p4, #0x6, r7, r2, c12
+ 33235ec: 6e49626f     	cdpvs	p2, #0x4, c6, c9, c15, #0x3
+ 33235f0: 5a006f66     	bpl	0x333f390               @ imm = #0x1bd98
+ 33235f4: 4374654e     	cmnmi	r4, #327155712
+ 33235f8: 64756f6c     	ldrbtvs	r6, [r5], #-3948
+ 33235fc: 52746547     	rsbspl	r6, r4, #297795584
+ 3323600: 69746e75     	ldmdbvs	r4!, {r0, r2, r4, r5, r6, r9, r10, r11, sp, lr} ^
+ 3323604: 6148656d     	<unknown>
+ 3323608: 656c646e     	strbvs	r6, [r12, #-0x46e]!
+ 332360c: 654e5a00     	strbvs	r5, [lr, #-0xa00]
+ 3323610: 6f6c4374     	svcvs	#0x6c4374
+ 3323614: 65476475     	strbvs	r6, [r7, #-0x475]
+ 3323618: 73615474     	<unknown>
+ 332361c: 696e496b     	stmdbvs	lr!, {r0, r1, r3, r5, r6, r8, r11, lr} ^
+ 3323620: 6f6c4274     	svcvs	#0x6c4274
+ 3323624: 4e5a0062     	cdpmi	p0, #0x5, c0, c10, c2, #0x3
+ 3323628: 6c437465     	mcrrvs	p4, #0x6, r7, r3, c5
+ 332362c: 4764756f     	strbmi	r7, [r4, -pc, ror #10]!
+ 3323630: 61547465     	cmpvs	r4, r5, ror #8
+ 3323634: 6e496b73     	<unknown>
+ 3323638: 6c427469     	mcrrvs	p4, #0x6, r7, r2, c9
+ 332363c: 6e49626f     	cdpvs	p2, #0x4, c6, c9, c15, #0x3
+ 3323640: 5a006f66     	bpl	0x333f3e0               @ imm = #0x1bd98
+ 3323644: 4374654e     	cmnmi	r4, #327155712
+ 3323648: 64756f6c     	ldrbtvs	r6, [r5], #-3948
+ 332364c: 656c6552     	strbvs	r6, [r12, #-0x552]!
+ 3323650: 42657361     	rsbmi	r7, r5, #-2080374783
+ 3323654: 00626f6c     	rsbeq	r6, r2, r12, ror #30
+ 3323658: 74654e5a     	strbtvc	r4, [r5], #-3674
+ 332365c: 756f6c43     	strbvc	r6, [pc, #-0xc43]!
+ 3323660: 68635364     	stmdavs	r3!, {r2, r5, r6, r8, r9, r12, lr} ^
+ 3323664: 6c756465     	ldclvs	p4, c6, [r5], #-404
+ 3323668: 00784565     	rsbseq	r4, r8, r5, ror #10
+ 332366c: 74654e5a     	strbtvc	r4, [r5], #-3674
+ 3323670: 756f6c43     	strbvc	r6, [pc, #-0xc43]!
+ 3323674: 68635364     	stmdavs	r3!, {r2, r5, r6, r8, r9, r12, lr} ^
+ 3323678: 6c756465     	ldclvs	p4, c6, [r5], #-404
+ 332367c: 61654665     	<unknown>
+ 3323680: 65727574     	ldrbvs	r7, [r2, #-0x574]!
+ 3323684: 6b736154     	blvs	0x4ffbbdc               @ imm = #0x1cd8550
+ 3323688: 654e5a00     	strbvs	r5, [lr, #-0xa00]
+ 332368c: 6f6c4374     	svcvs	#0x6c4374
+ 3323690: 63536475     	cmpvs	r3, #1962934272
+ 3323694: 75646568     	strbvc	r6, [r4, #-0x568]!
+ 3323698: 6f4a656c     	svcvs	#0x4a656c
+ 332369c: 4e5a0062     	cdpmi	p0, #0x5, c0, c10, c2, #0x3
+ 33236a0: 6c437465     	mcrrvs	p4, #0x6, r7, r3, c5
+ 33236a4: 5364756f     	<unknown>
+ 33236a8: 64656863     	strbtvs	r6, [r5], #-2147
+ 33236ac: 52656c75     	rsbpl	r6, r5, #29952
+ 33236b0: 72756365     	rsbsvc	r6, r5, #-1811939327
+ 33236b4: 676e6972     	<unknown>
+ 33236b8: 00626f4a     	rsbeq	r6, r2, r10, asr #30
+ 33236bc: 74654e5a     	strbtvc	r4, [r5], #-3674
+ 33236c0: 756f6c43     	strbvc	r6, [pc, #-0xc43]!
+ 33236c4: 68635364     	stmdavs	r3!, {r2, r5, r6, r8, r9, r12, lr} ^
+ 33236c8: 6c756465     	ldclvs	p4, c6, [r5], #-404
+ 33236cc: 73615465     	<unknown>
+ 33236d0: 4e5a006b     	cdpmi	p0, #0x5, c0, c10, c11, #0x3
+ 33236d4: 6c437465     	mcrrvs	p4, #0x6, r7, r3, c5
+ 33236d8: 5364756f     	<unknown>
+ 33236dc: 69447465     	stmdbvs	r4, {r0, r2, r5, r6, r10, r12, sp, lr} ^
+ 33236e0: 616c7073     	<unknown>
+ 33236e4: 61745379     	cmnvs	r4, r9, ror r3
+ 33236e8: 42737574     	rsbsmi	r7, r3, #116, #10
+ 33236ec: 00626f6c     	rsbeq	r6, r2, r12, ror #30
+ 33236f0: 74654e5a     	strbtvc	r4, [r5], #-3674
+ 33236f4: 756f6c43     	strbvc	r6, [pc, #-0xc43]!
+ 33236f8: 74655364     	strbtvc	r5, [r5], #-868
+ 33236fc: 75736552     	ldrbvc	r6, [r3, #-0x552]!
+ 3323700: 6c42746c     	mcrrvs	p4, #0x6, r7, r2, c12
+ 3323704: 5a00626f     	bpl	0x333c0c8               @ imm = #0x189bc
+ 3323708: 4374654e     	cmnmi	r4, #327155712
+ 332370c: 64756f6c     	ldrbtvs	r6, [r5], #-3948
+ 3323710: 6f726854     	svcvs	#0x726854
+ 3323714: 656c7474     	strbvs	r7, [r12, #-0x474]!
+ 3323718: 6e776f44     	cdpvs	p15, #0x7, c6, c7, c4, #0x2
+ 332371c: 64616f6c     	strbtvs	r6, [r1], #-3948
+ 3323720: 4e5a0073     	mrcmi	p0, #0x2, r0, c10, c3, #0x3
+ 3323724: 6c437465     	mcrrvs	p4, #0x6, r7, r3, c5
+ 3323728: 5764756f     	strbpl	r7, [r4, -pc, ror #10]!
+ 332372c: 46746961     	ldrbtmi	r6, [r4], -r1, ror #18
+ 3323730: 6f43726f     	svcvs	#0x43726f
+ 3323734: 63656e6e     	<unknown>
+ 3323738: 6e6f6974     	mcrvs	p9, #0x3, r6, c15, c4, #0x3
+ 332373c: 654e5a00     	strbvs	r5, [lr, #-0xa00]
+ 3323740: 6e6f4374     	mcrvs	p3, #0x3, r4, c15, c4, #0x3
+ 3323744: 7463656e     	strbtvc	r6, [r3], #-1390
+ 3323748: 72656550     	rsbvc	r6, r5, #80, #10
+ 332374c: 654e5a00     	strbvs	r5, [lr, #-0xa00]
+ 3323750: 73694474     	<unknown>
+ 3323754: 656c6261     	strbvs	r6, [r12, #-0x261]!
+ 3323758: 00534541     	subseq	r4, r3, r1, asr #10
+ 332375c: 74654e5a     	strbtvc	r4, [r5], #-3674
+ 3323760: 63736944     	cmnvs	r3, #68, #18
+ 3323764: 656e6e6f     	strbvs	r6, [lr, #-0xe6f]!
+ 3323768: 65507463     	ldrbvs	r7, [r0, #-0x463]
+ 332376c: 00737265     	rsbseq	r7, r3, r5, ror #4
+ 3323770: 74654e5a     	strbtvc	r4, [r5], #-3674
+ 3323774: 62616e45     	rsbvs	r6, r1, #1104
+ 3323778: 6956656c     	ldmdbvs	r6, {r2, r3, r5, r6, r8, r10, sp, lr} ^
+ 332377c: 6f726f67     	svcvs	#0x726f67
+ 3323780: 63537375     	cmpvs	r3, #-738197503
+ 3323784: 5a006e61     	bpl	0x333f110               @ imm = #0x1b984
+ 3323788: 4574654e     	ldrbmi	r6, [r4, #-0x54e]!
+ 332378c: 65736172     	ldrbvs	r6, [r3, #-0x172]!
+ 3323790: 72657355     	rsbvc	r7, r5, #1409286145
+ 3323794: 64657243     	strbtvs	r7, [r5], #-579
+ 3323798: 69746e65     	ldmdbvs	r4!, {r0, r2, r5, r6, r9, r10, r11, sp, lr} ^
+ 332379c: 00736c61     	rsbseq	r6, r3, r1, ror #24
+ 33237a0: 74654e5a     	strbtvc	r4, [r5], #-3674
+ 33237a4: 43746547     	cmnmi	r4, #297795584
+ 33237a8: 64756f6c     	ldrbtvs	r6, [r5], #-3948
+ 33237ac: 6e6e6f43     	cdpvs	p15, #0x6, c6, c14, c3, #0x2
+ 33237b0: 65746365     	ldrbvs	r6, [r4, #-0x365]!
+ 33237b4: 4e5a0064     	cdpmi	p0, #0x5, c0, c10, c4, #0x3
+ 33237b8: 65477465     	strbvs	r7, [r7, #-0x465]
+ 33237bc: 6f6c4374     	svcvs	#0x6c4374
+ 33237c0: 63536475     	cmpvs	r3, #1962934272
+ 33237c4: 75646568     	strbvc	r6, [r4, #-0x568]!
+ 33237c8: 5372656c     	cmnpl	r2, #108, #10
+ 33237cc: 75746174     	ldrbvc	r6, [r4, #-0x174]!
+ 33237d0: 4e5a0073     	mrcmi	p0, #0x2, r0, c10, c3, #0x3
+ 33237d4: 65477465     	strbvs	r7, [r7, #-0x465]
+ 33237d8: 66654474     	uqsub16vs	r4, r5, r4
+ 33237dc: 746c7561     	strbtvc	r7, [r12], #-1377
+ 33237e0: 786f7250     	stmdavc	pc!, {r4, r6, r9, r12, sp, lr} ^
+ 33237e4: 4e5a0079     	mrcmi	p0, #0x2, r0, c10, c9, #0x3
+ 33237e8: 65477465     	strbvs	r7, [r7, #-0x465]
+ 33237ec: 41654d74     	<unknown>
+ 33237f0: 65655073     	strbvs	r5, [r5, #-0x73]!
+ 33237f4: 4e5a0072     	mrcmi	p0, #0x2, r0, c10, c2, #0x3
+ 33237f8: 65477465     	strbvs	r7, [r7, #-0x465]
+ 33237fc: 646f4d74     	strbtvs	r4, [pc], #-3444
+ 3323800: 4e5a0065     	cdpmi	p0, #0x5, c0, c10, c5, #0x3
+ 3323804: 65477465     	strbvs	r7, [r7, #-0x465]
+ 3323808: 61654e74     	<unknown>
+ 332380c: 50796272     	rsbspl	r6, r9, r2, ror r2
+ 3323810: 73726565     	cmnvc	r2, #423624704
+ 3323814: 654e5a00     	strbvs	r5, [lr, #-0xa00]
+ 3323818: 74654774     	strbtvc	r4, [r5], #-1908
+ 332381c: 7774654e     	ldrbvc	r6, [r4, -lr, asr #10]!
+ 3323820: 496b726f     	stmdbmi	r11!, {r0, r1, r2, r3, r5, r6, r9, r12, sp, lr} ^
+ 3323824: 006f666e     	rsbeq	r6, pc, lr, ror #12
+ 3323828: 74654e5a     	strbtvc	r4, [r5], #-3674
+ 332382c: 4e746547     	cdpmi	p5, #0x7, c6, c4, c7, #0x2
+ 3323830: 6f777465     	svcvs	#0x777465
+ 3323834: 694c6b72     	stmdbvs	r12, {r1, r4, r5, r6, r8, r9, r11, sp, lr} ^
+ 3323838: 5a007473     	bpl	0x3340a0c               @ imm = #0x1d1cc
+ 332383c: 4774654e     	ldrbmi	r6, [r4, -lr, asr #10]!
+ 3323840: 6f4e7465     	svcvs	#0x4e7465
+ 3323844: 69666974     	stmdbvs	r6!, {r2, r4, r5, r6, r8, r11, sp, lr} ^
+ 3323848: 69746163     	ldmdbvs	r4!, {r0, r1, r5, r6, r8, sp, lr} ^
+ 332384c: 5a006e6f     	bpl	0x333f210               @ imm = #0x1b9bc
+ 3323850: 4774654e     	ldrbmi	r6, [r4, -lr, asr #10]!
+ 3323854: 61507465     	cmpvs	r0, r5, ror #8
+ 3323858: 68747373     	ldmdavs	r4!, {r0, r1, r4, r5, r6, r8, r9, r12, sp, lr} ^
+ 332385c: 67756f72     	<unknown>
+ 3323860: 6e6f4368     	cdpvs	p3, #0x6, c4, c15, c8, #0x3
+ 3323864: 7463656e     	strbtvc	r6, [r3], #-1390
+ 3323868: 5a006465     	bpl	0x333ca04               @ imm = #0x19194
+ 332386c: 4774654e     	ldrbmi	r6, [r4, -lr, asr #10]!
+ 3323870: 65507465     	ldrbvs	r7, [r0, #-0x465]
+ 3323874: 69577265     	ldmdbvs	r7, {r0, r2, r5, r6, r9, r12, sp, lr} ^
+ 3323878: 44496874     	strbmi	r6, [r9], #-2164
+ 332387c: 654e5a00     	strbvs	r5, [lr, #-0xa00]
+ 3323880: 74654774     	strbtvc	r4, [r5], #-1908
+ 3323884: 76726553     	uhsaxvc	r6, r2, r3
+ 3323888: 45656369     	strbmi	r6, [r5, #-0x369]!
+ 332388c: 6f50646e     	svcvs	#0x50646e
+ 3323890: 55746e69     	ldrbpl	r6, [r4, #-0xe69]!
+ 3323894: 5a006972     	bpl	0x333de64               @ imm = #0x1a5c8
+ 3323898: 4774654e     	ldrbmi	r6, [r4, -lr, asr #10]!
+ 332389c: 65537465     	ldrbvs	r7, [r3, #-0x465]
+ 33238a0: 6f697373     	svcvs	#0x697373
+ 33238a4: 766e496e     	strbtvc	r4, [lr], -lr, ror #18
+ 33238a8: 00657469     	rsbeq	r7, r5, r9, ror #8
+ 33238ac: 74654e5a     	strbtvc	r4, [r5], #-3674
+ 33238b0: 53746547     	cmnpl	r4, #297795584
+ 33238b4: 496e6769     	stmdbmi	lr!, {r0, r3, r5, r6, r8, r9, r10, sp, lr} ^
+ 33238b8: 666e496e     	strbtvs	r4, [lr], -lr, ror #18
+ 33238bc: 4e5a006f     	cdpmi	p0, #0x5, c0, c10, c15, #0x3
+ 33238c0: 65477465     	strbvs	r7, [r7, #-0x465]
+ 33238c4: 6e795374     	mrcvs	p3, #0x3, r5, c9, c4, #0x3
+ 33238c8: 6f725063     	svcvs	#0x725063
+ 33238cc: 73657267     	<unknown>
+ 33238d0: 4e5a0073     	mrcmi	p0, #0x2, r0, c10, c3, #0x3
+ 33238d4: 65477465     	strbvs	r7, [r7, #-0x465]
+ 33238d8: 6e795374     	mrcvs	p3, #0x3, r5, c9, c4, #0x3
+ 33238dc: 61745363     	cmnvs	r4, r3, ror #6
+ 33238e0: 5a006574     	bpl	0x333ceb8               @ imm = #0x195d0
+ 33238e4: 4774654e     	ldrbmi	r6, [r4, -lr, asr #10]!
+ 33238e8: 79537465     	ldmdbvc	r3, {r0, r2, r5, r6, r10, r12, sp, lr} ^
+ 33238ec: 7954636e     	ldmdbvc	r4, {r1, r2, r3, r5, r6, r8, r9, sp, lr} ^
+ 33238f0: 5a006570     	bpl	0x333ceb8               @ imm = #0x195c0
+ 33238f4: 4774654e     	ldrbmi	r6, [r4, -lr, asr #10]!
+ 33238f8: 72547465     	subsvc	r7, r4, #1694498816
+ 33238fc: 66736e61     	ldrbtvs	r6, [r3], -r1, ror #28
+ 3323900: 72507265     	subsvc	r7, r0, #1342177286
+ 3323904: 6572676f     	ldrbvs	r6, [r2, #-0x76f]!
+ 3323908: 5a007373     	bpl	0x33406dc               @ imm = #0x1cdcc
+ 332390c: 4774654e     	ldrbmi	r6, [r4, -lr, asr #10]!
+ 3323910: 73557465     	cmpvc	r5, #1694498816
+ 3323914: 72437265     	subvc	r7, r3, #1342177286
+ 3323918: 6e656465     	cdpvs	p4, #0x6, c6, c5, c5, #0x3
+ 332391c: 6c616974     	stclvs	p9, c6, [r1], #-464
+ 3323920: 4e5a0073     	mrcmi	p0, #0x2, r0, c10, c3, #0x3
+ 3323924: 65477465     	strbvs	r7, [r7, #-0x465]
+ 3323928: 66695774     	uqsub16vs	r5, r9, r4
+ 332392c: 70614369     	rsbvc	r4, r1, r9, ror #6
+ 3323930: 6c696261     	stclvs	p2, c6, [r9], #-388
+ 3323934: 00797469     	rsbseq	r7, r9, r9, ror #8
+ 3323938: 74654e5a     	strbtvc	r4, [r5], #-3674
+ 332393c: 57746547     	ldrbpl	r6, [r4, -r7, asr #10]!
+ 3323940: 50696669     	rsbpl	r6, r9, r9, ror #12
+ 3323944: 69666f72     	stmdbvs	r6!, {r1, r4, r5, r6, r8, r9, r10, r11, sp, lr} ^
+ 3323948: 5a00656c     	bpl	0x333cf00               @ imm = #0x195b0
+ 332394c: 4774654e     	ldrbmi	r6, [r4, -lr, asr #10]!
+ 3323950: 69577465     	ldmdbvs	r7, {r0, r2, r5, r6, r10, r12, sp, lr} ^
+ 3323954: 74536966     	ldrbvc	r6, [r3], #-2406
+ 3323958: 00657461     	rsbeq	r7, r5, r1, ror #8
+ 332395c: 74654e5a     	strbtvc	r4, [r5], #-3674
+ 3323960: 57746547     	ldrbpl	r6, [r4, -r7, asr #10]!
+ 3323964: 53696669     	<unknown>
+ 3323968: 6e657274     	mcrvs	p2, #0x3, r7, c5, c4, #0x3
+ 332396c: 00687467     	rsbeq	r7, r8, r7, ror #8
+ 3323970: 74654e5a     	strbtvc	r4, [r5], #-3674
+ 3323974: 70497349     	subvc	r7, r9, r9, asr #6
+ 3323978: 75716341     	ldrbvc	r6, [r1, #-0x341]!
+ 332397c: 64657269     	strbtvs	r7, [r5], #-617
+ 3323980: 654e5a00     	strbvs	r5, [lr, #-0xa00]
+ 3323984: 56734974     	uhsub16pl	r4, r3, r4
+ 3323988: 726f6769     	rsbvc	r6, pc, #27525120
+ 332398c: 6c73756f     	ldclvs	p5, c7, [r3], #-444
+ 3323990: 61635379     	<unknown>
+ 3323994: 6e696e6e     	cdpvs	p14, #0x6, c6, c9, c14, #0x3
+ 3323998: 4e5a0067     	cdpmi	p0, #0x5, c0, c10, c7, #0x3
+ 332399c: 654b7465     	strbvs	r7, [r11, #-0x465]
+ 33239a0: 6c437065     	mcrrvs	p0, #0x6, r7, r3, c5
+ 33239a4: 4364756f     	<unknown>
+ 33239a8: 656e6e6f     	strbvs	r6, [lr, #-0xe6f]!
+ 33239ac: 6f697463     	svcvs	#0x697463
+ 33239b0: 4e5a006e     	cdpmi	p0, #0x5, c0, c10, c14, #0x3
+ 33239b4: 61507465     	cmpvs	r0, r5, ror #8
+ 33239b8: 68747373     	ldmdavs	r4!, {r0, r1, r4, r5, r6, r8, r9, r12, sp, lr} ^
+ 33239bc: 67756f72     	<unknown>
+ 33239c0: 6e6f4368     	cdpvs	p3, #0x6, c4, c15, c8, #0x3
+ 33239c4: 7463656e     	strbtvc	r6, [r3], #-1390
+ 33239c8: 654e5a00     	strbvs	r5, [lr, #-0xa00]
+ 33239cc: 73615074     	<unknown>
+ 33239d0: 72687473     	rsbvc	r7, r8, #1929379840
+ 33239d4: 6867756f     	stmdavs	r7!, {r0, r1, r2, r3, r5, r6, r8, r10, r12, sp, lr} ^
+ 33239d8: 63736944     	cmnvs	r3, #68, #18
+ 33239dc: 656e6e6f     	strbvs	r6, [lr, #-0xe6f]!
+ 33239e0: 5a007463     	bpl	0x3340b74               @ imm = #0x1d18c
+ 33239e4: 5074654e     	rsbspl	r6, r4, lr, asr #10
+ 33239e8: 6f667265     	svcvs	#0x667265
+ 33239ec: 6e4f6d72     	mcrvs	p13, #0x2, r6, c15, c2, #0x3
+ 33239f0: 6d695465     	stclvs	p4, c5, [r9, #-404]!
+ 33239f4: 61635365     	<unknown>
+ 33239f8: 4e5a006e     	cdpmi	p0, #0x5, c0, c10, c14, #0x3
+ 33239fc: 6f507465     	svcvs	#0x507465
+ 3323a00: 6f4e7473     	svcvs	#0x4e7473
+ 3323a04: 69666974     	stmdbvs	r6!, {r2, r4, r5, r6, r8, r11, sp, lr} ^
+ 3323a08: 69746163     	ldmdbvs	r4!, {r0, r1, r5, r6, r8, sp, lr} ^
+ 3323a0c: 5a006e6f     	bpl	0x333f3d0               @ imm = #0x1b9bc
+ 3323a10: 5274654e     	rsbspl	r6, r4, #327155712
+ 3323a14: 61656c65     	<unknown>
+ 3323a18: 6c436573     	mcrrvs	p5, #0x7, r6, r3, c3
+ 3323a1c: 4364756f     	<unknown>
+ 3323a20: 656e6e6f     	strbvs	r6, [lr, #-0xe6f]!
+ 3323a24: 6f697463     	svcvs	#0x697463
+ 3323a28: 4e5a006e     	cdpmi	p0, #0x5, c0, c10, c14, #0x3
+ 3323a2c: 65527465     	ldrbvs	r7, [r2, #-0x465]
+ 3323a30: 7361656c     	<unknown>
+ 3323a34: 646f4d65     	strbtvs	r4, [pc], #-3429
+ 3323a38: 4e5a0065     	cdpmi	p0, #0x5, c0, c10, c5, #0x3
+ 3323a3c: 65527465     	ldrbvs	r7, [r2, #-0x465]
+ 3323a40: 7361656c     	<unknown>
+ 3323a44: 66695765     	strbtvs	r5, [r9], -r5, ror #14
+ 3323a48: 776f5069     	strbvc	r5, [pc, -r9, rrx]!
+ 3323a4c: 5a007265     	bpl	0x33403e8               @ imm = #0x1c994
+ 3323a50: 5274654e     	rsbspl	r6, r4, #327155712
+ 3323a54: 796c7065     	stmdbvc	r12!, {r0, r2, r5, r6, r12, sp, lr} ^
+ 3323a58: 65536f54     	ldrbvs	r6, [r3, #-0xf54]
+ 3323a5c: 5a00646e     	bpl	0x333cc1c               @ imm = #0x191b8
+ 3323a60: 5274654e     	rsbspl	r6, r4, #327155712
+ 3323a64: 65757165     	ldrbvs	r7, [r5, #-0x165]!
+ 3323a68: 6f547473     	svcvs	#0x547473
+ 3323a6c: 646e6553     	strbtvs	r6, [lr], #-1363
+ 3323a70: 654e5a00     	strbvs	r5, [lr, #-0xa00]
+ 3323a74: 71655274     	<unknown>
+ 3323a78: 65726975     	ldrbvs	r6, [r2, #-0x975]!
+ 3323a7c: 69666957     	stmdbvs	r6!, {r0, r1, r2, r4, r6, r8, r11, sp, lr} ^
+ 3323a80: 65776f50     	ldrbvs	r6, [r7, #-0xf50]!
+ 3323a84: 4e5a0072     	mrcmi	p0, #0x2, r0, c10, c2, #0x3
+ 3323a88: 63537465     	cmpvs	r3, #1694498816
+ 3323a8c: 6e416e61     	cdpvs	p14, #0x4, c6, c1, c1, #0x3
+ 3323a90: 69615764     	stmdbvs	r1!, {r2, r5, r6, r8, r9, r10, r12, lr} ^
+ 3323a94: 726f4674     	rsbvc	r4, pc, #116, #12
+ 3323a98: 7774654e     	ldrbvc	r6, [r4, -lr, asr #10]!
+ 3323a9c: 736b726f     	<unknown>
+ 3323aa0: 654e5a00     	strbvs	r5, [lr, #-0xa00]
+ 3323aa4: 61635374     	<unknown>
+ 3323aa8: 74654e6e     	strbtvc	r4, [r5], #-3694
+ 3323aac: 6b726f77     	blvs	0x4fbf890               @ imm = #0x1c9bddc
+ 3323ab0: 4e5a0073     	mrcmi	p0, #0x2, r0, c10, c3, #0x3
+ 3323ab4: 65537465     	ldrbvs	r7, [r3, #-0x465]
+ 3323ab8: 66654474     	uqsub16vs	r4, r5, r4
+ 3323abc: 746c7561     	strbtvc	r7, [r12], #-1377
+ 3323ac0: 786f7250     	stmdavc	pc!, {r4, r6, r9, r12, sp, lr} ^
+ 3323ac4: 4e5a0079     	mrcmi	p0, #0x2, r0, c10, c9, #0x3
+ 3323ac8: 65537465     	ldrbvs	r7, [r3, #-0x465]
+ 3323acc: 646f4d74     	strbtvs	r4, [pc], #-3444
+ 3323ad0: 4e5a0065     	cdpmi	p0, #0x5, c0, c10, c5, #0x3
+ 3323ad4: 65537465     	ldrbvs	r7, [r3, #-0x465]
+ 3323ad8: 646f4d74     	strbtvs	r4, [pc], #-3444
+ 3323adc: 69615765     	stmdbvs	r1!, {r0, r2, r5, r6, r8, r9, r10, r12, lr} ^
+ 3323ae0: 726f4674     	rsbvc	r4, pc, #116, #12
+ 3323ae4: 706d6f43     	rsbvc	r6, sp, r3, asr #30
+ 3323ae8: 6974656c     	ldmdbvs	r4!, {r2, r3, r5, r6, r8, r10, sp, lr} ^
+ 3323aec: 5a006e6f     	bpl	0x333f4b0               @ imm = #0x1b9bc
+ 3323af0: 5374654e     	cmnpl	r4, #327155712
+ 3323af4: 61507465     	cmpvs	r0, r5, ror #8
+ 3323af8: 68747373     	ldmdavs	r4!, {r0, r1, r4, r5, r6, r8, r9, r12, sp, lr} ^
+ 3323afc: 67756f72     	<unknown>
+ 3323b00: 61745368     	cmnvs	r4, r8, ror #6
+ 3323b04: 5a006574     	bpl	0x333d0dc               @ imm = #0x195d0
+ 3323b08: 5374654e     	cmnpl	r4, #327155712
+ 3323b0c: 72507465     	subsvc	r7, r0, #1694498816
+ 3323b10: 636f746f     	<unknown>
+ 3323b14: 65566c6f     	ldrbvs	r6, [r6, #-0xc6f]
+ 3323b18: 6f697372     	svcvs	#0x697372
+ 3323b1c: 4e5a006e     	cdpmi	p0, #0x5, c0, c10, c14, #0x3
+ 3323b20: 65537465     	ldrbvs	r7, [r3, #-0x465]
+ 3323b24: 73655374     	<unknown>
+ 3323b28: 6e6f6973     	mcrvs	p9, #0x3, r6, c15, c3, #0x3
+ 3323b2c: 6f666e49     	svcvs	#0x666e49
+ 3323b30: 654e5a00     	strbvs	r5, [lr, #-0xa00]
+ 3323b34: 74655374     	strbtvc	r5, [r5], #-884
+ 3323b38: 73736553     	cmnvc	r3, #348127232
+ 3323b3c: 496e6f69     	stmdbmi	lr!, {r0, r3, r5, r6, r8, r9, r10, r11, sp, lr} ^
+ 3323b40: 7469766e     	strbtvc	r7, [r9], #-1646
+ 3323b44: 726f4665     	rsbvc	r4, pc, #105906176
+ 3323b48: 72656550     	rsbvc	r6, r5, #80, #10
+ 3323b4c: 654e5a00     	strbvs	r5, [lr, #-0xa00]
+ 3323b50: 74655374     	strbtvc	r5, [r5], #-884
+ 3323b54: 636e7953     	<unknown>
+ 3323b58: 676f7250     	<unknown>
+ 3323b5c: 73736572     	cmnvc	r3, #478150656
+ 3323b60: 654e5a00     	strbvs	r5, [lr, #-0xa00]
+ 3323b64: 74655374     	strbtvc	r5, [r5], #-884
+ 3323b68: 636e7953     	<unknown>
+ 3323b6c: 74617453     	strbtvc	r7, [r1], #-1107
+ 3323b70: 4e5a0065     	cdpmi	p0, #0x5, c0, c10, c5, #0x3
+ 3323b74: 65537465     	ldrbvs	r7, [r3, #-0x465]
+ 3323b78: 61725474     	cmnvs	r2, r4, ror r4
+ 3323b7c: 696d736e     	stmdbvs	sp!, {r1, r2, r3, r5, r6, r8, r9, r12, sp, lr} ^
+ 3323b80: 74615274     	strbtvc	r5, [r1], #-628
+ 3323b84: 4e5a0065     	cdpmi	p0, #0x5, c0, c10, c5, #0x3
+ 3323b88: 65537465     	ldrbvs	r7, [r3, #-0x465]
+ 3323b8c: 65735574     	ldrbvs	r5, [r3, #-0x574]!
+ 3323b90: 73754272     	cmnvc	r5, #536870919
+ 3323b94: 4e5a0079     	mrcmi	p0, #0x2, r0, c10, c9, #0x3
+ 3323b98: 65537465     	ldrbvs	r7, [r3, #-0x465]
+ 3323b9c: 65735574     	ldrbvs	r5, [r3, #-0x574]!
+ 3323ba0: 69754772     	ldmdbvs	r5!, {r1, r4, r5, r6, r8, r9, r10, lr} ^
+ 3323ba4: 4e5a0064     	cdpmi	p0, #0x5, c0, c10, c4, #0x3
+ 3323ba8: 65537465     	ldrbvs	r7, [r3, #-0x465]
+ 3323bac: 65735574     	ldrbvs	r5, [r3, #-0x574]!
+ 3323bb0: 776f5072     	<unknown>
+ 3323bb4: 6e457265     	cdpvs	p2, #0x4, c7, c5, c5, #0x3
+ 3323bb8: 656c6261     	strbvs	r6, [r12, #-0x261]!
+ 3323bbc: 654e5a00     	strbvs	r5, [lr, #-0xa00]
+ 3323bc0: 74655374     	strbtvc	r5, [r5], #-884
+ 3323bc4: 72657355     	rsbvc	r7, r5, #1409286145
+ 3323bc8: 76697250     	uqsaxvc	r7, r9, r0
+ 3323bcc: 45796361     	ldrbmi	r6, [r9, #-0x361]!
+ 3323bd0: 6c62616e     	stclvs	p1, c6, [r2], #-440
+ 3323bd4: 4e5a0065     	cdpmi	p0, #0x5, c0, c10, c5, #0x3
+ 3323bd8: 65537465     	ldrbvs	r7, [r3, #-0x465]
+ 3323bdc: 66695774     	uqsub16vs	r5, r9, r4
+ 3323be0: 6f725069     	svcvs	#0x725069
+ 3323be4: 656c6966     	strbvs	r6, [r12, #-0x966]!
+ 3323be8: 654e5a00     	strbvs	r5, [lr, #-0xa00]
+ 3323bec: 74655374     	strbtvc	r5, [r5], #-884
+ 3323bf0: 69666957     	stmdbvs	r6!, {r0, r1, r2, r4, r6, r8, r11, sp, lr} ^
+ 3323bf4: 74617453     	strbtvc	r7, [r1], #-1107
+ 3323bf8: 4e5a0065     	cdpmi	p0, #0x5, c0, c10, c5, #0x3
+ 3323bfc: 74537465     	ldrbvc	r7, [r3], #-1125
+ 3323c00: 5565726f     	strbpl	r7, [r5, #-0x26f]!
+ 3323c04: 43726573     	cmnmi	r2, #482344960
+ 3323c08: 65646572     	strbvs	r6, [r4, #-0x572]!
+ 3323c0c: 6169746e     	<unknown>
+ 3323c10: 5a00736c     	bpl	0x33409c8               @ imm = #0x1cdb0
+ 3323c14: 5474654e     	ldrbtpl	r6, [r4], #-1358
+ 3323c18: 43747365     	cmnmi	r4, #-1811939327
+ 3323c1c: 656e6e6f     	strbvs	r6, [lr, #-0xe6f]!
+ 3323c20: 76697463     	strbtvc	r7, [r9], -r3, ror #8
+ 3323c24: 00797469     	rsbseq	r7, r9, r9, ror #8
+ 3323c28: 74654e5a     	strbtvc	r4, [r5], #-3674
+ 3323c2c: 61647055     	qdsubvs	r7, r5, r4
+ 3323c30: 6c436574     	mcrrvs	p5, #0x7, r6, r3, c4
+ 3323c34: 5364756f     	<unknown>
+ 3323c38: 53636e79     	<unknown>
+ 3323c3c: 75746174     	ldrbvc	r6, [r4, #-0x174]!
+ 3323c40: 4e5a0073     	mrcmi	p0, #0x2, r0, c10, c3, #0x3
+ 3323c44: 70557465     	subsvc	r7, r5, r5, ror #8
+ 3323c48: 65746164     	ldrbvs	r6, [r4, #-0x164]!
+ 3323c4c: 69766544     	ldmdbvs	r6!, {r2, r6, r8, r10, sp, lr} ^
+ 3323c50: 614e6563     	<unknown>
+ 3323c54: 5a00656d     	bpl	0x333d210               @ imm = #0x195b4
+ 3323c58: 5574654e     	ldrbpl	r6, [r4, #-0x54e]!
+ 3323c5c: 74616470     	strbtvc	r6, [r1], #-1136
+ 3323c60: 65735565     	ldrbvs	r5, [r3, #-0x565]!
+ 3323c64: 61745372     	cmnvs	r4, r2, ror r3
+ 3323c68: 00737574     	rsbseq	r7, r3, r4, ror r5

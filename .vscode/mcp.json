@@ -1,0 +1,15 @@
+{
+  "servers": {
+    "rea": {
+      "type": "stdio",
+      "command": "/usr/local/bin/docker",
+      "args": [
+        "run", "-i", "--rm",
+        "-v", "${workspaceFolder}:/work",
+        "-w", "/work",
+        "-v", "rea-data:/root",
+        "rea:latest", "rea", "--mcp"
+      ]
+    }
+  }
+}

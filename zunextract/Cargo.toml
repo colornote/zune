@@ -1,0 +1,14 @@
+[package]
+name = "zunextract"
+version = "0.1.0"
+edition = "2021"
+description = "Extract files from Zune HD (Windows CE 6.0) firmware CAB and BIN files"
+license = "MIT"
+repository = "https://github.com/balcsida/zunextract"
+
+[dependencies]
+cab = "0.6"
+clap = { version = "4", features = ["derive"] }
+anyhow = "1"
+ratatui = "0.29"
+crossterm = "0.28"

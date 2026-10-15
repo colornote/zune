@@ -1,0 +1,33 @@
+[package]
+name = "zune-client"
+version = "0.1.0"
+edition = "2021"
+description = "Open Zune client: MTP/MTPZ over USB for Zune 30 / Zune HD (music, photos, video, WiFi)"
+license = "MIT"
+
+[[bin]]
+name = "zune"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+nusb = "0.2"
+hex = "0.4"
+
+# MTPZ handshake crypto (libmtp-zune scheme: RSASSA-PKCS1 + AES-CMAC + AES-CBC)
+sha1 = "0.10"
+aes = "0.8"
+cbc = "0.1"
+cmac = "0.7"
+cipher = "0.4"
+num-bigint = "0.4"
+num-traits = "0.2"
+rand = "0.8"
+lofty = "0.25.4"
+image = { version = "0.25.10", default-features = false, features = ["jpeg", "png", "bmp", "gif", "tiff", "webp"] }
+log = "0.4.34"
+env_logger = "0.11.11"
+
+[profile.release]
+opt-level = 2

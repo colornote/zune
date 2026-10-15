@@ -1,0 +1,323 @@
+Looking for a Zune on USB…
+Zune 30 on USB (serial XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX · bus 00 port-chain 1.2 addr 4 location 0x120000)
+cleared 118 bytes left over from an earlier session
+MTPZ handshake ok — the device is trusted
+library read: 2425 tracks in 152.0s via per-track reads (the device refused the bulk form)
+1 metadata property read(s) were refused by the device — last error: bulk property list probe: expected a DATA container, got type 0x0003 (code 0xa801, params [])
+cover art: 95 image object(s) scanned, none references an album
+cover art: none of the 78 albums resolved to a cover object — open the Log page and press "Diagnose albums" so the reference structure can be checked
+object references: served by the ObjectReferences property (0xDC41)
+reference read problem: GetObjectReferences (0x9810) returned an empty list
+[alb] "04.华丽的冒险(2005.09)": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "100%": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "1943 to 2002": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Ace": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "All the Lost Souls": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "All We Know Is Falling": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Amanda Morra": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "B-Sides": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Believe": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Blackout": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Brand New Eyes": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Cantonese": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Christmas from the Heart": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Closer": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Dark Side of the Moon": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Definitive Ray Charles": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "DJ-Kicks": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Eagles Live Disc 2": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Echo": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Far from Refuge": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Greatest Hits": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Hardcore Superstar": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Hybrid Theory": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "I Want You Back": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Jazz & '80s: The Coolest and Sexiest Songbook of the Eighties": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Jazz for Lovers [Universal]": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Jazz For Summer": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Joanna & 王若琳": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Joanna & 王若琳 (Bonus CD)": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Ladylike": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Lenka": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Let Go": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "LeToya": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Liberation": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Life in Cartoon Motion": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Memoirs of an Imperfect Angel": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Meteora": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Minutes to Midnight [Clean]": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Mädchen im Regen": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Nevermind": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "No Line On The Horizon": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Once (Music from the Motion Picture)": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Rated R": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Red and Blue": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Relive": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Riot!": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Send One Your Love": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Shine On": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Smooth Jazz [United Multi License]": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Songs and Stories": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Spirit [Deluxe Edition]": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Start From Here": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Start From Here Disc 1 English": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Sugar And Spice": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "The Boat That Rocked OST": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "The Chronicles of Modern Life": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "The Fame Monster [Super Deluxe Version]": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "The Greatest Hits of the Rolling Stones": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "The Singles 1999-2006": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "The Very Best of Latin Jazz [Universal]": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Transformation": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Unknown Album": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Use Your Illusion II": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Vessel": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Viva La Vida or Death and All His Friends": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Wanted": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "While the City Sleeps, We Rule the Streets": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Who I Am": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "Your Love, My Home": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "一滴眼淚": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "三十而立 (Disc 3)": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "上五楼的快活": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "周杰倫演唱會Live CD Disc 2": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "若你碰到他": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "范特西": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "超级4th场": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "陳奕迅48首選": no cover found (none found) — 95 folder object(s), none named like the album
+[alb] "麦爵士［啡尝人声］": no cover found (none found) — 95 folder object(s), none named like the album
+[cov] ---- cover diagnosis (image objects + a few albums only) ----
+[cov] JPEG (0x3801): 0 object(s) across **all** parents (GetObjectHandles parent=0xFFFFFFFF)
+[cov] JPEG (0x3801): 95 object(s) directly under the root
+[cov] CoverArt (0x3802): the all-parents listing failed: expected a DATA container, got type 0x0003 (code 0x2002, params [])
+[cov] CoverArt (0x3802): root listing failed: expected a DATA container, got type 0x0003 (code 0x2002, params [])
+[cov] no image objects found by format — the device may need a different query
+[cov] 88 abstract album object(s); dumping 3
+[cov] album 0x060013ed [album] "Unknown Album"
+[cov]   refs via 0x9810: 1
+[cov]     ref 0x010013ec [audio] format=0x3009 (mp3) size=129302 name="01 Mac 推送测试.mp3"
+[cov]   1 refs: 0x3009(mp3)×1   <-- NO image reference
+[cov] album 0x060012c1 [album] "04.华丽的冒险(2005.09)"
+[cov]   refs via 0x9810: 11
+[cov]     ref 0x010012d7 [audio] format=0x3009 (mp3) size=10322862 name="01 01.旅行的意义.mp3"
+[cov]     ref 0x010012d8 [audio] format=0x3009 (mp3) size=9889220 name="02 02.腐朽.mp3"
+[cov]     ref 0x010012d9 [audio] format=0x3009 (mp3) size=12335337 name="03 03.Sentimental Kills.mp3"
+[cov]     ref 0x010012da [audio] format=0x3009 (mp3) size=13239204 name="04 04.华丽的冒险.mp3"
+[cov]     ref 0x010012db [audio] format=0x3009 (mp3) size=9323962 name="05 05.太多.mp3"
+[cov]     ref 0x010012dc [audio] format=0x3009 (mp3) size=11334320 name="06 06.花的姿态.mp3"
+[cov]     ref 0x010012dd [audio] format=0x3009 (mp3) size=12277887 name="07 07.self.mp3"
+[cov]     ref 0x010012de [audio] format=0x3009 (mp3) size=11101314 name="08 08.80%完美的日子.mp3"
+[cov]     ref 0x010012df [audio] format=0x3009 (mp3) size=8923776 name="09 09.表面的和平.mp3"
+[cov]     ref 0x010012e0 [audio] format=0x3009 (mp3) size=8658340 name="10 10.静静的生活.mp3"
+[cov]     ref 0x010012e1 [audio] format=0x3009 (mp3) size=6615597 name="11 11.最初的起点.mp3"
+[cov]   11 refs: 0x3009(mp3)×11   <-- NO image reference
+[cov] album 0x0600058e [album] "100%"
+[cov]   refs via 0x9810: 14
+[cov]     ref 0x01000616 [audio] format=0x3009 (mp3) size=7596510 name="01 Beautiful Night (Album Version).mp3"
+[cov]     ref 0x01000617 [audio] format=0x3009 (mp3) size=6617396 name="02 Breakout.mp3"
+[cov]     ref 0x01000618 [audio] format=0x3009 (mp3) size=6042429 name="03 In Your Shoes.mp3"
+[cov]     ref 0x01000619 [audio] format=0x3009 (mp3) size=7230827 name="04 100%.mp3"
+[cov]     ref 0x0100061a [audio] format=0x3009 (mp3) size=7802030 name="05 Every Step.mp3"
+[cov]     ref 0x0100061b [audio] format=0x3009 (mp3) size=8062478 name="06 Soul Survivor (ft. Chaka Khan).mp3"
+[cov]     ref 0x0100061c [audio] format=0x3009 (mp3) size=8176677 name="07 Turned To Stone.mp3"
+[cov]     ref 0x0100061d [audio] format=0x3009 (mp3) size=6113097 name="08 Bare.mp3"
+[cov]     ref 0x0100061e [audio] format=0x3009 (mp3) size=8875267 name="09 Square Peg.mp3"
+[cov]     ref 0x0100061f [audio] format=0x3009 (mp3) size=5224878 name="10 Gold Chain.mp3"
+[cov]     ref 0x01000620 [audio] format=0x3009 (mp3) size=6182499 name="11 Moneyback.mp3"
+[cov]     ref 0x01000621 [audio] format=0x3009 (mp3) size=6200491 name="12 Painted Pony.mp3"
+[cov]     ref 0x01000622 [audio] format=0x3009 (mp3) size=8898175 name="13 Too Much Heaven.mp3"
+[cov]     ref 0x01000623 [audio] format=0x3009 (mp3) size=5856675 name="14 A Love We'll Never Know [Amazon Exclusive].mp3"
+[cov]   14 refs: 0x3009(mp3)×14   <-- NO image reference
+[cov] folders:
+[cov]   folder 0x050012c0 "04.华丽的冒险(2005.09)" -> 11 child(ren): mp3×11
+[cov]   folder 0x050005a3 "100%" -> 14 child(ren): mp3×14
+[cov]   folder 0x050005ea "2012 (Original Motion Picture Soundtrack)" -> 0 child(ren): -
+[cov]   folder 0x050005e9 "2012, Harald Kloser & Thomas Wander" -> 1 child(ren): folder×1
+[cov]   folder 0x05000da5 "8 Minutes Reading" -> 67 child(ren): mp3×67
+[cov]   folder 0x05000601 "8700" -> 1 child(ren): folder×1
+[cov]   folder 0x05000da6 "Above & Beyond TV" -> 0 child(ren): -
+[cov]   folder 0x05000df2 "Ace" -> 13 child(ren): mp3×13
+[cov]   folder 0x050005de "Adam Lambert" -> 1 child(ren): folder×1
+[cov]   folder 0x05000572 "Albums" -> 87 child(ren): album×87
+[cov]   folder 0x05000582 "All the Lost Souls [Tour Edition]" -> 15 child(ren): mp3×15
+[cov]   folder 0x050005cd "All We Know Is Falling" -> 10 child(ren): mp3×10
+[cov]   folder 0x050005ae "Amanda Morra" -> 13 child(ren): mp3×13
+[cov]   folder 0x05000d8f "Antiwave.net   反波" -> 7 child(ren): mp3×7
+[cov]   folder 0x050005a0 "Avril Lavigne" -> 1 child(ren): folder×1
+[cov]   folder 0x050005b7 "Believe" -> 12 child(ren): mp3×12
+[cov]   folder 0x05000b09 "Best Ads on TV" -> 0 child(ren): -
+[cov]   folder 0x05000b0e "Best of YouTube (iPod video)" -> 0 child(ren): -
+[cov]   folder 0x050005a2 "Beverley Knight" -> 2 child(ren): folder×2
+[cov]   folder 0x05000da3 "Big Band Times" -> 7 child(ren): mp3×7
+[cov]   folder 0x05000df4 "Blackout" -> 14 child(ren): mp3×14
+[cov]   folder 0x0500058f "The Boat That Rocked OST" -> 36 child(ren): mp3×36
+[cov]   folder 0x05000bfd "Boney James" -> 1 child(ren): folder×1
+[cov]   folder 0x050005b9 "Brand New Eyes" -> 14 child(ren): mp3×14
+[cov]   folder 0x05000df3 "Britney Spears" -> 1 child(ren): folder×1
+[cov]   folder 0x050005ad "B-Sides" -> 15 child(ren): mp3×15
+[cov]   folder 0x050012c2 "Cantonese" -> 68 child(ren): mp3×68
+[cov]   folder 0x050005ef "Casting Crowns" -> 1 child(ren): folder×1
+[cov]   folder 0x050005bc "Christmas from the Heart" -> 13 child(ren): mp3×13
+[cov]   folder 0x05000df6 "The Chronicles of Modern Life" -> 13 child(ren): mp3×13
+[cov]   folder 0x05000df8 "Closer" -> 5 child(ren): mp3×5
+[cov]   folder 0x050005ba "Cobra Starship" -> 1 child(ren): folder×1
+[cov]   folder 0x0500137b "Colbie Caillat" -> 1 child(ren): folder×1
+[cov]   folder 0x050005e0 "Coldplay" -> 2 child(ren): folder×2
+[cov]   folder 0x05000d1a "Daddy G" -> 1 child(ren): folder×1
+[cov]   folder 0x05000df0 "Dark Side of the Moon" -> 9 child(ren): mp3×9
+[cov]   folder 0x05000c00 "Definitive Ray Charles" -> 68 child(ren): mp3×68
+[cov]   folder 0x05000df1 "Desperado" -> 1 child(ren): folder×1
+[cov]   folder 0x05000d1b "DJ-Kicks" -> 17 child(ren): mp3×17
+[cov]   folder 0x05000d45 "Eagles" -> 1 child(ren): folder×1
+[cov]   folder 0x05000d46 "Eagles Live Disc 2" -> 14 child(ren): mp3×14
+[cov]   folder 0x050005c2 "Echo" -> 13 child(ren): mp3×13
+[cov]   folder 0x05000cf2 "Face to Face" -> 1 child(ren): mp3×1
+[cov]   folder 0x05000c07 "The Fame Monster [Super Deluxe Version]" -> 8 child(ren): mp3×8
+[cov]   folder 0x05000dfd "Far from Refuge" -> 9 child(ren): mp3×9
+[cov]   folder 0x05000d1c "George Benson" -> 1 child(ren): folder×1
+[cov]   folder 0x0500132f "Glen Hansard and Marketa Irglova" -> 1 child(ren): folder×1
+[cov]   folder 0x05000dfc "God Is an Astronaut" -> 1 child(ren): folder×1
+[cov]   folder 0x050005b3 "Greatest Hits" -> 14 child(ren): mp3×14
+[cov]   folder 0x05000d19 "Greatest Hits" -> 14 child(ren): mp3×14
+[cov]   folder 0x05000b11 "The Greatest Hits of the Rolling Stones" -> 49 child(ren): mp3×49
+[cov]   folder 0x05000d18 "Guns N' Roses" -> 2 child(ren): folder×2
+[cov]   folder 0x050005a8 "Hardcore Superstar" -> 1 child(ren): folder×1
+[cov]   folder 0x050005a9 "Hardcore Superstar" -> 13 child(ren): mp3×13
+[cov]   folder 0x05000df5 "Henry Priestman" -> 1 child(ren): folder×1
+[cov]   folder 0x050005e2 "Hybrid Theory" -> 62 child(ren): mp3×62
+[cov]   folder 0x050005d0 "I Want You Back_" -> 1 child(ren): mp3×1
+[cov]   folder 0x050012c1 "Jacky Cheung" -> 1 child(ren): folder×1
+[cov]   folder 0x05000581 "James Blunt" -> 1 child(ren): folder×1
+[cov]   folder 0x05000df7 "Jars of Clay" -> 1 child(ren): folder×1
+[cov]   folder 0x05000d47 "Jason Mraz" -> 1 child(ren): folder×1
+[cov]   folder 0x05000d48 "Jason Mraz's Beautiful Mess - Live On Earth" -> 0 child(ren): -
+[cov]   folder 0x05000b0f "Jazz & '80s  The Coolest and Sexiest Songbook of the Eighties" -> 12 child(ren): mp3×12
+[cov]   folder 0x05000cf3 "Jazz for Lovers [Universal]" -> 19 child(ren): mp3×19
+[cov]   folder 0x05000d44 "Jazz For Summer" -> 31 child(ren): mp3×31
+[cov]   folder 0x050005aa "Jennifer Hudson" -> 1 child(ren): folder×1
+[cov]   folder 0x050005ab "Jennifer Hudson (Deluxe Edition)" -> 0 child(ren): -
+[cov]   folder 0x050005bd "Jessie James" -> 1 child(ren): folder×1
+[cov]   folder 0x05001245 "Joanna & 王若琳" -> 20 child(ren): mp3×20
+[cov]   folder 0x05001246 "Joanna & 王若琳 (Bonus CD)" -> 4 child(ren): mp3×4
+[cov]   folder 0x050005b2 "Joe" -> 1 child(ren): folder×1
+[cov]   folder 0x050005bf "Joshua Payne" -> 1 child(ren): folder×1
+[cov]   folder 0x050005b6 "Katherine Jenkins" -> 1 child(ren): folder×1
+[cov]   folder 0x05000c06 "Lady Gaga" -> 1 child(ren): folder×1
+[cov]   folder 0x050005a7 "Ladylike" -> 10 child(ren): mp3×10
+[cov]   folder 0x05000599 "Lenka" -> 1 child(ren): folder×1
+[cov]   folder 0x0500059a "Lenka" -> 11 child(ren): mp3×11
+[cov]   folder 0x050005c1 "Leona Lewis" -> 2 child(ren): folder×2
+[cov]   folder 0x050005a1 "Let Go" -> 17 child(ren): mp3×17
+[cov]   folder 0x050005c4 "LeToya" -> 1 child(ren): folder×1
+[cov]   folder 0x050005c5 "LeToya" -> 16 child(ren): mp3×16
+[cov]   folder 0x050005cb "Liberation" -> 13 child(ren): mp3×13
+[cov]   folder 0x05000d8e "The Library of Congress  Music and the Brain" -> 6 child(ren): mp3×6
+[cov]   folder 0x05000606 "Life in Cartoon Motion" -> 10 child(ren): mp3×10
+[cov]   folder 0x05000587 "Linkin Park" -> 3 child(ren): folder×3
+[cov]   folder 0x050005c6 "Luttenberger Klug" -> 1 child(ren): folder×1
+[cov]   folder 0x050005c7 "Mädchen im Regen" -> 15 child(ren): mp3×15
+[cov]   folder 0x050005c8 "Mariah Carey" -> 1 child(ren): folder×1
+[cov]   folder 0x05000def "Medicine Head" -> 1 child(ren): folder×1
+[cov]   folder 0x050005c9 "Memoirs of an Imperfect Angel" -> 21 child(ren): mp3×21
+[cov]   folder 0x050005e3 "Meteora" -> 4 child(ren): mp3×4
+[cov]   folder 0x05000df9 "Midge Ure" -> 1 child(ren): folder×1
+[cov]   folder 0x05000605 "Mika" -> 1 child(ren): folder×1
+[cov]   folder 0x050005e4 "Minutes to Midnight [Clean]" -> 18 child(ren): mp3×18
+[cov]   folder 0x050005a6 "Miriam Klein" -> 1 child(ren): folder×1
+[cov]   folder 0x050005ed "Modern Groove Syndicate" -> 1 child(ren): folder×1
+[cov]   folder 0x050005e7 "Muse" -> 1 child(ren): folder×1
+[cov]   folder 0x0500056f "Music" -> 69 child(ren): folder×69
+[cov]   folder 0x05000da2 "The Music Vid Podcast!" -> 0 child(ren): -
+[cov]   folder 0x050005ca "Mya" -> 2 child(ren): folder×2
+[cov]   folder 0x05000571 "Nevermind" -> 12 child(ren): mp3×12
+[cov]   folder 0x05000570 "Nirvana" -> 2 child(ren): folder×2
+[cov]   folder 0x05000604 "Nirvana" -> 0 child(ren): -
+[cov]   folder 0x0500058a "No Line On The Horizon" -> 11 child(ren): mp3×11
+[cov]   folder 0x05001330 "Once (Music from the Motion Picture)" -> 47 child(ren): mp3×46 wma×1
+[cov]   folder 0x050005e5 "Paloma Faith" -> 1 child(ren): folder×1
+[cov]   folder 0x050005ac "Paramore" -> 4 child(ren): folder×4
+[cov]   folder 0x05000da7 "PC World Video Podcast" -> 0 child(ren): -
+[cov]   folder 0x05001345 "pianoboy" -> 1 child(ren): folder×1
+[cov]   folder 0x05000602 "pic" -> 71 child(ren): jpeg×71
+[cov]   folder 0x05000600 "Pictures" -> 25 child(ren): jpeg×24 folder×1
+[cov]   folder 0x05000c04 "Pink Floyd" -> 1 child(ren): folder×1
+[cov]   folder 0x050005af "Playlists" -> 7 child(ren): playlist×7
+[cov]   folder 0x050005fd "Podcasts" -> 19 child(ren): folder×19
+[cov]   folder 0x05000a6d "Princess Remy 黑米公主" -> 3 child(ren): mp3×3
+[cov]   folder 0x050005b1 "Rated R" -> 13 child(ren): mp3×13
+[cov]   folder 0x05000bff "Ray Charles" -> 1 child(ren): folder×1
+[cov]   folder 0x050005ec "Red and Blue" -> 5 child(ren): mp3×5
+[cov]   folder 0x05000dfa "Relive" -> 12 child(ren): mp3×12
+[cov]   folder 0x050005e8 "The Resistance" -> 0 child(ren): -
+[cov]   folder 0x050005b0 "Rihanna" -> 1 child(ren): folder×1
+[cov]   folder 0x050005ce "Riot!" -> 11 child(ren): mp3×11
+[cov]   folder 0x05000b10 "Royal Philharmonic Orchestra" -> 1 child(ren): folder×1
+[cov]   folder 0x050005cf "Secret" -> 1 child(ren): folder×1
+[cov]   folder 0x05000bfe "Send One Your Love" -> 10 child(ren): mp3×10
+[cov]   folder 0x050005f3 "Series" -> 0 child(ren): -
+[cov]   folder 0x05000c05 "Shine On" -> 17 child(ren): mp3×17
+[cov]   folder 0x050005e1 "The Singles 1999-2006" -> 34 child(ren): mp3×34
+[cov]   folder 0x05000c01 "Smooth Jazz [United Multi License]" -> 92 child(ren): mp3×92
+[cov]   folder 0x05000d1d "Songs and Stories" -> 2 child(ren): mp3×2
+[cov]   folder 0x050005c3 "Spirit [Deluxe Edition]" -> 17 child(ren): mp3×17
+[cov]   folder 0x050012be "Start From Here" -> 41 child(ren): mp3×41
+[cov]   folder 0x05001247 "Start From Here Disc 1 English" -> 12 child(ren): mp3×12
+[cov]   folder 0x05001248 "Start From Here Disc 2 Chinese" -> 5 child(ren): mp3×5
+[cov]   folder 0x050005e6 "Stone Cold Sober - EP" -> 0 child(ren): -
+[cov]   folder 0x050005cc "Sugar And Spice" -> 14 child(ren): mp3×14
+[cov]   folder 0x050005df "Take One" -> 0 child(ren): -
+[cov]   folder 0x05000c02 "Tal Wilkenfeld" -> 1 child(ren): folder×1
+[cov]   folder 0x05000c03 "Transformation" -> 7 child(ren): mp3×7
+[cov]   folder 0x05000589 "U2" -> 1 child(ren): folder×1
+[cov]   folder 0x05001337 "Unknown Album" -> 6 child(ren): mp3×6
+[cov]   folder 0x05001346 "Unknown Album" -> 1 child(ren): mp3×1
+[cov]   folder 0x0500134f "Unknown Album" -> 1 child(ren): mp3×1
+[cov]   folder 0x0500136b "Unknown Album" -> 1 child(ren): mp3×1
+[cov]   folder 0x0500137c "Unknown Album" -> 1 child(ren): mp3×1
+[cov]   folder 0x05001336 "Unknown Artist" -> 1 child(ren): folder×1
+[cov]   folder 0x050005f0 "Until the Whole World Hears" -> 0 child(ren): -
+[cov]   folder 0x05000dfb "Use Your Illusion II" -> 14 child(ren): mp3×14
+[cov]   folder 0x05000b0a "Vans Podcast" -> 0 child(ren): -
+[cov]   folder 0x0500058e "Various Artists" -> 8 child(ren): folder×8
+[cov]   folder 0x05000c08 "The Very Best of Latin Jazz [Universal]" -> 16 child(ren): mp3×16
+[cov]   folder 0x050005ee "Vessel" -> 10 child(ren): mp3×10
+[cov]   folder 0x05000e00 "Video" -> 0 child(ren): -
+[cov]   folder 0x05000b0d "Viva La Vida or Death and All His Friends" -> 13 child(ren): mp3×13
+[cov]   folder 0x050005be "Wanted" -> 12 child(ren): mp3×12
+[cov]   folder 0x05000cf1 "Westlife" -> 1 child(ren): folder×1
+[cov]   folder 0x050005bb "While the City Sleeps, We Rule the Streets" -> 11 child(ren): mp3×11
+[cov]   folder 0x050005b8 "Who I Am" -> 11 child(ren): mp3×11
+[cov]   folder 0x05000d8d "World Football Daily" -> 6 child(ren): mp3×6
+[cov]   folder 0x050005ff "X-Play Game Previews" -> 0 child(ren): -
+[cov]   folder 0x050005c0 "Your Love, My Home" -> 11 child(ren): mp3×11
+[cov]   folder 0x050005eb "Zoe Muriel" -> 1 child(ren): folder×1
+[cov]   folder 0x05001241 "一些事一些情" -> 10 child(ren): mp3×9 wma×1
+[cov]   folder 0x05001328 "一滴眼淚" -> 48 child(ren): mp3×48
+[cov]   folder 0x050005f8 "三十而立 (Disc 1)" -> 10 child(ren): mp3×10
+[cov]   folder 0x050005f9 "三十而立 (Disc 2)" -> 13 child(ren): mp3×13
+[cov]   folder 0x050005fa "三十而立 (Disc 3)" -> 13 child(ren): mp3×13
+[cov]   folder 0x050005fb "三十而立 (Disc 4)" -> 7 child(ren): mp3×7
+[cov]   folder 0x05001243 "上五楼的快活" -> 13 child(ren): mp3×13
+[cov]   folder 0x0500134e "南拳妈妈" -> 1 child(ren): folder×1
+[cov]   folder 0x050005f7 "周杰倫" -> 4 child(ren): folder×4
+[cov]   folder 0x0500132a "哼一首歌 等日落" -> 0 child(ren): -
+[cov]   folder 0x0500136a "张学友" -> 1 child(ren): folder×1
+[cov]   folder 0x05001329 "曹方" -> 1 child(ren): folder×1
+[cov]   folder 0x050005d9 "曹格" -> 1 child(ren): folder×1
+[cov]   folder 0x05001244 "王若琳" -> 4 child(ren): folder×4
+[cov]   folder 0x050012bd "王若琳Joanna Wang" -> 1 child(ren): folder×1
+[cov]   folder 0x05000b12 "群星--缱绻与你共享" -> 1 child(ren): folder×1
+[cov]   folder 0x05000a6f "若你碰到他" -> 14 child(ren): mp3×14
+[cov]   folder 0x05000a6e "蔡健雅" -> 1 child(ren): folder×1
+[cov]   folder 0x050005da "超级4th场" -> 11 child(ren): mp3×11
+[cov]   folder 0x05000603 "锵锵3人行 Podcast" -> 164 child(ren): mp3×164
+[cov]   folder 0x05001242 "陈奕迅" -> 1 child(ren): folder×1
+[cov]   folder 0x050012bf "陈绮贞" -> 1 child(ren): folder×1
+[cov]   folder 0x0500124b "陳奕迅" -> 2 child(ren): folder×2
+[cov]   folder 0x0500124c "陳奕迅48首選" -> 48 child(ren): mp3×48
+[cov]   folder 0x050005fe "香港電台：大城小事" -> 150 child(ren): mp3×150
+[cov]   folder 0x05000b08 "香港電台：東洋現場" -> 54 child(ren): mp3×54
+[cov]   folder 0x0500104d "香港電台︰文化旅遊" -> 59 child(ren): mp3×59
+[cov]   folder 0x05000da4 "香港電台︰神州五十年" -> 448 child(ren): mp3×448
+[cov]   folder 0x05000b13 "麦爵士［啡尝人声］" -> 17 child(ren): mp3×17
+[cov] ---- end (10284 ms) ----
