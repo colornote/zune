@@ -64,16 +64,8 @@ pub fn board(ui: &mut Ui, motion: &mut Motion, state: &mut BoardState) {
 }
 
 fn board_content(ui: &mut Ui, motion: &mut Motion, state: &mut BoardState) {
-    bleeding_title(ui, "Design System");
-    ui.horizontal(|ui| {
-        ui.label(
-            RichText::new("v1.1 — 极致纯黑 · 小面积霓虹撞色 · 纯白大字号")
-                .font(subtitle())
-                .color(TEXT_2),
-        );
-        ui.label(RichText::new("· pure black · hairline · neon + glow").font(subtitle()).color(TEXT_3));
-    });
-    ui.add_space(SP_24);
+    // The heading comes from the shared page header now, partly so this page cannot drift
+    // out of step with the other eight again.
 
     spec_base_and_text(ui);
     ui.add_space(SP_48);
@@ -99,26 +91,6 @@ fn board_content(ui: &mut Ui, motion: &mut Motion, state: &mut BoardState) {
 
 // ── 1. the bleeding title (88pt ExtraLight, clipped rather than wrapped) ────
 
-fn bleeding_title(ui: &mut Ui, text: &str) {
-    let (rect, _) = ui.allocate_exact_size(Vec2::new(ui.available_width(), 104.0), Sense::hover());
-    let painter = ui.painter();
-    let galley = painter.layout_no_wrap(text.to_owned(), display(), TEXT_1);
-    let _ = painter.galley(Pos2::new(rect.left() - 6.0, rect.top() + 2.0), galley, TEXT_1);
-    let rule_y = rect.bottom() - SP_8;
-    ui.painter().line_segment(
-        [Pos2::new(rect.left(), rule_y), Pos2::new(rect.left() + 240.0, rule_y)],
-        eframe::egui::Stroke::new(2.0, NEON_ORANGE),
-    );
-    // The rule is a neon element, so it glows.
-    paint::glow_rect(
-        ui.painter(),
-        Rect::from_min_max(Pos2::new(rect.left(), rule_y - 1.0), Pos2::new(rect.left() + 240.0, rule_y + 1.0)),
-        eframe::egui::CornerRadius::same(2),
-        NEON_ORANGE,
-        GLOW_SM,
-        GlowResponse::IDLE,
-    );
-}
 
 /// A framed "spec sheet": documentation, not an interface sample.
 fn spec_frame<R>(ui: &mut Ui, title: &str, note: &str, add: impl FnOnce(&mut Ui) -> R) -> R {

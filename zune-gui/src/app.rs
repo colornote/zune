@@ -85,7 +85,7 @@ impl Page {
             Page::Device => "identity, storage and the MTPZ session",
             Page::Wifi => "vendor WiFi opcodes 0x9225 / 0x9227 / 0x9228",
             Page::Log => "everything the device thread reported",
-            Page::Board => "the design system, every token and component on one page",
+            Page::Board => "v1.1 — 极致纯黑 · 小面积霓虹撞色 · 纯白大字号",
         }
     }
 
@@ -1403,17 +1403,18 @@ impl ZuneApp {
 
     // ── pages ────────────────────────────────────────────────────────────────
 
-    fn page_header(&mut self, ui: &mut egui::Ui) {
+    /// The page title.
+    ///
+    /// `rule` draws the neon underline the Design page used to draw for itself. That
+    /// page is why this takes a title argument at all: it is the one page whose heading
+    /// differs from its rail label, and the one that wanted a rule, and those two
+    /// differences were enough for it to grow a second implementation — which then
+    /// drifted, cropping the glyphs on eight pages while the ninth looked fine.
+    fn page_header(&mut self, ui: &mut egui::Ui, title: &str, rule: bool) {
         // v1.1 §2.2.1: the page title is 88 pt ExtraLight and it *bleeds*. It is
-        // clipped by the content column instead of wrapping or shrinking, and the
-        // deliberately tight box crops the descender so the baseline sits low and
-        // heavy the way Zune HD's did. The italic subtitle underneath is the Metro
-        // counterweight to all that white.
-        let galley = ui.painter().layout_no_wrap(
-            self.page.title().to_owned(),
-            display(),
-            TEXT_1,
-        );
+        // clipped by the content column instead of wrapping or shrinking. The italic
+        // subtitle underneath is the Metro counterweight to all that white.
+        let galley = ui.painter().layout_no_wrap(title.to_owned(), display(), TEXT_1);
         // Anchor to the top of the box, not the bottom. Lining the galley up by its
         // bottom edge pushed the ascenders above the clip rect, so the box cropped the
         // cap height of every title — "Albums" lost the top of its A. The tight box is
@@ -1433,6 +1434,31 @@ impl ZuneApp {
             ui.allocate_exact_size(egui::vec2(ui.available_width(), height), Sense::hover());
         let painter = ui.painter().with_clip_rect(rect);
         painter.galley(egui::pos2(rect.left(), rect.top()), galley, TEXT_1);
+
+        if rule {
+            // A neon element, so it glows — the same two-layer treatment as the mark.
+            let rule_y = rect.bottom() - SP_8;
+            let rule_rect = egui::Rect::from_min_max(
+                egui::pos2(rect.left(), rule_y - 1.0),
+                egui::pos2(rect.left() + 240.0, rule_y + 1.0),
+            );
+            paint::glow_rect(
+                ui.painter(),
+                rule_rect,
+                egui::CornerRadius::same(2),
+                NEON_ORANGE,
+                GLOW_SM,
+                GlowResponse::IDLE,
+            );
+            ui.painter().line_segment(
+                [
+                    egui::pos2(rect.left(), rule_y),
+                    egui::pos2(rect.left() + 240.0, rule_y),
+                ],
+                Stroke::new(2.0, NEON_ORANGE),
+            );
+        }
+
         ui.add_space(2.0);
         ui.label(
             RichText::new(self.page.subtitle())
@@ -2590,9 +2616,12 @@ impl eframe::App for ZuneApp {
                     .inner_margin(egui::Margin { left: 16, right: 16, top: 24, bottom: 16 }),
             )
             .show(ui, |ui| {
-                if self.page != Page::Board {
-                    self.page_header(ui);
-                }
+                let (title, rule) = match self.page {
+                    // Its rail label is "Design" but its heading is not.
+                    Page::Board => ("Design System", true),
+                    other => (other.title(), false),
+                };
+                self.page_header(ui, title, rule);
                 match self.page {
                     Page::Home => self.home_page(ui, &mut motion),
                     Page::Board => board::board(ui, &mut motion, &mut self.board),
