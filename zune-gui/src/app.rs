@@ -1398,15 +1398,15 @@ impl ZuneApp {
             display(),
             TEXT_1,
         );
-        let height = DISPLAY * 0.80;
+        // Anchor to the top of the box, not the bottom. Lining the galley up by its
+        // bottom edge pushed the ascenders above the clip rect, so the box cropped the
+        // cap height of every title — "Albums" lost the top of its A. The tight box is
+        // still the point, it just has to crop the descender underneath instead.
+        let height = DISPLAY * 0.92;
         let (rect, _) =
             ui.allocate_exact_size(egui::vec2(ui.available_width(), height), Sense::hover());
         let painter = ui.painter().with_clip_rect(rect);
-        painter.galley(
-            egui::pos2(rect.left(), rect.bottom() - galley.size().y),
-            galley,
-            TEXT_1,
-        );
+        painter.galley(egui::pos2(rect.left(), rect.top()), galley, TEXT_1);
         ui.add_space(2.0);
         ui.label(
             RichText::new(self.page.subtitle())
@@ -2557,7 +2557,12 @@ impl eframe::App for ZuneApp {
         self.status_bar(ui);
         self.side_bar(ui);
         egui::CentralPanel::default()
-            .frame(egui::Frame::central_panel(ui.style()).inner_margin(egui::Margin::same(16)))
+            // Extra room at the top: the 88 pt title's ascenders start immediately below
+            // the hairline otherwise, and the page reads as cramped against the chrome.
+            .frame(
+                egui::Frame::central_panel(ui.style())
+                    .inner_margin(egui::Margin { left: 16, right: 16, top: 24, bottom: 16 }),
+            )
             .show(ui, |ui| {
                 if self.page != Page::Board {
                     self.page_header(ui);
@@ -2582,20 +2587,31 @@ impl eframe::App for ZuneApp {
 /// The Zune mark: a ring with the bar through it, which is what makes it a Zune and not
 /// a record. This is the one piece of chrome that keeps a fixed colour — it is the brand,
 /// so it stays orange while everything around it takes the page's signature.
+/// The Zune mark: a ring with a Z inside it.
+///
+/// A ring alone reads as a generic record button, which is what this started as. The Z
+/// is drawn as three strokes — top bar, diagonal, bottom bar — rather than set as text,
+/// so it keeps its proportions at 26 px in the top bar and at any larger size the UI
+/// uses later.
 fn zune_mark(ui: &mut egui::Ui, size: f32) {
     let (rect, _) = ui.allocate_exact_size(Vec2::splat(size), Sense::hover());
     let painter = ui.painter();
     let center = rect.center();
-    let radius = size * 0.40;
+    let radius = size * 0.46;
     paint::glow_circle(painter, center, radius, NEON_ORANGE, GLOW_SM, GlowResponse::IDLE);
-    painter.circle_stroke(center, radius, Stroke::new(1.8, NEON_ORANGE));
-    painter.line_segment(
-        [
-            egui::pos2(center.x - radius * 0.52, center.y),
-            egui::pos2(center.x + radius * 0.52, center.y),
-        ],
-        Stroke::new(1.8, NEON_ORANGE),
-    );
+    let stroke = Stroke::new((size * 0.068).max(1.4), NEON_ORANGE);
+    painter.circle_stroke(center, radius, stroke);
+
+    // Optically centred inside the ring: a Z sits slightly above the geometric middle.
+    let half_w = radius * 0.34;
+    let half_h = radius * 0.29;
+    let top = center.y - half_h;
+    let bottom = center.y + half_h;
+    let left = center.x - half_w;
+    let right = center.x + half_w;
+    painter.line_segment([egui::pos2(left, top), egui::pos2(right, top)], stroke);
+    painter.line_segment([egui::pos2(right, top), egui::pos2(left, bottom)], stroke);
+    painter.line_segment([egui::pos2(left, bottom), egui::pos2(right, bottom)], stroke);
 }
 
 /// Album totals use the same formatting as track rows.
