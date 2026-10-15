@@ -2129,12 +2129,20 @@ impl Backend {
             Ok(bytes) => {
                 let shown: Vec<u8> = bytes.iter().copied().take(4096).collect();
                 let hex = hex_spaced(&shown);
+                let networks = crate::core::wifi::parse_scan(&bytes);
                 ev.log(LogLine::ok(format!(
-                    "WiFi scan returned {} bytes{}",
+                    "WiFi scan returned {} bytes — {} network(s){}",
                     bytes.len(),
-                    if bytes.len() > shown.len() { " (truncated to 4 KB)" } else { "" }
+                    networks.len(),
+                    if bytes.len() > shown.len() { " (hex truncated to 4 KB)" } else { "" }
                 )));
-                ev.send(Event::WifiScan { bytes, hex });
+                for network in &networks {
+                    ev.log(LogLine::info(format!(
+                        "  {:>3}%  {:<10}  {}",
+                        network.strength, network.quality(), network.ssid
+                    )));
+                }
+                ev.send(Event::WifiScan { networks, hex });
             }
             Err(e) => ev.log(LogLine::error(format!("WiFi scan failed: {e:#}"))),
         }

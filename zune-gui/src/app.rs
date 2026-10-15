@@ -15,7 +15,8 @@ use crate::design::anim::Motion;
 use crate::design::paint::{self, GlowResponse, GLOW_TEXT};
 use crate::design::tokens::{
     body, body_sm, h1, label, mono, r_md, tracked, BODY_SM, CARD_GAP, CANVAS, F_XLIGHT,
-    NEON_CYAN, NEON_MAGENTA, SP_12, SP_24, SP_8, TEXT_1, TEXT_2, TEXT_3,
+    NEON_AMBER, NEON_CYAN, NEON_LIME, NEON_MAGENTA, SP_12, SP_24, SP_8, TEXT_1, TEXT_2,
+    TEXT_3,
 };
 use crate::ui::track_row::{track_row, TrackRow};
 use crate::core::library;
@@ -181,6 +182,12 @@ pub struct ZuneApp {
     board: BoardState,
     confirm_delete: Option<Vec<u32>>,
     wifi_hex: String,
+    /// Networks from the last scan, strongest first. Empty until one has run.
+    wifi_networks: Vec<crate::core::wifi::WifiNetwork>,
+    /// Set by `ZUNE_WIFI_SCAN=1`: run one scan as soon as the device is connected.
+    /// A dev affordance like `ZUNE_PAGE` — clicking a button in a screenshot session is
+    /// not always reliable, and this makes the scan reachable without one.
+    wifi_autoscan: bool,
     wifi_profile_input: String,
     wifi_note: String,
 }
@@ -236,6 +243,8 @@ impl ZuneApp {
             board: BoardState::default(),
             confirm_delete: None,
             wifi_hex: String::new(),
+            wifi_networks: Vec::new(),
+            wifi_autoscan: std::env::var_os("ZUNE_WIFI_SCAN").is_some(),
             wifi_profile_input: String::new(),
             wifi_note: String::new(),
         }
@@ -323,8 +332,9 @@ impl ZuneApp {
                     self.covers.retain(|_, state| !matches!(state, CoverState::Failed(_)));
                     self.cover_pending.clear();
                 }
-                Event::WifiScan { bytes, hex } => {
-                    self.wifi_note = format!("scan returned {} bytes", bytes.len());
+                Event::WifiScan { networks, hex } => {
+                    self.wifi_note = format!("{} network(s) visible", networks.len());
+                    self.wifi_networks = networks;
                     self.wifi_hex = hex;
                 }
             }
@@ -1625,6 +1635,38 @@ impl ZuneApp {
         if !self.wifi_note.is_empty() {
             ui.label(RichText::new(&self.wifi_note).color(YELLOW));
         }
+
+        // The scan answer, read back as networks rather than as bytes. The device sends a
+        // fixed 56-byte record per network (see core::wifi); showing the hex for that was
+        // showing the packaging instead of the contents.
+        if !self.wifi_networks.is_empty() {
+            ui.add_space(12.0);
+            crate::ui::section::section_rule(ui, "VISIBLE NETWORKS", Some(&format!("{}", self.wifi_networks.len())));
+            ui.add_space(4.0);
+            for network in &self.wifi_networks {
+                ui.horizontal(|ui| {
+                    // A four-slot bar, filled to the network's strength. Glyphs rather
+                    // than a painted bar: this row is text-height and the font already
+                    // has the blocks.
+                    let filled = network.bars();
+                    let mut bar = String::new();
+                    for slot in 0..4 {
+                        bar.push(if slot < filled { '\u{2588}' } else { '\u{2591}' });
+                    }
+                    let tint = match network.strength {
+                        0..=24 => TEXT_3,
+                        25..=49 => NEON_AMBER,
+                        50..=74 => NEON_CYAN,
+                        _ => NEON_LIME,
+                    };
+                    ui.label(RichText::new(bar).color(tint).monospace());
+                    ui.label(RichText::new(format!("{:>3}%", network.strength)).color(TEXT_2).monospace());
+                    ui.label(RichText::new(&network.ssid).color(TEXT_1).strong());
+                    ui.label(RichText::new(network.quality()).color(TEXT_3).size(11.0));
+                });
+            }
+            ui.add_space(12.0);
+        }
         ui.add_space(8.0);
         ui.label(RichText::new("PROFILE BLOB (hex, device-side WZC/NDIS_802_11 layout)").color(MUTED).size(11.0).strong());
         ui.add(
@@ -1754,6 +1796,12 @@ impl eframe::App for ZuneApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.drain_events(ui.ctx());
         self.take_dropped_files(ui.ctx());
+
+        // Dev affordance: one scan, once, as soon as there is a device to ask.
+        if self.wifi_autoscan && self.link == Link::Connected && !self.busy {
+            self.wifi_autoscan = false;
+            self.worker.send(Command::WifiScan);
+        }
 
         // One motion handle per frame: it is the only thing that may ask for
         // another repaint, which is what keeps an idle window at 0 % CPU.

@@ -288,7 +288,8 @@ pub enum Event {
     /// The background cover prefetch finished: covers for these albums are on disk now,
     /// so the Albums page can load them without another network round trip.
     CoversPrefetched { albums: usize },
-    WifiScan { bytes: Vec<u8>, hex: String },
+    /// A WiFi scan came back: the parsed networks, plus the raw hex for the log.
+    WifiScan { networks: Vec<crate::core::wifi::WifiNetwork>, hex: String },
 }
 
 /// UI → worker.

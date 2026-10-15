@@ -79,6 +79,8 @@ pub enum Sweep {
     AllAtOnce,
     /// One round trip per property, covering every object.
     PerProperty,
+    /// One round trip per object, carrying all of its properties.
+    PerTrackBulk,
     /// The classic path: several calls per track.
     PerTrack,
 }
@@ -88,6 +90,7 @@ impl Sweep {
         match self {
             Sweep::AllAtOnce => "one bulk property read",
             Sweep::PerProperty => "one bulk read per property",
+            Sweep::PerTrackBulk => "one property list per track",
             Sweep::PerTrack => "per-track reads (the device refused the bulk form)",
         }
     }
@@ -183,6 +186,10 @@ pub struct Library<'a> {
     /// ZUNE-GUI addition: set once the device has refused the bulk property list, so
     /// later reads skip straight to the slow path instead of paying the timeout again.
     pub bulk_props_unavailable: bool,
+    /// ZUNE-GUI addition: the same, for the *per-object* form of the request. This device
+    /// refuses both (0xa801 Invalid_ObjectPropertyCode), and probing costs three seconds
+    /// plus a drain, so the answer is remembered.
+    pub per_object_bulk_unavailable: bool,
     /// ZUNE-GUI addition: which route served `ObjectReferences`, and why it failed.
     pub last_refs_path: RefsPath,
     pub last_refs_error: Option<String>,
@@ -203,6 +210,7 @@ impl<'a> Library<'a> {
             last_prop_error: None,
             last_sweep: Sweep::PerTrack,
             bulk_props_unavailable: false,
+            per_object_bulk_unavailable: false,
             last_refs_path: RefsPath::Unknown,
             last_refs_error: None,
         })
@@ -297,6 +305,59 @@ impl<'a> Library<'a> {
                 // props_sweep already drained; say so once, at a level the Log shows.
                 log::warn!("bulk property read unavailable ({e:#}); reading per track");
                 self.last_sweep = Sweep::PerTrack;
+            }
+        }
+
+        // ── the middle path: one property-list call per track ──
+        //
+        // The all-objects sweep above is refused, but a single-object request is a
+        // different call and may well be answered. One probe decides, because the payoff
+        // is large: it turns six round trips per track into one, which is the difference
+        // between a two-and-a-half-minute read and a half-minute one.
+        if let Some((first, _)) = found.first().copied() {
+            if self.per_object_bulk_unavailable {
+                log::debug!("skipping the per-object property list: the device refused it before");
+            } else {
+            const PROBE_TIMEOUT: Duration = Duration::from_secs(3);
+            let probe = self.session.with_read_timeout(PROBE_TIMEOUT, |session| {
+                session.object_prop_list(first, 0, u16::MAX, 0)
+            });
+            match probe {
+                Ok(entries) if !entries.is_empty() => {
+                    log::info!(
+                        "per-object property list works — reading {total} tracks with one call each"
+                    );
+                    self.last_sweep = Sweep::PerTrackBulk;
+                    let mut out = Vec::with_capacity(total);
+                    for (index, (h, format)) in found.into_iter().enumerate() {
+                        let props = match self.session.object_prop_list(h, 0, u16::MAX, 0) {
+                            Ok(entries) if !entries.is_empty() => {
+                                collect_props(entries).remove(&h).unwrap_or_default()
+                            }
+                            Ok(_) => Props::default(),
+                            Err(e) => {
+                                self.note_failure(e);
+                                Props::default()
+                            }
+                        };
+                        out.push(DeviceTrack::from_props(h, format, Some(&props)));
+                        progress(index + 1, total);
+                    }
+                    return Ok(out);
+                }
+                Ok(_) => log::debug!("the per-object property list returned no entries"),
+                Err(e) => log::debug!("the per-object property list did not answer: {e:#}"),
+            }
+            // Whatever the device sent for a probe it never finished has to go, or the
+            // next command fails too — the same trap the all-objects sweep falls into.
+            match self.session.drain_pending_input(Duration::from_millis(350)) {
+                Ok(0) => {}
+                Ok(bytes) => {
+                    log::info!("drained {bytes} bytes left by the failed per-object probe")
+                }
+                Err(e) => log::debug!("drain after the per-object probe reported: {e:#}"),
+            }
+            self.per_object_bulk_unavailable = true;
             }
         }
 

@@ -35,6 +35,7 @@ pub mod mtp;
 pub mod mtpz;
 pub mod tags;
 pub mod usb;
+pub mod wifi;
 
 pub use device::{DeviceInfo, ObjectInfo, Session, StorageInfo, ROOT};
 pub use library::{
