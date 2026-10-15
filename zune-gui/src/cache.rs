@@ -747,15 +747,37 @@ impl CacheDiff {
 // ── cover bytes ─────────────────────────────────────────────────────────────
 
 /// Read a previously downloaded cover payload. Works with no device attached.
+///
+/// Also answers for the older `album-{cache_key}.jpg` names. Those were written when the
+/// file was named for the full 64-bit album hash; the key handed in now is only its top
+/// 32 bits, so the name cannot be recomputed and the directory is searched instead. It
+/// only happens on a miss, and it means covers cached by an earlier build are still found
+/// rather than silently re-downloaded.
 pub fn read_cover(serial: &str, handle: u32) -> Option<Vec<u8>> {
     if !is_usable_serial(serial) {
         return None;
     }
     let path = cover_path(serial, handle);
     match std::fs::read(&path) {
-        Ok(bytes) if !bytes.is_empty() => Some(bytes),
-        _ => None,
+        Ok(bytes) if !bytes.is_empty() => return Some(bytes),
+        _ => {}
     }
+    let prefix = format!("album-{:08x}", handle & 0x7fff_ffff);
+    let dir = covers_dir(serial);
+    let entries = std::fs::read_dir(&dir).ok()?;
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if name.starts_with(&prefix) && name.ends_with(".jpg") {
+            if let Ok(bytes) = std::fs::read(entry.path()) {
+                if !bytes.is_empty() {
+                    log::debug!("cover {handle:#010x}: found under the older cache name {name}");
+                    return Some(bytes);
+                }
+            }
+        }
+    }
+    None
 }
 
 /// Store raw cover bytes so the next lookup is a file read, not a USB round trip.

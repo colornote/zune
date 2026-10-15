@@ -2307,6 +2307,23 @@ impl Backend {
             return;
         }
 
+        // The cache first. This is the path the album wall actually uses, and it used to
+        // go straight to the ladder — so an album whose cover was already on disk was
+        // downloaded again, and with the cache holding most of the library that was most
+        // of the network traffic.
+        if let Some(data) = cache::read_cover(&serial, key) {
+            match decode_cover(&data) {
+                Ok(image) => {
+                    log::debug!("cover {key:#010x}: {} bytes from the local cache", data.len());
+                    ev.send(Event::Cover { handle: key, image, origin: "cache".to_owned() });
+                    return;
+                }
+                Err(e) => log::debug!(
+                    "cached cover {key:#010x} would not decode ({e:#}) — asking the ladder"
+                ),
+            }
+        }
+
         // Before anything online: the art may simply be inside the album's audio file.
         if let Some(handle) = track_handle {
             if let Some(session) = self.session.as_mut() {
