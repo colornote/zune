@@ -137,6 +137,10 @@ pub enum CoverSource {
     ReverseRef,
     /// Matched by name against the device's image objects.
     FolderMatch,
+    /// The embedded picture of a local audio file, or a cover image beside one.
+    LocalFile,
+    /// Downloaded (iTunes Search) and cached on disk.
+    Online,
     /// Nothing on the device looked like a cover for this album.
     None,
 }
@@ -149,6 +153,8 @@ impl CoverSource {
             CoverSource::RefOther => "album reference (unclassified)",
             CoverSource::ReverseRef => "reverse reference from the image object",
             CoverSource::FolderMatch => "image name match",
+            CoverSource::LocalFile => "local file",
+            CoverSource::Online => "online (iTunes)",
             CoverSource::None => "none found",
         }
     }
@@ -175,8 +181,12 @@ pub struct Album {
     pub bytes: u64,
     /// Sum of the member tracks' durations, in seconds.
     pub duration: u32,
-    /// Cover-art object handle, whatever the strategy found it through.
+    /// Cover-art object handle on the device, when one was found.
     pub cover_handle: Option<u32>,
+    /// Key for the UI's cover map: the device handle, or a synthetic key derived from the
+    /// artist + album when the device has no art (see `coverfetch::synthetic_key`).
+    pub cover_key: u32,
+    /// Where the cover came from — on the device, from a local file, or online.
     pub cover_source: CoverSource,
 }
 
@@ -268,8 +278,16 @@ pub enum Event {
     TaskStarted { task: String, items: usize },
     TaskFinished { ok: bool, summary: String },
     Busy(bool),
-    Cover { handle: u32, image: CoverImage },
+    Cover {
+        handle: u32,
+        image: CoverImage,
+        /// "device", "cached", "local file · x.mp3", "online · iTunes" …
+        origin: String,
+    },
     CoverFailed { handle: u32, reason: String },
+    /// The background cover prefetch finished: covers for these albums are on disk now,
+    /// so the Albums page can load them without another network round trip.
+    CoversPrefetched { albums: usize },
     WifiScan { bytes: Vec<u8>, hex: String },
 }
 
@@ -295,6 +313,13 @@ pub enum Command {
     },
     /// Download a cover-art object so it can be shown.
     FetchCover(u32),
+    /// The device has no art for this album: look in the local files, then online, and
+    /// cache whatever comes back. `key` is the album's cover key.
+    FetchFallbackCover {
+        key: u32,
+        artist: String,
+        album: String,
+    },
     /// Dump the real reference/property structure of the first N albums on the
     /// device, so cover parsing can be written against facts instead of guesses.
     DiagnoseAlbums(usize),

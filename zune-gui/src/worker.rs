@@ -17,6 +17,7 @@ use std::time::{Duration, Instant};
 use anyhow::{bail, Context, Result};
 
 use crate::cache;
+use crate::coverfetch;
 use crate::core::{
     self,
     device::{Session, ROOT},
@@ -49,6 +50,10 @@ pub struct Worker {
     interrupt: Arc<AtomicBool>,
     join: Option<JoinHandle<()>>,
 }
+
+/// One prefetch per run. Both the cached-library path and the device-refresh path load an
+/// album list, and without this the whole library would be walked twice.
+static PREFETCH_STARTED: AtomicBool = AtomicBool::new(false);
 
 impl Worker {
     /// Start the device thread. `ctx` is used to request repaints on news.
@@ -114,6 +119,12 @@ struct Emitter {
 impl Emitter {
     fn new(tx: Sender<Event>, ctx: egui::Context) -> Self {
         Self { tx, ctx, last_progress: Cell::new(Instant::now() - PROGRESS_INTERVAL) }
+    }
+
+    /// A second handle for another thread: same channel, same context, its own progress
+    /// clock. The cover prefetch runs on a thread of its own and needs to report back.
+    fn fork(&self) -> Self {
+        Self::new(self.tx.clone(), self.ctx.clone())
     }
 
     fn send(&self, event: Event) {
@@ -513,6 +524,9 @@ impl Backend {
         self.busy = false;
         ev.busy(false);
         ev.send(Event::Snapshot(Box::new(self.snapshot.clone())));
+        // Covers are not part of the cache: even a fast start has to fetch them, and the
+        // Albums page opens straight from this path. Start the background pass here too.
+        Self::spawn_cover_prefetch(&self.snapshot.serial, &albums, ev);
         ev.send(Event::Library { tracks, albums });
         ev.send(Event::Origin(Box::new(DataOrigin {
             source: Source::Cached,
@@ -593,6 +607,18 @@ impl Backend {
                 ev.log(LogLine::ok("Ejected. The Zune is safe to unplug."));
             }
             Command::Refresh => {
+                // Refresh means "ask again": drop the recorded cover misses so the
+                // fallback ladder runs once more.
+                let serial = self.snapshot.serial.clone();
+                if !serial.is_empty() {
+                    let cleared = coverfetch::clear_misses(&serial);
+                    if cleared > 0 {
+                        ev.log(LogLine::info(format!(
+                            "cleared {cleared} recorded cover miss(es) — the local files and \
+                             iTunes will be consulted again"
+                        )));
+                    }
+                }
                 if let Err(e) = self.refresh(ev, interrupt) {
                     // A read that died because the link died must not be retried on the
                     // same wedged session: recover the link, or ask for the cable.
@@ -614,6 +640,9 @@ impl Backend {
                 b.push_album(&dir, name.as_deref(), cover.as_deref(), playlist, ev, cancel)
             }),
             Command::FetchCover(handle) => self.fetch_cover(handle, ev),
+            Command::FetchFallbackCover { key, artist, album } => {
+                self.fetch_fallback_cover(key, &artist, &album, ev)
+            }
             Command::DiagnoseAlbums(limit) => self.diagnose_albums(limit, ev),
             Command::DiagnoseCovers { images, albums } => self.diagnose_covers(images, albums, ev),
             Command::WifiScan => self.wifi_scan(ev),
@@ -785,6 +814,13 @@ impl Backend {
             .collect();
 
         let mut albums = build_albums(&tracks, &abstract_albums);
+        for album in &mut albums {
+            // The UI keys its textures by this: a device handle when the device has
+            // art, otherwise a synthetic key derived from artist + album.
+            album.cover_key = album
+                .cover_handle
+                .unwrap_or_else(|| coverfetch::synthetic_key(&album.artist, &album.name));
+        }
 
         // Cover art: resolve per album, and only pay for what cannot be decided from
         // the references we already have.
@@ -802,6 +838,15 @@ impl Backend {
             ev,
             &mut self.cover_index,
         );
+        let need_fallback = albums.iter().filter(|a| !a.cover_source.is_found()).count();
+        if need_fallback > 0 {
+            ev.log(LogLine::info(format!(
+                "cover art: {need_fallback} of {} albums have no art on the device — the \
+                 Albums page looks for those in the local files and online (iTunes)",
+                albums.len()
+            )));
+            Self::spawn_cover_prefetch(&self.snapshot.serial, &albums, ev);
+        }
         if cover_report.found > 0 {
             ev.log(LogLine::info(format!(
                 "cover art: {} of {} albums have art on the device ({})",
@@ -1170,7 +1215,7 @@ impl Backend {
             match decode_cover(&data) {
                 Ok(image) => {
                     log::debug!("cover {handle:#010x}: {} bytes from the local cache", data.len());
-                    ev.send(Event::Cover { handle, image });
+                    ev.send(Event::Cover { handle, image, origin: "device".to_owned() });
                     return;
                 }
                 Err(e) => log::debug!(
@@ -1237,7 +1282,7 @@ impl Backend {
                     image.width,
                     image.height
                 );
-                ev.send(Event::Cover { handle, image });
+                ev.send(Event::Cover { handle, image, origin: "device".to_owned() });
             }
             Err(e) => {
                 let reason = format!(
@@ -1270,41 +1315,86 @@ impl Backend {
             "[cov] ---- cover diagnosis (image objects + a few albums only) ----",
         ));
 
-        // ── 1. how does the device expose its image objects at all? ──
+        // ── 1. find the image objects through every route that works ──
+        //
+        // A Zune 30 refuses the wildcard parent query (parent=0xFFFFFFFF) with
+        // GeneralError, so the *direct* listings are the ones that matter: it keeps its
+        // 95 cover JPEGs as direct children of the root.
         let mut image_handles: Vec<u32> = Vec::new();
+        let mut add = |handles: Vec<u32>, image_handles: &mut Vec<u32>| {
+            for handle in handles {
+                if !image_handles.contains(&handle) {
+                    image_handles.push(handle);
+                }
+            }
+        };
         for (label, format) in [("JPEG (0x3801)", fmt::JPEG), ("CoverArt (0x3802)", fmt::COVER_ART)] {
-            match session.object_handles(storage, format, u32::MAX) {
-                Ok(all) => {
+            match session.children(format, ROOT) {
+                Ok(children) => {
                     ev.log(LogLine::ok(format!(
-                        "[cov] {label}: {} object(s) across **all** parents (GetObjectHandles parent=0xFFFFFFFF)",
-                        all.len()
+                        "[cov] {label}: {} object(s) directly under the root{}",
+                        children.len(),
+                        if format == fmt::JPEG { "   <-- the images to inspect" } else { "" }
                     )));
                     if format == fmt::JPEG {
-                        image_handles = all;
+                        add(children, &mut image_handles);
                     }
                 }
-                Err(e) => ev.log(LogLine::warn(format!(
-                    "[cov] {label}: the all-parents listing failed: {e:#}"
+                Err(e) => ev.log(LogLine::info(format!(
+                    "[cov] {label}: root listing failed: {e:#}"
                 ))),
             }
-            match session.children(format, ROOT) {
-                Ok(children) => ev.log(LogLine::info(format!(
-                    "[cov] {label}: {} object(s) directly under the root",
-                    children.len()
+            match session.object_handles(storage, format, u32::MAX) {
+                Ok(all) => ev.log(LogLine::info(format!(
+                    "[cov] {label}: {} object(s) across all parents (wildcard query)",
+                    all.len()
                 ))),
-                Err(e) => ev.log(LogLine::info(format!("[cov] {label}: root listing failed: {e:#}"))),
+                Err(e) => ev.log(LogLine::info(format!(
+                    "[cov] {label}: the wildcard-parent query is not supported here ({e:#})"
+                ))),
             }
         }
+        // Images could also sit inside a folder; walk them all (cheap: folders only).
+        if let Ok(folders) = session.children(fmt::ASSOCIATION, ROOT) {
+            for folder in folders {
+                for format in [fmt::JPEG, fmt::COVER_ART] {
+                    if let Ok(children) = session.children(format, folder) {
+                        if !children.is_empty() {
+                            let name = session
+                                .object_info(folder)
+                                .map(|i| i.filename)
+                                .unwrap_or_default();
+                            ev.log(LogLine::info(format!(
+                                "[cov] folder \"{name}\" holds {} object(s) of format {format:#06x}",
+                                children.len()
+                            )));
+                            add(children, &mut image_handles);
+                        }
+                    }
+                }
+            }
+        }
+        ev.log(LogLine::info(format!(
+            "[cov] inspecting {} image object(s)",
+            image_handles.len().min(images)
+        )));
         if image_handles.is_empty() {
             ev.log(LogLine::warn(
-                "[cov] no image objects found by format — the device may need a different query",
+                "[cov] no image objects found — the covers are not JPEG objects on this device",
             ));
         }
 
         // ── 2. the image objects themselves ──
+        let mut images_inspected = 0usize;
+        let mut looks_like_art = 0usize;
+        let mut looks_like_photo = 0usize;
+        let mut images_linking_album = 0usize;
+        let mut tracks_with_image_ref = 0usize;
+        let mut albums_with_image_ref = 0usize;
         let album_handles: Vec<u32> = session.children(fmt::ABSTRACT_ALBUM, ROOT).unwrap_or_default();
         let album_set: std::collections::HashSet<u32> = album_handles.iter().copied().collect();
         for handle in image_handles.iter().take(images) {
+            images_inspected += 1;
             let info = session.object_info(*handle).ok();
             match &info {
                 Some(info) => ev.log(LogLine::info(format!(
@@ -1352,13 +1442,35 @@ impl Backend {
                 Err(e) => ev.log(LogLine::info(format!("[cov]   refs property unavailable: {e:#}"))),
             }
             // Every property the device stores for this object — where a link to an
-            // album would show up as a handle or an album title.
-            ev.log(LogLine::info(format!("[cov]   properties:")));
+            // album would show up as a handle, or as an album title.
+            ev.log(LogLine::info(format!("[cov]   every property the device stores:")));
             match session.object_prop_list(*handle, 0, u16::MAX, 0) {
                 Ok(entries) => {
+                    let mut linked_to_album = false;
                     for entry in entries.iter().filter(|e| e.handle == *handle) {
                         ev.log(LogLine::info(format!("[cov]     {}", describe_prop(entry))));
+                        // A numeric property whose *value* is an album handle is exactly
+                        // the link we are looking for.
+                        if let Some(number) = entry.number {
+                            if album_set.contains(&number) {
+                                linked_to_album = true;
+                                ev.log(LogLine::ok(format!(
+                                    "[cov]     ^^^ this property points at an abstract album!"
+                                )));
+                            }
+                        }
                     }
+                    if linked_to_album {
+                        images_linking_album += 1;
+                    }
+                    ev.log(LogLine::info(format!(
+                        "[cov]   verdict: {}",
+                        if linked_to_album {
+                            "an album handle appears among this image's properties"
+                        } else {
+                            "no property of this image references an abstract album"
+                        }
+                    )));
                 }
                 Err(e) => {
                     ev.log(LogLine::warn(format!("[cov]     bulk property read failed: {e:#}")));
@@ -1388,6 +1500,64 @@ impl Backend {
                         }
                     }
                 }
+            }
+            // An explicit verdict, so the dump answers the question instead of leaving
+            // the reader to eyeball hundreds of lines.
+            ev.log(LogLine::info(format!(
+                "[cov]   parent is {} [{}]{}",
+                hex(info.as_ref().map(|i| i.parent).unwrap_or(0)),
+                handle_kind(info.as_ref().map(|i| i.parent).unwrap_or(0)),
+                if info.as_ref().map(|i| i.parent) == Some(ROOT) {
+                    " (the device root)"
+                } else {
+                    ""
+                }
+            )));
+            // ── the pixel-level verdict ──
+            //
+            // Properties can only tell us how the firmware labels an object. The bytes
+            // say what it *is*: a camera photo is 4:3 or 3:2, carries an EXIF block and
+            // is megapixels; album art is square, small, and has no EXIF. This is what
+            // settles "are these covers or the user's photos".
+            match session.get_object_data(*handle) {
+                Ok(bytes) if !bytes.is_empty() => {
+                    match image::load_from_memory(&bytes) {
+                        Ok(decoded) => {
+                            let (w, h) = (decoded.width(), decoded.height());
+                            let ratio = w as f32 / h.max(1) as f32;
+                            let square = (ratio - 1.0).abs() < 0.06;
+                            let has_exif = jpeg_has_exif(&bytes);
+                            ev.log(LogLine::info(format!(
+                                "[cov]   picture: {w}×{h} (ratio {ratio:.2}), {:.0} KB, EXIF {}",
+                                bytes.len() as f32 / 1024.0,
+                                if has_exif { "yes" } else { "no" }
+                            )));
+                            let verdict = match (square, has_exif, w.max(h)) {
+                                (true, false, max) if max <= 1400 => "album art (square, no EXIF, display-sized)",
+                                (true, true, _) => "a cropped photo (square but carries EXIF)",
+                                (false, true, _) => "a camera photo (not square, carries EXIF)",
+                                (false, false, max) if max >= 1200 => "a photo (large, not square)",
+                                _ => "unclear — small and not square",
+                            };
+                            if verdict.starts_with("album art") {
+                                looks_like_art += 1;
+                            } else if verdict.contains("photo") {
+                                looks_like_photo += 1;
+                            }
+                            ev.log(LogLine::info(format!("[cov]   looks like: {verdict}")));
+                        }
+                        Err(e) => ev.log(LogLine::warn(format!(
+                            "[cov]   picture: will not decode ({e:#}); {} bytes starting {}",
+                            bytes.len(),
+                            magic(&bytes)
+                        ))),
+                    }
+                }
+                Ok(_) => ev.log(LogLine::warn(format!("[cov]   GetObject {} -> empty", hex(*handle)))),
+                Err(e) => ev.log(LogLine::warn(format!(
+                    "[cov]   GetObject {} failed: {e:#}",
+                    hex(*handle)
+                ))),
             }
             // GetThumb, the fallback path when GetObject is refused.
             match session.get_thumb_data(*handle, fmt::JPEG) {
@@ -1473,6 +1643,53 @@ impl Backend {
                     .join(" "),
                 if found_image { "   <-- an image is referenced" } else { "   <-- NO image reference" }
             )));
+
+            // The album itself references nothing but audio. Two places are left for a
+            // cover link: the album object's *properties*, and its tracks. Both are a
+            // bounded number of calls, and both are printed.
+            ev.log(LogLine::info("[cov]   the album's own properties:"));
+            match session.object_prop_list(*handle, 0, u16::MAX, 0) {
+                Ok(entries) => {
+                    for entry in entries.iter().filter(|e| e.handle == *handle) {
+                        ev.log(LogLine::info(format!("[cov]     {}", describe_prop(entry))));
+                    }
+                }
+                Err(e) => ev.log(LogLine::warn(format!(
+                    "[cov]     bulk property read failed: {e:#} — falling back to the known codes"
+                ))),
+            }
+
+            // Do any of this album's tracks reference an image?
+            let mut track_image_refs = 0usize;
+            if found_image {
+                albums_with_image_ref += 1;
+            }
+            for reference in refs.iter().take(40) {
+                let refs_of_track = session.object_refs(*reference).unwrap_or_default();
+                for candidate in &refs_of_track {
+                    let is_image = session
+                        .object_info(*candidate)
+                        .map(|i| i.format == fmt::JPEG || i.format == fmt::COVER_ART)
+                        .unwrap_or(false);
+                    if is_image {
+                        track_image_refs += 1;
+                        ev.log(LogLine::ok(format!(
+                            "[cov]     track {} references image {}",
+                            hex(*reference),
+                            hex(*candidate)
+                        )));
+                    }
+                }
+            }
+            tracks_with_image_ref += track_image_refs;
+            ev.log(LogLine::info(format!(
+                "[cov]   tracks referencing an image: {track_image_refs}{}",
+                if track_image_refs == 0 {
+                    "   <-- the track side carries no cover link either"
+                } else {
+                    ""
+                }
+            )));
         }
 
         // ── 4. every folder on the device, and what it holds ──
@@ -1533,6 +1750,7 @@ impl Backend {
                     .collect();
                 if !album_hits.is_empty() {
                     linked += 1;
+                    images_linking_album += 1;
                     ev.log(LogLine::ok(format!(
                         "[cov]   image {} -> album(s) {}",
                         hex(*handle),
@@ -1550,6 +1768,43 @@ impl Backend {
             )));
         }
 
+        // ── 6. the sentence this whole dump exists for ──
+        let album_side = albums_with_image_ref > 0 || tracks_with_image_ref > 0;
+        let image_side = images_linking_album > 0;
+        ev.log(LogLine::info(format!(
+            "[cov] SUMMARY: {} image object(s) found; {} inspected; {images_linking_album} of them \
+             reference an album; {albums_with_image_ref} of {} albums reference an image; \
+             {tracks_with_image_ref} track reference(s) to an image",
+            image_handles.len(),
+            images_inspected,
+            album_handles.len().min(albums),
+        )));
+        ev.log(LogLine::info(format!(
+            "[cov] pixel verdict: {looks_like_art} look(s) like album art, {looks_like_photo} look(s) \
+             like photographs (of {images_inspected} inspected)"
+        )));
+        if !album_side && !image_side {
+            ev.log(LogLine::warn(format!(
+                "[cov] CONCLUSION: nothing on this device links an image to an album — neither the \
+                 album's references, nor the album's properties, nor its tracks, nor the image's own \
+                 properties or references. {} The albums therefore have no cover art the device can \
+                 show; the UI falls back to a local file or iTunes (see the Albums page), and to \
+                 the cyan initial placeholder when nothing is found.",
+                if looks_like_photo > looks_like_art {
+                    "The images themselves are photographs, not cover art."
+                } else if looks_like_art > 0 {
+                    "The images look like album art, so the firmware simply does not expose the link \
+                     over MTP."
+                } else {
+                    ""
+                }
+            )));
+        } else {
+            ev.log(LogLine::ok(format!(
+                "[cov] CONCLUSION: the link is on the {} side — implement the resolver accordingly",
+                if image_side { "image" } else { "album" }
+            )));
+        }
         ev.log(LogLine::info(format!(
             "[cov] ---- end ({} ms) ----",
             started.elapsed().as_millis()
@@ -1777,6 +2032,92 @@ impl Backend {
         ev.log(LogLine::info("[alb] ---- end of album dump ----"));
     }
 
+    /// Start fetching the covers the device does not have, on a thread of its own.
+    ///
+    /// One cover takes about seventeen seconds — nearly all of it the download through
+    /// the proxy — and the Albums page would otherwise fetch them one at a time while the
+    /// user scrolls. Prefetching writes them into the on-disk cache, so by the time a tile
+    /// asks, the answer is already local.
+    /// A free function rather than a method: the library reader holds `&mut self.session`
+    /// while it runs, and only the serial is actually needed.
+    fn spawn_cover_prefetch(serial: &str, albums: &[Album], ev: &Emitter) {
+        if PREFETCH_STARTED.swap(true, Ordering::Relaxed) {
+            return;
+        }
+        let missing: Vec<(String, String)> = albums
+            .iter()
+            .filter(|album| !album.cover_source.is_found())
+            .map(|album| (album.artist.clone(), album.name.clone()))
+            .collect();
+        if missing.is_empty() {
+            return;
+        }
+        if !cache::is_usable_serial(serial) {
+            log::debug!("cover prefetch skipped: no usable serial to key the cache by");
+            return;
+        }
+        let serial = serial.to_owned();
+        let count = missing.len();
+        let done = ev.fork();
+        log::debug!("prefetching covers for {count} album(s) in the background");
+        std::thread::spawn(move || {
+            coverfetch::prefetch(&serial, &missing, &coverfetch::Sources::default());
+            done.send(Event::CoversPrefetched { albums: count });
+        });
+    }
+
+    /// The device has no art for this album: local files first, then iTunes, and cache
+    /// whatever comes back so the next run is instant.
+    fn fetch_fallback_cover(&mut self, key: u32, artist: &str, album: &str, ev: &Emitter) {
+        let serial = self.snapshot.serial.clone();
+        if serial.is_empty() {
+            ev.send(Event::CoverFailed {
+                handle: key,
+                reason: "no device serial to key the cover cache by".to_owned(),
+            });
+            return;
+        }
+        // A miss is remembered: asking iTunes again on every repaint would be rude, and
+        // asking on every refresh is pointless.
+        if coverfetch::recently_missed(&serial, artist, album) {
+            ev.send(Event::CoverFailed {
+                handle: key,
+                reason: "no cover found recently — not retrying yet (Refresh re-enables it)"
+                    .to_owned(),
+            });
+            return;
+        }
+        let sources = coverfetch::Sources::default();
+        match coverfetch::resolve(&serial, artist, album, &sources) {
+            Ok((bytes, origin)) => match decode_cover(&bytes) {
+                Ok(image) => {
+                    ev.log(LogLine::ok(format!(
+                        "cover art for \"{album}\": {}",
+                        origin.label()
+                    )));
+                    ev.send(Event::Cover { handle: key, image, origin: origin.label() });
+                }
+                Err(e) => {
+                    coverfetch::note_miss(&serial, artist, album);
+                    let reason = format!("the fetched cover would not decode: {e:#}");
+                    ev.log(LogLine::warn(format!("[alb] {album}: {reason}")));
+                    ev.send(Event::CoverFailed { handle: key, reason });
+                }
+            },
+            Err(e) => {
+                // Only a definite "there is no cover anywhere" is worth remembering. A
+                // timeout, a 503 or a refused API call will probably be different next run,
+                // and a week-long miss would hide that.
+                if coverfetch::is_not_found(&e) {
+                    coverfetch::note_miss(&serial, artist, album);
+                }
+                let reason = format!("{e:#}");
+                ev.log(LogLine::info(format!("[alb] {album}: {reason}")));
+                ev.send(Event::CoverFailed { handle: key, reason });
+            }
+        }
+    }
+
     // ── wifi / usb ───────────────────────────────────────────────────────────
 
     fn wifi_scan(&mut self, ev: &Emitter) {
@@ -1916,6 +2257,8 @@ fn demo_library(ev: &Emitter) {
             bytes,
             duration,
             cover_handle,
+            cover_key: cover_handle
+                .unwrap_or_else(|| coverfetch::synthetic_key(artist, name)),
             cover_source: if *has_art { CoverSource::RefCoverArt } else { CoverSource::None },
         });
     }
@@ -1972,7 +2315,7 @@ fn demo_library(ev: &Emitter) {
         }
         let jpeg = demo_cover_jpeg(index);
         match decode_cover(&jpeg) {
-            Ok(image) => ev.send(Event::Cover { handle: cover, image }),
+            Ok(image) => ev.send(Event::Cover { handle: cover, image, origin: "demo".to_owned() }),
             Err(e) => {
                 let reason = format!("demo cover {index} failed to decode: {e:#}");
                 ev.log(LogLine::warn(format!("[alb] {reason}")));
@@ -2072,6 +2415,7 @@ fn build_albums(tracks: &[Track], abstract_albums: &[AlbumEntry]) -> Vec<Album> 
             duration: stats.duration,
             track_handles,
             cover_handle: None,
+            cover_key: 0,
             cover_source: CoverSource::None,
         });
     }
@@ -2102,6 +2446,7 @@ fn build_albums(tracks: &[Track], abstract_albums: &[AlbumEntry]) -> Vec<Album> 
                     duration: track.duration.unwrap_or(0),
                     track_handles: vec![track.handle],
                     cover_handle: None,
+                    cover_key: 0,
                     cover_source: CoverSource::None,
                 });
             }
@@ -2448,54 +2793,58 @@ fn cover_source_for_format(format: u16) -> Option<CoverSource> {
 
 /// Every object in the device's `CoverArt` folders, as (handle, name, format).
 fn index_cover_art(lib: &mut Library) -> Vec<(u32, String, u16)> {
-    /// Cap per format, so a pathological device cannot turn this into a minute of I/O.
+    /// Cap, so a pathological device cannot turn this into a minute of I/O.
     const MAX_ENTRIES: usize = 600;
     let mut out: Vec<(u32, String, u16)> = Vec::new();
     let storage = lib.storage;
 
-    // **No folder is assumed.** A Zune 30 keeps its cover JPEGs in the 0x03 handle
-    // segment and exposes no `CoverArt` folder at all, so the search is by object
-    // format across *every* parent: GetObjectHandles(storage, JPEG, 0xFFFFFFFF) is one
-    // call for the whole device.
-    for format in [fmt::JPEG, fmt::COVER_ART] {
-        let handles = match lib.session.object_handles(storage, format, u32::MAX) {
-            Ok(handles) => handles,
-            Err(e) => {
-                log::debug!("listing format {format:#06x} across all parents failed: {e:#}");
-                continue;
+    // Gather the handles first, then resolve each one: a closure cannot borrow the
+    // session while the session is also being queried for more handles.
+    let mut handles: Vec<u32> = Vec::new();
+    let mut push = |candidates: Vec<u32>, handles: &mut Vec<u32>| {
+        for handle in candidates {
+            if !handles.contains(&handle) {
+                handles.push(handle);
             }
-        };
-        for handle in handles.into_iter().take(MAX_ENTRIES) {
-            match lib.session.object_info(handle) {
-                Ok(info) => out.push((handle, info.filename, info.format)),
-                Err(e) => log::debug!("object_info {handle:#010x} failed: {e:#}"),
+        }
+    };
+
+    // **The direct listing is the one that works.** A Zune 30 keeps its 95 cover JPEGs as
+    // children of the device root and answers GeneralError to the wildcard-parent query,
+    // so that query is a bonus, never the primary source.
+    for format in [fmt::JPEG, fmt::COVER_ART] {
+        if let Ok(children) = lib.session.children(format, ROOT) {
+            push(children, &mut handles);
+        }
+    }
+    // Folders second (some firmware keeps them there).
+    if let Ok(folders) = lib.session.children(fmt::ASSOCIATION, ROOT) {
+        for folder in folders {
+            let name = lib
+                .session
+                .object_info(folder)
+                .map(|i| i.filename)
+                .unwrap_or_default();
+            for format in [fmt::COVER_ART, fmt::JPEG] {
+                let Ok(children) = lib.session.children(format, folder) else { continue };
+                if !children.is_empty() {
+                    log::debug!("folder \"{name}\" holds {} image object(s)", children.len());
+                }
+                push(children, &mut handles);
             }
         }
     }
+    // The wildcard query last: a bonus on firmware that supports it.
+    for format in [fmt::JPEG, fmt::COVER_ART] {
+        if let Ok(found) = lib.session.object_handles(storage, format, u32::MAX) {
+            push(found, &mut handles);
+        }
+    }
 
-    // Second chance for firmware that *does* keep a folder: walk the root's folders.
-    if let Ok(folders) = lib.session.children(fmt::ASSOCIATION, ROOT) {
-        for folder in folders {
-            let Ok(info) = lib.session.object_info(folder) else { continue };
-            for format in [fmt::COVER_ART, fmt::JPEG] {
-                let Ok(children) = lib.session.children(format, folder) else { continue };
-                if children.is_empty() {
-                    continue;
-                }
-                log::debug!(
-                    "folder \"{}\" holds {} object(s) of format {format:#06x}",
-                    info.filename,
-                    children.len()
-                );
-                for child in children.iter().take(400) {
-                    if out.iter().any(|(h, _, _)| h == child) {
-                        continue;
-                    }
-                    if let Ok(child_info) = lib.session.object_info(*child) {
-                        out.push((*child, child_info.filename, child_info.format));
-                    }
-                }
-            }
+    for handle in handles.into_iter().take(MAX_ENTRIES) {
+        match lib.session.object_info(handle) {
+            Ok(info) => out.push((handle, info.filename, info.format)),
+            Err(e) => log::debug!("object_info {handle:#010x} failed: {e:#}"),
         }
     }
     out
@@ -2647,6 +2996,33 @@ fn duration_seconds(raw_ms: Option<u32>) -> Option<u32> {
     Some(if raw < 10_000 { raw } else { (raw + 500) / 1000 })
 }
 
+/// Does this JPEG carry an EXIF (APP1/"Exif") segment? Cameras write one; cover art
+/// normally does not, which is half of the "photo or cover" answer.
+fn jpeg_has_exif(bytes: &[u8]) -> bool {
+    if !bytes.starts_with(&[0xFF, 0xD8]) {
+        return false;
+    }
+    let mut offset = 2usize;
+    while offset + 4 <= bytes.len() {
+        if bytes[offset] != 0xFF {
+            offset += 1;
+            continue;
+        }
+        let marker = bytes[offset + 1];
+        // Start-of-scan or end-of-image: no more metadata segments.
+        if marker == 0xDA || marker == 0xD9 {
+            return false;
+        }
+        let length = u16::from_be_bytes([bytes[offset + 2], bytes[offset + 3]]) as usize;
+        if marker == 0xE1 {
+            let body = &bytes[offset + 4..(offset + 2 + length).min(bytes.len())];
+            return body.starts_with(b"Exif\0");
+        }
+        offset += 2 + length;
+    }
+    false
+}
+
 /// The Zune encodes an object's kind in the high byte of its handle: 0x01 audio,
 /// 0x03 image, 0x06 abstract album, 0x07 playlist. Naming it makes a dump readable and
 /// makes "the covers are in a different segment" obvious.
@@ -2761,6 +3137,29 @@ pub fn key_path() -> Option<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn exif_detection_separates_a_camera_photo_from_cover_art() {
+        // A minimal JPEG: SOI, APP1 "Exif", then SOS.
+        let mut camera = vec![0xFF, 0xD8];
+        camera.extend_from_slice(&[0xFF, 0xE1, 0x00, 0x0A]);
+        camera.extend_from_slice(b"Exif\0\0\0");
+        camera.extend_from_slice(&[0xFF, 0xDA, 0x00, 0x02]);
+        assert!(jpeg_has_exif(&camera));
+
+        // Same shape, but the metadata segment is a JFIF APP0 and there is no Exif.
+        let mut cover = vec![0xFF, 0xD8];
+        cover.extend_from_slice(&[0xFF, 0xE0, 0x00, 0x10]);
+        cover.extend_from_slice(b"JFIF\0");
+        cover.extend_from_slice(&[0u8; 8]);
+        cover.extend_from_slice(&[0xFF, 0xDA, 0x00, 0x02]);
+        assert!(!jpeg_has_exif(&cover));
+
+        assert!(!jpeg_has_exif(&[]));
+        assert!(!jpeg_has_exif(&[0x89, b'P', b'N', b'G']));
+        // The demo covers the board renders are not photos.
+        assert!(!jpeg_has_exif(&demo_cover_jpeg(0)));
+    }
 
     #[test]
     fn the_recovery_advice_is_the_one_that_works() {

@@ -158,6 +158,9 @@ pub struct ZuneApp {
     album_filter: Option<String>,
 
     covers: HashMap<u32, CoverState>,
+    /// Where each cover came from ("device", "local file · x.mp3", "online · iTunes"),
+    /// so the album page can say it instead of implying everything is from the Zune.
+    cover_origins: HashMap<u32, String>,
     cover_pending: HashSet<u32>,
 
     /// Paths queued for the push page.
@@ -216,6 +219,7 @@ impl ZuneApp {
             selected: HashSet::new(),
             album_filter: None,
             covers: HashMap::new(),
+            cover_origins: HashMap::new(),
             cover_pending: HashSet::new(),
             queue: Vec::new(),
             path_input: String::new(),
@@ -285,7 +289,7 @@ impl ZuneApp {
                     self.progress = None;
                 }
                 Event::Busy(busy) => self.busy = busy,
-                Event::Cover { handle, image } => {
+                Event::Cover { handle, image, origin } => {
                     let texture = ctx.load_texture(
                         format!("cover-{handle}"),
                         egui::ColorImage::from_rgba_unmultiplied(
@@ -295,6 +299,7 @@ impl ZuneApp {
                         egui::TextureOptions::LINEAR,
                     );
                     self.covers.insert(handle, CoverState::Ready(texture));
+                    self.cover_origins.insert(handle, origin);
                     self.cover_pending.remove(&handle);
                 }
                 Event::CoverFailed { handle, reason } => {
@@ -306,6 +311,17 @@ impl ZuneApp {
                     self.last_log = self.logs.last().cloned();
                     self.covers.insert(handle, CoverState::Failed(reason));
                     self.cover_pending.remove(&handle);
+                }
+                Event::CoversPrefetched { albums } => {
+                    // The background fetch has already written these covers to disk, so the
+                    // next frame can pick them up locally. Dropping the failure marks is
+                    // what makes it try again; anything that already has a texture keeps it.
+                    self.logs.push(LogLine::info(format!(
+                        "cover prefetch: {albums} album(s) checked — loading any newly cached covers"
+                    )));
+                    self.last_log = self.logs.last().cloned();
+                    self.covers.retain(|_, state| !matches!(state, CoverState::Failed(_)));
+                    self.cover_pending.clear();
                 }
                 Event::WifiScan { bytes, hex } => {
                     self.wifi_note = format!("scan returned {} bytes", bytes.len());
@@ -1050,33 +1066,57 @@ impl ZuneApp {
             name: String,
             subtitle: String,
             handle: Option<u32>,
+            /// The map key: the device handle, or a synthetic album key.
+            key: u32,
+            artist: String,
             cover: Option<egui::TextureId>,
             badge: CoverBadge,
         }
         let mut tiles: Vec<Tile> = Vec::with_capacity(rows.len());
         for (album, subtitle) in &rows {
-            let (cover, badge) = match album.cover_handle {
-                Some(handle) => match self.covers.get(&handle) {
-                    Some(CoverState::Ready(texture)) => (Some(texture.id()), CoverBadge::Ready),
-                    Some(CoverState::Failed(reason)) => (None, CoverBadge::Failed(reason.clone())),
-                    Some(CoverState::Loading) | None => (None, CoverBadge::Loading),
-                },
-                None => (None, CoverBadge::Missing),
+            // The device is not the only source: with no art on the device, the tile
+            // shows whatever the fallback ladder found (cache → local file → iTunes).
+            let (cover, badge) = match self.covers.get(&album.cover_key) {
+                Some(CoverState::Ready(texture)) => (Some(texture.id()), CoverBadge::Ready),
+                Some(CoverState::Failed(reason)) => (None, CoverBadge::Failed(reason.clone())),
+                Some(CoverState::Loading) | None => {
+                    if album.cover_handle.is_some() {
+                        (None, CoverBadge::Loading)
+                    } else if self.cover_origins.contains_key(&album.cover_key) {
+                        (None, CoverBadge::Loading)
+                    } else {
+                        (None, CoverBadge::Missing)
+                    }
+                }
             };
             tiles.push(Tile {
                 name: album.name.clone(),
                 subtitle: subtitle.clone(),
                 handle: album.cover_handle,
+                key: album.cover_key,
+                artist: album.artist.clone(),
                 cover,
                 badge,
             });
         }
         // Request what is not cached yet (cheap to ask; the worker de-duplicates).
         for tile in &tiles {
-            if let Some(handle) = tile.handle {
-                if tile.cover.is_none() && !matches!(tile.badge, CoverBadge::Failed(_)) {
-                    self.request_cover(handle);
+            if tile.cover.is_some() || matches!(tile.badge, CoverBadge::Failed(_)) {
+                continue;
+            }
+            match tile.handle {
+                // Art on the device: download that object.
+                Some(handle) => self.request_cover(handle),
+                // No art on the device: ask the worker to try the fallback sources.
+                None if !self.cover_pending.contains(&tile.key) => {
+                    self.cover_pending.insert(tile.key);
+                    self.worker.send(Command::FetchFallbackCover {
+                        key: tile.key,
+                        artist: tile.artist.clone(),
+                        album: tile.name.clone(),
+                    });
                 }
+                None => {}
             }
         }
 
@@ -1129,17 +1169,23 @@ impl ZuneApp {
         // Cover + headline statistics.
         let cover_side = 180.0;
         let (cover_rect, _) = ui.allocate_exact_size(Vec2::splat(cover_side), Sense::hover());
-        let (texture, badge) = match album.cover_handle {
-            Some(handle) => match self.covers.get(&handle) {
-                Some(CoverState::Ready(texture)) => (Some(texture.id()), CoverBadge::Ready),
-                Some(CoverState::Failed(reason)) => (None, CoverBadge::Failed(reason.clone())),
-                Some(CoverState::Loading) | None => (None, CoverBadge::Loading),
-            },
-            None => (None, CoverBadge::Missing),
+        let (texture, badge) = match self.covers.get(&album.cover_key) {
+            Some(CoverState::Ready(texture)) => (Some(texture.id()), CoverBadge::Ready),
+            Some(CoverState::Failed(reason)) => (None, CoverBadge::Failed(reason.clone())),
+            Some(CoverState::Loading) | None => (None, CoverBadge::Loading),
         };
-        if let Some(handle) = album.cover_handle {
-            if texture.is_none() && !matches!(badge, CoverBadge::Failed(_)) {
-                self.request_cover(handle);
+        if texture.is_none() && !matches!(badge, CoverBadge::Failed(_)) {
+            match album.cover_handle {
+                Some(handle) => self.request_cover(handle),
+                None if !self.cover_pending.contains(&album.cover_key) => {
+                    self.cover_pending.insert(album.cover_key);
+                    self.worker.send(Command::FetchFallbackCover {
+                        key: album.cover_key,
+                        artist: album.artist.clone(),
+                        album: album.name.clone(),
+                    });
+                }
+                None => {}
             }
         }
         {
@@ -1221,10 +1267,15 @@ impl ZuneApp {
                 NEON_CYAN,
             );
             y += 26.0;
+            let origin = self
+                .cover_origins
+                .get(&album.cover_key)
+                .cloned()
+                .unwrap_or_else(|| album.cover_source.label().to_owned());
             painter.text(
                 egui::pos2(info_rect.left(), y),
                 egui::Align2::LEFT_TOP,
-                format!("cover art: {}", album.cover_source.label()),
+                format!("cover art: {origin}"),
                 body_sm(),
                 TEXT_3,
             );

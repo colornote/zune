@@ -6,8 +6,10 @@
 mod app;
 mod cache;
 mod core;
+mod coverfetch;
 mod design;
 mod model;
+mod t2s;
 mod theme;
 mod ui;
 mod worker;

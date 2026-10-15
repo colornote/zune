@@ -102,6 +102,18 @@ What it answers, in order:
    album. The dump ends with either the links it found or
    `none references an album — so the link is not stored on the image side`.
 
+The second run of this diagnostic (after the fix that made it actually reach the image
+objects) also **downloads each image and judges the pixels**: dimensions, aspect ratio,
+EXIF presence, and a verdict line —
+`looks like: album art (square, no EXIF, display-sized)` or
+`looks like: a camera photo (not square, carries EXIF)`. That is the part that settles
+"are these covers or the user's photos" without relying on how the firmware labels them.
+It also prints, for each image, **every property the device stores** — including a
+line that fires if any property *value* is an abstract-album handle — plus, for each
+album, the album object's own properties and whether any of its tracks references an
+image. It ends with a `SUMMARY` and a `CONCLUSION` line saying which side (if either)
+carries the cover link.
+
 Then press **Refresh** on the Albums page and read the Log:
 
 * `library read: N tracks in Xs via …` — which property strategy was available.
@@ -113,6 +125,34 @@ Then press **Refresh** on the Albums page and read the Log:
 
 Failures are explainable by construction: a refused cover says *what* the payload was
 (e.g. "the object is an ASF/WMA media file (2240665 bytes), not an image").
+
+## Cover art when the device has none (the likely outcome)
+
+The diagnosis on this device says the albums genuinely carry no cover art — so the app
+gets art from elsewhere. The ladder, tried per album and only for albums the device has
+nothing for:
+
+1. **cache** — `devices/<serial>/covers/album-<key>.jpg`, instant on every later run;
+2. **a local music file** — the embedded picture of a file whose tags match the album, or
+   `cover.jpg` beside files in a folder named after the album.
+   Point it at your collection with `ZUNE_MUSIC_DIR=/path/to/Music` (default `~/Music`;
+   on this Mac there are no audio files, so this step finds nothing and is skipped);
+3. **iTunes Search** — free, no key. The album name is cleaned first
+   (`04.华丽的冒险(2005.09)` → `华丽的冒险`), the result is checked against our album and
+   artist (case/punctuation/accents folded, **Traditional → Simplified** via a generated
+   OpenCC table, and a clearly different artist vetoes the match), and the artwork URL is
+   asked for at 600×600. `curl` does the fetching, so there is no TLS stack in the binary.
+
+Whatever the origin, the Albums page says so: **device** · **local file · x.mp3** ·
+**online · iTunes** · **none** (with the cyan initial placeholder). A failed lookup is
+remembered for a week, so the app does not ask again on every repaint; **Refresh**
+clears those records and retries. `ZUNE_OFFLINE=1` keeps it off the network entirely.
+
+**What to check on the Mac:** how many of the 89 albums resolve, and how the Chinese ones
+compare against the device's catalog. The Log line is
+`cover art for "<album>": online · iTunes`, and any rejection is logged with the returned
+titles (`iTunes returned "X" by "Y" … not close enough, ignored`) so the matching rule can
+be tuned from evidence rather than guesswork.
 
 ## The component board
 

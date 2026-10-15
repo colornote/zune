@@ -149,6 +149,15 @@ The rules are:
    routes and a `GetThumb` probe for each — see `README-RUN.md`. It is always clickable
    while connected: pressing it *interrupts* the library read.
 
+### Where a cover can come from
+
+The device is not a cover source for its own library on this firmware, so `coverfetch`
+provides the fallback ladder (**disk cache → local music file → iTunes Search**), each
+result labelled with its origin in the UI. Matching is deliberately conservative —
+normalised names, a generated Traditional→Simplified table (`src/t2s.rs`, from OpenCC),
+and a same-script artist veto — because a wrong cover is worse than none. Misses are
+cached for a week; `Refresh` retries.
+
 ### The wedged-device trap
 
 Probing the bulk property list (0x9805) on a device that does not implement it costs more
@@ -159,9 +168,24 @@ immediately on failure, **disables the path for the session**, and the GUI tells
 to unplug the device instead of suggesting a command that does not work
 (`ZUNE_NO_BULK_PROPS=1` skips the probe entirely for A/B tests).
 
-`ZUNE_ALBUM`/the **Diagnose albums** button dumps the real reference structure (handles,
-formats, names, properties, `GetObject`/`GetThumb` results) into the Log, which has a
-*Copy to clipboard* button — facts first, parsing second.
+### What the on-device diagnosis established (Zune 30, Keel 3.30)
+
+* **Album references carry only audio.** `GetObjectReferences` (0x9810) answers, and for
+  an 11-track album it returns 11 MP3 handles — no image, ever. "The cover is in the
+  album's references" is therefore false on this firmware (it is true for albums *this
+  client* writes, which is why the forward strategy stays).
+* **The wildcard parent query is not supported.** `GetObjectHandles(storage, JPEG,
+  0xFFFFFFFF)` fails with GeneralError (0x2002); the 95 JPEG objects are answered as
+  **direct children of the root**. The image index therefore asks for root children
+  *first*, folders second, and treats the wildcard query as a bonus.
+* **Both sides are now checked and reported**: each image's own properties (any numeric
+  value that is an album handle is called out) and references, each album's properties,
+  and whether any of the album's *tracks* references an image. The dump ends with a
+  `SUMMARY` and a `CONCLUSION`.
+
+`ZUNE_ALBUM`/the **Diagnose albums** button dumps the same kind of structure for albums,
+and both write to the Log page, which has a *Copy to clipboard* button — facts first,
+parsing second.
 
 ## Design system notes
 

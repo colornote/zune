@@ -597,10 +597,17 @@ impl CachedAlbum {
     }
 
     fn to_album(&self) -> Album {
+        let name = self.name.clone();
+        let artist = self.artist.clone();
         Album {
-            name: self.name.clone(),
+            // Rebuilt from the cache: the key is derived (device handle, else a synthetic
+            // album key), because it is a runtime identity and not worth storing.
+            cover_key: self
+                .cover_handle
+                .unwrap_or_else(|| crate::coverfetch::synthetic_key(&artist, &name)),
+            name,
             handle: self.handle,
-            artist: self.artist.clone(),
+            artist,
             year: self.year,
             tracks: self.track_handles.len(),
             bytes: self.bytes,
@@ -659,6 +666,9 @@ pub fn cover_source_code(source: CoverSource) -> u8 {
         CoverSource::RefOther => 3,
         CoverSource::ReverseRef => 4,
         CoverSource::FolderMatch => 5,
+        // ZUNE-GUI (cover fallback): 6 and 7 were free.
+        CoverSource::LocalFile => 6,
+        CoverSource::Online => 7,
     }
 }
 
@@ -669,6 +679,9 @@ pub fn cover_source_from_code(code: u8) -> CoverSource {
         3 => CoverSource::RefOther,
         4 => CoverSource::ReverseRef,
         5 => CoverSource::FolderMatch,
+        // ZUNE-GUI (cover fallback).
+        6 => CoverSource::LocalFile,
+        7 => CoverSource::Online,
         _ => CoverSource::None,
     }
 }
@@ -844,6 +857,7 @@ mod tests {
 
     fn album(name: &str, handle: u32, cover: Option<u32>) -> Album {
         Album {
+            cover_key: 0, // filled by `apply_cache` (handle or synthetic album key)
             name: name.to_owned(),
             handle: Some(handle),
             artist: "Artist".to_owned(),
