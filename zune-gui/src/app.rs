@@ -239,6 +239,10 @@ pub struct ZuneApp {
     artist_search: String,
     /// Set once the first frame has run (demo mode uses it to wait for the worker).
     warmed_up: bool,
+    /// Set by `ZUNE_REFRESH_ON_START=1|force`: run one Refresh once the device is up.
+    /// A dev affordance like `ZUNE_WIFI_SCAN` — driving a button from a screenshot
+    /// session is unreliable when another window can take focus mid-run.
+    refresh_on_start: Option<bool>,
     /// P0 component board demo state.
     board: BoardState,
     confirm_delete: Option<Vec<u32>>,
@@ -306,6 +310,11 @@ impl ZuneApp {
             album_open: std::env::var("ZUNE_ALBUM").ok(),
             artist_search: String::new(),
             warmed_up: false,
+            refresh_on_start: match std::env::var("ZUNE_REFRESH_ON_START").ok().as_deref() {
+                Some("1") | Some("quick") | Some("true") => Some(false),
+                Some("force") | Some("full") => Some(true),
+                _ => None,
+            },
             board: BoardState::default(),
             confirm_delete: None,
             wifi_hex: String::new(),
@@ -1115,12 +1124,18 @@ impl ZuneApp {
                         }
                         if IconButton::new()
                             .enabled(connected && !self.busy)
-                            .tip("Re-read the device now and overwrite the cached library")
+                            .tip(
+                                "Re-read the device — it checks whether anything changed first, \
+                                 which takes a second. Shift-click to force the full pass.",
+                            )
                             .show(ui, motion, 2, Icon::Refresh)
                             .clicked()
                         {
+                            // Shift is the difference between a one-round-trip change check
+                            // and a two-minute property sweep over every track.
+                            let force = ui.input(|i| i.modifiers.shift);
                             self.worker.clear_cancel();
-                            self.worker.send(Command::Refresh);
+                            self.worker.send(Command::Refresh { force });
                         }
                         if !connected
                             && IconButton::new()
@@ -1764,7 +1779,8 @@ impl ZuneApp {
         }
         if refresh {
             self.worker.clear_cancel();
-            self.worker.send(Command::Refresh);
+            let force = ui.input(|i| i.modifiers.shift);
+            self.worker.send(Command::Refresh { force });
         }
         ui.add_space(SP_12);
 
@@ -2523,6 +2539,14 @@ impl eframe::App for ZuneApp {
         if self.wifi_autoscan && self.link == Link::Connected && !self.busy {
             self.wifi_autoscan = false;
             self.worker.send(Command::WifiScan);
+        }
+        // Dev affordance: one refresh, once, so the quick change check can be exercised
+        // without racing another window for the pointer.
+        if let Some(force) = self.refresh_on_start {
+            if self.link == Link::Connected {
+                self.refresh_on_start = None;
+                self.worker.send(Command::Refresh { force });
+            }
         }
 
         // One motion handle per frame: it is the only thing that may ask for

@@ -52,6 +52,17 @@ pub struct Worker {
     join: Option<JoinHandle<()>>,
 }
 
+/// Set by `ZUNE_NO_COVERS=1`: skip cover work entirely.
+///
+/// A dev affordance. The fallback ladder is synchronous inside the worker — one album
+/// can hold it for seconds between the device read and the online throttle — so a test
+/// of any other command would otherwise queue behind every cover-less album in the
+/// library. Nothing about the covers themselves changes; they are simply not asked for.
+fn covers_disabled() -> bool {
+    static ONCE: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ONCE.get_or_init(|| std::env::var_os("ZUNE_NO_COVERS").is_some())
+}
+
 /// One prefetch per run. Both the cached-library path and the device-refresh path load an
 /// album list, and without this the whole library would be walked twice.
 static PREFETCH_STARTED: AtomicBool = AtomicBool::new(false);
@@ -280,6 +291,11 @@ struct Backend {
     albums: Vec<Album>,
     /// Set once the sweep has run for the current library.
     harvested: bool,
+    /// The track handles of the library currently on screen. One `GetObjectHandles`
+    /// round trip against this set answers "did anything change" without paying for the
+    /// full sweep, which the device makes unavoidable otherwise: it refuses the bulk
+    /// property list (0x9805), so a full read is one property read per track.
+    cached_track_handles: std::collections::HashSet<u32>,
 }
 
 impl Backend {
@@ -420,7 +436,9 @@ impl Backend {
             if !self.serve_cache_for_serial(ev) {
                 // Interruptible: a diagnostic must never wait behind this read.
                 let interrupt = Arc::new(AtomicBool::new(false));
-                if let Err(e) = self.refresh(ev, &interrupt) {
+                // The automatic pass after a connect takes the cheap route: if the device
+                // matches what is already on screen there is nothing to do.
+                if let Err(e) = self.refresh(ev, &interrupt, false) {
                     ev.log(LogLine::error(format!("could not read the library: {e:#}")));
                 }
             }
@@ -533,6 +551,7 @@ impl Backend {
         }
         let tracks = cache.to_tracks();
         let albums = cache.to_albums();
+        self.cached_track_handles = tracks.iter().map(|t| t.handle).collect();
         log::debug!("served {} cached tracks", tracks.len());
         self.busy = false;
         ev.busy(false);
@@ -602,6 +621,19 @@ impl Backend {
 
     // ── command dispatch ─────────────────────────────────────────────────────
 
+    /// Every audio object handle on the storage, across the formats this device uses.
+    fn audio_handles(
+        session: &mut Session,
+        storage: u32,
+    ) -> Result<std::collections::HashSet<u32>> {
+        let mut live = std::collections::HashSet::new();
+        for format in [fmt::MP3, fmt::WMA, fmt::AAC] {
+            let handles = session.object_handles(storage, format, ROOT)?;
+            live.extend(handles.into_iter().filter(|h| *h != 0));
+        }
+        Ok(live)
+    }
+
     /// Run the embedded-art sweep the first time a session and a library are both here.
     fn sweep_embedded_art_if_ready(&mut self, ev: &Emitter) {
         if self.harvested || self.albums.is_empty() || self.session.is_none() || self.busy {
@@ -643,7 +675,7 @@ impl Backend {
                 ev.link(Link::Disconnected);
                 ev.log(LogLine::ok("Ejected. The Zune is safe to unplug."));
             }
-            Command::Refresh => {
+            Command::Refresh { force } => {
                 // Refresh means "ask again": drop the recorded cover misses so the
                 // fallback ladder runs once more.
                 let serial = self.snapshot.serial.clone();
@@ -656,7 +688,7 @@ impl Backend {
                         )));
                     }
                 }
-                if let Err(e) = self.refresh(ev, interrupt) {
+                if let Err(e) = self.refresh(ev, interrupt, force) {
                     // A read that died because the link died must not be retried on the
                     // same wedged session: recover the link, or ask for the cable.
                     if usb::is_stuck(&e) {
@@ -727,7 +759,7 @@ impl Backend {
 
     // ── library ──────────────────────────────────────────────────────────────
 
-    fn refresh(&mut self, ev: &Emitter, interrupt: &AtomicBool) -> Result<()> {
+    fn refresh(&mut self, ev: &Emitter, interrupt: &AtomicBool, force: bool) -> Result<()> {
         if self.session.is_none() {
             bail!("not connected to a Zune");
         }
@@ -740,6 +772,52 @@ impl Backend {
         let started = Instant::now();
 
         let storage = self.storage;
+
+        // One round trip before the expensive pass. This firmware refuses the bulk property
+        // list (0x9805), so a full read is one property read per track — over two minutes
+        // for this library, measured. `GetObjectHandles` answers the same question in a
+        // single exchange: if the set of object handles is exactly what the library on
+        // screen was built from, nothing has changed and there is nothing to re-read.
+        //
+        // The set is compared exactly, not as a subset, so a deletion is caught too.
+        let known = self.cached_track_handles.clone();
+        let mut unchanged = false;
+        if !force && !known.is_empty() {
+            if let Some(session) = self.session.as_mut() {
+                // Audio formats only. Asking for `format = 0` returns every object on the
+                // device, photos and videos included — measured: 3061 handles against the
+                // library's 2425 tracks, which made the comparison always say "changed".
+                // Three round trips still beats one property read per track.
+                match Self::audio_handles(session, storage) {
+                    Ok(live) => {
+                        unchanged = live == known;
+                        if !unchanged {
+                            log::info!(
+                                "device changed: {} audio objects vs {} cached ({} new, {} gone)",
+                                live.len(),
+                                known.len(),
+                                live.difference(&known).count(),
+                                known.difference(&live).count()
+                            );
+                        } else {
+                            log::info!("device unchanged: {} audio objects", live.len());
+                        }
+                    }
+                    Err(e) => log::debug!("change check unavailable, reading in full: {e:#}"),
+                }
+            }
+        }
+        if unchanged {
+            let elapsed = started.elapsed().as_secs_f32();
+            ev.log(LogLine::ok(format!(
+                "device unchanged ({elapsed:.1}s): {} objects, same as the library on screen — \
+                 nothing to re-read. Shift-click Refresh to force a full pass.",
+                known.len()
+            )));
+            ev.busy(false);
+            return Ok(());
+        }
+
         let session = self.session.as_mut().expect("checked above");
 
         // Storage info is optional: firmware that does not implement 0x1005 just
@@ -1248,6 +1326,9 @@ impl Backend {
     // ── cover art ────────────────────────────────────────────────────────────
 
     fn fetch_cover(&mut self, handle: u32, ev: &Emitter) {
+        if covers_disabled() {
+            return;
+        }
         let serial = self.snapshot.serial.clone();
 
         // A cover downloaded once is decoded from local bytes: the album wall is
@@ -2082,6 +2163,9 @@ impl Backend {
     /// A free function rather than a method: the library reader holds `&mut self.session`
     /// while it runs, and only the serial is actually needed.
     fn spawn_cover_prefetch(serial: &str, albums: &[Album], ev: &Emitter) {
+        if covers_disabled() {
+            return;
+        }
         if PREFETCH_STARTED.swap(true, Ordering::Relaxed) {
             return;
         }
@@ -2211,6 +2295,9 @@ impl Backend {
         track_handle: Option<u32>,
         ev: &Emitter,
     ) {
+        if covers_disabled() {
+            return;
+        }
         let serial = self.snapshot.serial.clone();
         if serial.is_empty() {
             ev.send(Event::CoverFailed {

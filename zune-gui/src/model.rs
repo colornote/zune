@@ -300,7 +300,9 @@ pub enum Command {
     /// Close the MTP session but keep looking for the device.
     Disconnect,
     /// Re-read storage info, tracks and albums.
-    Refresh,
+    /// Re-read the device. `force` skips the cheap "has anything changed" check and
+    /// always pays for the full property sweep.
+    Refresh { force: bool },
     /// Delete these object handles.
     Delete(Vec<u32>),
     /// Push loose audio files (a directory means "every audio file inside it").
