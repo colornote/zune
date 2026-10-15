@@ -1,0 +1,38 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Large binaries and extracted firmware. Everything here is reproducible from the
+# steps recorded in README.md / RE_NOTES.md, so it stays out of the repository.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# official Zune 3.3 firmware container + what comes out of it
+/KeelBaseline.Cab
+/dl.log
+/fw/
+/zfw/
+
+# official Zune desktop client (4.8) — see RE_NOTES.md for the download/extract
+/winclient/ZunePackage.exe
+/winclient/zune.cab
+/winclient/x86/
+/winclient/msi/
+/winclient/bin/
+/winclient/dl.log
+
+# ── Rust build output ────────────────────────────────────────────────────────
+target/
+/zunextract/target/
+/zune-rs/target/
+/zune-gui/target/
+/zune-gui/target-glow/
+/zune-gui/target-wgpu/
+
+# ── built deliverables: regenerate with build-macos.sh ───────────────────────
+/zune-rs/dist/
+/zune-gui/dist/
+
+# ── never commit key material ────────────────────────────────────────────────
+.mtpz-data
+mtpz-data
+
+# ── macOS noise ──────────────────────────────────────────────────────────────
+.DS_Store
+**/.DS_Store
