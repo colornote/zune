@@ -4,6 +4,7 @@
 //! from Linux, macOS and Windows without the Microsoft desktop software.
 
 mod device;
+mod id3;
 mod library;
 mod media;
 mod mtp;

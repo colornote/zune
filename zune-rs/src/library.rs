@@ -448,6 +448,50 @@ impl<'a> Library<'a> {
         Ok(handle)
     }
 
+    /// Read the cover art out of the device's own copy of this album's audio files.
+    ///
+    /// A Zune 30 keeps art in two places and only one is readable over MTP: library
+    /// thumbnails sit behind a `ZMediaLib` API whose read side `MtpSvc` never imports,
+    /// while most files also carry a full JPEG in an ID3v2 `APIC` frame — and those read
+    /// fine. Two partial reads: 64 KB to locate the frame, then exactly the picture,
+    /// because the picture is ~272 KB and the file is ~8 MB.
+    ///
+    /// `None` means this album is not on the device, or its files carry no art.
+    pub fn cover_from_device(&mut self, album: &str) -> Result<Option<Vec<u8>>> {
+        const HEAD: u32 = 64 * 1024;
+        let wanted = album.trim().to_lowercase();
+        let Some(track) = self.tracks()?.into_iter().find(|t| {
+            t.album
+                .as_deref()
+                .map(|a| a.trim().to_lowercase() == wanted)
+                .unwrap_or(false)
+        }) else {
+            return Ok(None);
+        };
+        let head = match self.session.get_partial_object(track.handle, 0, HEAD) {
+            Ok(head) => head,
+            // A handle that no longer exists makes the firmware answer nothing, so this is
+            // a "no art found" rather than a failure to report upwards.
+            Err(e) => {
+                eprintln!("    (device read for cover art did not answer: {e:#})");
+                return Ok(None);
+            }
+        };
+        let Some(at) = crate::id3::locate_picture(&head) else {
+            return Ok(None);
+        };
+        // A frame id matched inside compressed audio can declare a nonsense size.
+        if at.payload_size == 0 || at.payload_size > 8 * 1024 * 1024 {
+            return Ok(None);
+        }
+        let picture = self.session.get_partial_object(
+            track.handle,
+            at.body_offset as u32,
+            at.payload_size as u32,
+        )?;
+        Ok(Some(picture))
+    }
+
     /// Create the abstract album object the Zune uses to group tracks.
     pub fn create_abstract_album(&mut self, name: &str, refs: &[u32]) -> Result<u32> {
         let handle = self.session.create_object(ROOT, fmt::ABSTRACT_ALBUM, name, 0, 0, 0, 0)?;
@@ -541,6 +585,22 @@ impl<'a> Library<'a> {
         track_tags.sort_by_key(|(p, t)| (t.track.unwrap_or(0), p.clone()));
 
         if dry_run {
+            // Say where the cover would come from, without reading or writing anything: a
+            // dry run that cannot tell you "the device already has this one" is only half
+            // a dry run.
+            let local = pick_cover(dir, cover);
+            match local {
+                Some(c) => progress(&format!("  cover: {}", c.display())),
+                None => match self.cover_from_device(&album_name) {
+                    Ok(Some(bytes)) => progress(&format!(
+                        "  cover: none in the folder — the device has one for this album \
+                         ({:.0} KB in the audio file's ID3 tag), it would be reused",
+                        bytes.len() as f64 / 1024.0
+                    )),
+                    Ok(None) => progress("  cover: none in the folder, and none on the device"),
+                    Err(e) => progress(&format!("  cover: none in the folder (device lookup failed: {e:#})")),
+                },
+            }
             for (p, t) in &track_tags {
                 progress(&format!(
                     "  would push {:<40} {}{}{}",
@@ -595,8 +655,38 @@ impl<'a> Library<'a> {
                 Some(h)
             }
             None => {
-                progress("  · no cover art found");
-                None
+                // Nothing in the folder. The device may already have art for this album,
+                // because a Zune stores it inside the audio files rather than as a separate
+                // object — so the copy being pushed can borrow it. It is written beside the
+                // folder's audio rather than over anything, and named for where it came from.
+                let extracted = dir.join("cover-from-device.jpg");
+                match self.cover_from_device(&album_name) {
+                    Ok(Some(bytes)) => {
+                        match std::fs::write(&extracted, &bytes) {
+                            Ok(()) => {
+                                progress(&format!(
+                                    "  ✓ cover art recovered from the device ({:.0} KB) → {}",
+                                    bytes.len() as f64 / 1024.0,
+                                    extracted.display()
+                                ));
+                                let h = self.push_cover_art(&extracted)?;
+                                Some(h)
+                            }
+                            Err(e) => {
+                                progress(&format!("  · no cover art found (writing {} failed: {e})", extracted.display()));
+                                None
+                            }
+                        }
+                    }
+                    Ok(None) => {
+                        progress("  · no cover art found, and the device has none for this album either");
+                        None
+                    }
+                    Err(e) => {
+                        progress(&format!("  · no cover art found (device lookup failed: {e:#})"));
+                        None
+                    }
+                }
             }
         };
 
