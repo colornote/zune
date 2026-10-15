@@ -92,7 +92,7 @@ impl<'a> AlbumTile<'a> {
                 painter,
                 lifted,
                 r_md(),
-                NEON_CYAN,
+                NEON_ORANGE,
                 GLOW_MD,
                 GlowResponse::new(hover, press),
             );
@@ -122,14 +122,14 @@ impl<'a> AlbumTile<'a> {
                     .map(|c| c.to_uppercase().to_string())
                     .unwrap_or_else(|| "?".to_owned());
                 let font = FontId::new(size * 0.20, egui::FontFamily::Name(F_LIGHT.into()));
-                let color = TEXT_3.lerp(NEON_CYAN, hover);
+                let color = TEXT_3.lerp(NEON_ORANGE, hover);
                 let galley = painter.layout_no_wrap(initial, font, color);
                 let pos = lifted.center() - galley.size() / 2.0;
                 paint::glow_galley(
                     painter,
                     pos,
                     &galley,
-                    NEON_CYAN,
+                    NEON_ORANGE,
                     GLOW_TEXT,
                     GlowResponse::new(hover, press),
                 );
@@ -139,12 +139,12 @@ impl<'a> AlbumTile<'a> {
 
         // The page signature lights the tile: cyan hairline + cyan glow.
         if hover > 0.01 || self.selected {
-            paint::hairline_lit(painter, lifted, r_md(), 0.55 + 0.35 * hover, NEON_CYAN);
+            paint::hairline_lit(painter, lifted, r_md(), 0.55 + 0.35 * hover, NEON_ORANGE);
         } else {
             paint::hairline(painter, lifted, r_md());
         }
         if self.selected {
-            paint::hairline_lit(painter, lifted, r_md(), 1.0, NEON_CYAN);
+            paint::hairline_lit(painter, lifted, r_md(), 1.0, NEON_ORANGE);
         }
 
         // The play affordance fades in from the bottom of the cover.
@@ -152,7 +152,7 @@ impl<'a> AlbumTile<'a> {
             let center = Pos2::new(lifted.center().x, lifted.bottom() - 30.0);
             let button = Rect::from_center_size(center, Vec2::splat(44.0));
             painter.rect_filled(button, r_pill(), paint::with_alpha(SURFACE_2, play_alpha));
-            paint::hairline_lit(painter, button, r_pill(), 0.8 * play_alpha, NEON_CYAN);
+            paint::hairline_lit(painter, button, r_pill(), 0.8 * play_alpha, NEON_ORANGE);
             Icon::Play.draw(
                 painter,
                 Rect::from_center_size(center, Vec2::splat(20.0)),

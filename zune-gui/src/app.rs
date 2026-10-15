@@ -15,9 +15,9 @@ use crate::design::anim::Motion;
 use crate::design::paint::{self, GlowResponse, GLOW_MD, GLOW_SM, GLOW_TEXT};
 use crate::design::tokens::{
     body, body_sm, display, h1, h2, human_bytes, label, mono, r_md, r_pill, r_sm, subtitle,
-    tracked, BODY_SM, CARD_GAP, CANVAS, DISPLAY, F_LIGHT, F_XLIGHT, NEON_AMBER, NEON_CYAN,
-    NEON_LIME, NEON_MAGENTA, NEON_ORANGE, NEON_VIOLET, SP_12, SP_16, SP_24, SP_32, SP_8,
-    SURFACE_1, SURFACE_2, TEXT_1, TEXT_2, TEXT_3,
+    tracked, BODY_SM, CARD_GAP, CANVAS, DISPLAY, F_LIGHT, F_XLIGHT, NEON_AMBER, NEON_LIME,
+    NEON_MAGENTA, NEON_ORANGE, SP_12, SP_16, SP_24, SP_32, SP_8, SURFACE_1, SURFACE_2, TEXT_1,
+    TEXT_2, TEXT_3,
 };
 use crate::ui::track_row::{track_row, TrackRow};
 use crate::core::library;
@@ -89,20 +89,11 @@ impl Page {
         }
     }
 
-    /// The page's signature colour (v1.1 §2.1.2). One neon per page, so the chrome, the
-    /// markers and the figures all agree, and no single hue owns the whole product.
+    /// The accent. v1.1 §2.1.2 allows the product exactly one neon; the per-page
+    /// signatures were tried and pulled back out — six hues on one screen read as a
+    /// paint chart, not as a system. Every page returns the same one now.
     fn accent(self) -> Color32 {
-        match self {
-            Page::Home => NEON_ORANGE,
-            Page::Albums => NEON_CYAN,
-            Page::Artists => NEON_MAGENTA,
-            Page::Tracks => NEON_LIME,
-            Page::Push => NEON_VIOLET,
-            Page::Device => NEON_AMBER,
-            Page::Wifi => NEON_CYAN,
-            Page::Log => TEXT_2,
-            Page::Board => NEON_VIOLET,
-        }
+        NEON_ORANGE
     }
 
     /// The navigation glyph. Chosen so the rail can be read at a glance: a disc for
@@ -277,8 +268,9 @@ impl ZuneApp {
             progress: None,
             busy: false,
             last_summary: None,
-            // Dev affordance: ZUNE_PAGE=device|tracks|albums|push|wifi|log lets the
-            // screenshot tooling park on a page without a click. Default: the board.
+            // Dev affordance: ZUNE_PAGE=home|albums|artists|tracks|push|device|wifi|log|
+            // design lets the screenshot tooling park on a page without a click. The
+            // default is the front door.
             page: match std::env::var("ZUNE_PAGE").ok().as_deref() {
                 Some("home") | Some("collection") => Page::Home,
                 Some("tracks") => Page::Tracks,
@@ -691,7 +683,7 @@ impl ZuneApp {
                     let tint = if self.link == Link::Connected {
                         NEON_LIME
                     } else {
-                        NEON_MAGENTA
+                        NEON_ORANGE
                     };
                     paint::glow_circle(painter, dot, 3.5, tint, GLOW_SM, GlowResponse::IDLE);
                     painter.circle_filled(dot, 3.5, tint);
@@ -937,7 +929,7 @@ impl ZuneApp {
                             painter,
                             bar,
                             r_pill(),
-                            NEON_MAGENTA,
+                            NEON_ORANGE,
                             GLOW_MD,
                             GlowResponse::hovered(hover),
                         );
@@ -967,7 +959,7 @@ impl ZuneApp {
                                 Align2::CENTER_CENTER,
                                 initial,
                                 FontId::new(19.0, egui::FontFamily::Name(F_LIGHT.into())),
-                                paint::with_alpha(NEON_MAGENTA, 0.75),
+                                paint::with_alpha(NEON_ORANGE, 0.75),
                             );
                         }
                     }
@@ -1409,7 +1401,7 @@ impl ZuneApp {
                 .show(ui, |ui| {
                     ui.label(
                         RichText::new("The Zune is wedged — unplug it and plug it back in")
-                            .color(NEON_MAGENTA)
+                            .color(NEON_ORANGE)
                             .strong(),
                     );
                     ui.label(
@@ -1702,7 +1694,7 @@ impl ZuneApp {
                 let active = self.album_sort == key;
                 if ui
                     .add(
-                        egui::Button::new(RichText::new(key.label()).color(if active { NEON_CYAN } else { MUTED }))
+                        egui::Button::new(RichText::new(key.label()).color(if active { NEON_ORANGE } else { MUTED }))
                             .frame(false),
                     )
                     .clicked()
@@ -1886,7 +1878,7 @@ impl ZuneApp {
             if ui.button("← All albums").clicked() {
                 self.album_open = None;
             }
-            ui.label(RichText::new(tracked("album")).font(label()).color(NEON_CYAN));
+            ui.label(RichText::new(tracked("album")).font(label()).color(NEON_ORANGE));
         });
         ui.add_space(SP_12);
 
@@ -1930,11 +1922,11 @@ impl ZuneApp {
                     let galley = painter.layout_no_wrap(
                         initial,
                         egui::FontId::new(cover_side * 0.42, egui::FontFamily::Name(F_XLIGHT.into())),
-                        NEON_CYAN,
+                        NEON_ORANGE,
                     );
                     let pos = cover_rect.center() - galley.size() / 2.0;
-                    paint::glow_galley(painter, pos, &galley, NEON_CYAN, GLOW_TEXT, GlowResponse::IDLE);
-                    painter.galley(pos, galley, NEON_CYAN);
+                    paint::glow_galley(painter, pos, &galley, NEON_ORANGE, GLOW_TEXT, GlowResponse::IDLE);
+                    painter.galley(pos, galley, NEON_ORANGE);
                     paint::hairline(painter, cover_rect, r_md());
                 }
             }
@@ -1944,7 +1936,7 @@ impl ZuneApp {
                     egui::Align2::CENTER_BOTTOM,
                     "cover unavailable",
                     body_sm(),
-                    NEON_MAGENTA,
+                    NEON_ORANGE,
                 );
                 let _ = reason;
             }
@@ -1988,7 +1980,7 @@ impl ZuneApp {
                     theme::human_bytes(album.bytes)
                 ),
                 mono(BODY_SM),
-                NEON_CYAN,
+                NEON_ORANGE,
             );
             y += 26.0;
             let origin = self
@@ -2018,7 +2010,7 @@ impl ZuneApp {
                     egui::Align2::LEFT_TOP,
                     format!("download failed: {reason}"),
                     mono(11.0),
-                    NEON_MAGENTA,
+                    NEON_ORANGE,
                 );
             }
         }
@@ -2061,7 +2053,7 @@ impl ZuneApp {
                     TrackRow::new(track.display_title(), &subtitle)
                         .index(track.track_no.unwrap_or(index as u16 + 1) as u32)
                         .trailing(&track.duration_label())
-                        .accent(NEON_CYAN),
+                        .accent(NEON_ORANGE),
                 );
             }
         });
@@ -2370,7 +2362,7 @@ impl ZuneApp {
                     let tint = match network.strength {
                         0..=24 => TEXT_3,
                         25..=49 => NEON_AMBER,
-                        50..=74 => NEON_CYAN,
+                        50..=74 => NEON_ORANGE,
                         _ => NEON_LIME,
                     };
                     ui.label(RichText::new(bar).color(tint).monospace());

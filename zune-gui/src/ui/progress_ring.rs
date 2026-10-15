@@ -31,7 +31,7 @@ impl<'a> ProgressRing<'a> {
             caption,
             size: 96.0,
             thickness: 6.0,
-            accent: NEON_ORANGE,
+            accent: NEON_MAGENTA,
             glow_text: true,
         }
     }
