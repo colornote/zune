@@ -1,0 +1,34 @@
+# ── Rust build output ────────────────────────────────────────────────────────
+target/
+**/target/
+*.rs.bk
+
+# ── Cross-compile artifacts ──────────────────────────────────────────────────
+dist/
+macos-dist/
+*.tar.gz
+*.zip
+
+# ── The MTPZ key is the device's authentication secret. Never commit it. ─────
+.mtpz-data
+**/.mtpz-data
+mtpz-data
+
+# ── Machine-specific, rebuildable caches ─────────────────────────────────────
+#   (the GUI keeps these under ~/Library/Application Support/zune-gui/, so this
+#    only matters if a build ever writes into the tree)
+covers/
+library.json
+*.miss
+
+# ── Editors / OS ─────────────────────────────────────────────────────────────
+.DS_Store
+**/.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# ── Scratch ──────────────────────────────────────────────────────────────────
+*.log
+/re-work/
+/src-latest/

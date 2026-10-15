@@ -1,0 +1,6 @@
+# Keep dependency downloads on a mirror: crates.io direct is blocked from this host.
+[source.crates-io]
+replace-with = "ustc"
+
+[source.ustc]
+registry = "sparse+https://mirrors.ustc.edu.cn/crates.io-index/"
