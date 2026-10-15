@@ -179,6 +179,8 @@ enum Command {
 
 #[derive(Subcommand)]
 enum WifiCommand {
+    /// Read back the profiles the device holds (0x9226).
+    Profiles,
     /// Ask the device to scan for networks (0x9225)
     Scan,
     /// Commit a WiFi profile blob to the device (0x9227)
@@ -836,6 +838,51 @@ fn cmd_rm(s: &mut Session, key_path: Option<&Path>, handles: &[String], name: Op
 
 fn cmd_wifi(s: &mut Session, key_path: Option<&Path>, w: WifiCommand) -> Result<()> {
     match w {
+        WifiCommand::Profiles => {
+            auth(s, key_path)?;
+            let data = s.wifi_get_profiles()?;
+            if data.len() < 4 {
+                println!("the device answered {} bytes — no profile list", data.len());
+                return Ok(());
+            }
+            let count = u32::from_le_bytes([data[0], data[1], data[2], data[3]]) as usize;
+            println!("{count} profile(s), {} bytes total", data.len());
+            for index in 0..count {
+                let start = 4 + index * 320;
+                let Some(record) = data.get(start..start + 320) else {
+                    println!("  [{}] record runs past the end of the answer", index + 1);
+                    break;
+                };
+                // The record layout is the one the writer uses: NDIS SSID, then the four
+                // 32-bit fields, then the key block.
+                let ssid_len = u32::from_le_bytes([record[0], record[1], record[2], record[3]])
+                    .min(32) as usize;
+                let ssid = String::from_utf8_lossy(&record[4..4 + ssid_len]).to_string();
+                let field = |at: usize| {
+                    u32::from_le_bytes([
+                        record[at],
+                        record[at + 1],
+                        record[at + 2],
+                        record[at + 3],
+                    ])
+                };
+                let (ctl, auth, cipher, konst) = (field(0x24), field(0x28), field(0x2c), field(0x30));
+                let key_len = field(0x34 + 8) as usize;
+                println!(
+                    "  [{}] ssid={:?} auth={auth} cipher={cipher} ctl={ctl} const={konst} keyLen={key_len}",
+                    index + 1,
+                    ssid
+                );
+                println!(
+                    "      raw: {}",
+                    record[..48]
+                        .iter()
+                        .map(|b| format!("{b:02x}"))
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                );
+            }
+        }
         WifiCommand::Scan => {
             auth(s, key_path)?;
             let data = s.wifi_scan()?;

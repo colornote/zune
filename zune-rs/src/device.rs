@@ -254,6 +254,14 @@ impl Session {
     }
 
     /// GetPartialObject (0x101B): read `count` bytes starting at `offset`.
+    /// Read the device's stored WLAN profiles (0x9226).
+    pub fn wifi_get_profiles(&mut self) -> Result<Vec<u8>> {
+        self.send_cmd(OP_WIFI_GET_PROFILES, &[])?;
+        let d = self.recv_data()?.data;
+        self.recv_resp()?;
+        Ok(d)
+    }
+
     pub fn get_partial_object(&mut self, handle: u32, offset: u32, count: u32) -> Result<Vec<u8>> {
         self.send_cmd(OP_GET_PARTIAL_OBJECT, &[handle, offset, count])?;
         let d = self.recv_data()?.data;
