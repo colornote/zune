@@ -57,6 +57,18 @@ enum Command {
         kind: String,
     },
 
+    /// Download one object's raw bytes (diagnosis: does the art live inside the file?)
+    GetObject {
+        /// Object handle, decimal or 0x-prefixed hex
+        handle: String,
+        /// Where to write the payload
+        #[arg(short, long)]
+        out: PathBuf,
+        /// Read only the first N bytes (GetPartialObject) instead of the whole object
+        #[arg(long)]
+        bytes: Option<u32>,
+    },
+
     /// Push audio files, transcoding anything the device cannot play
     Push {
         /// Files or directories to push
@@ -207,6 +219,9 @@ fn main() -> Result<()> {
         Command::Props { target } => cmd_props(&mut s, key_path.as_deref(), &target),
         Command::Albums => cmd_albums(&mut s, key_path.as_deref()),
         Command::List { kind } => cmd_list(&mut s, key_path.as_deref(), &kind),
+        Command::GetObject { handle, out, bytes } => {
+            cmd_get_object(&mut s, key_path.as_deref(), &handle, &out, bytes)
+        }
         Command::Push { paths, raw } => cmd_push(&mut s, key_path.as_deref(), &paths, raw),
         Command::Photo { paths, dry_run } => cmd_photo(&mut s, key_path.as_deref(), &paths, dry_run),
         Command::Video { paths, subs, dry_run } => {
@@ -550,6 +565,36 @@ fn cmd_list(s: &mut Session, key_path: Option<&Path>, kind: &str) -> Result<()> 
 }
 
 // ── pushing ──────────────────────────────────────────────────────────────────
+
+fn cmd_get_object(
+    s: &mut Session,
+    key_path: Option<&Path>,
+    handle: &str,
+    out: &Path,
+    bytes: Option<u32>,
+) -> Result<()> {
+    auth(s, key_path)?;
+    let storage = *s.storage_ids()?.first().context("no storage")?;
+    s.session_storage = storage;
+    let handle = handle
+        .trim()
+        .trim_start_matches("0x")
+        .trim_start_matches("0X");
+    let handle = u32::from_str_radix(handle, 16).context("handle must be hex")?;
+    let data = match bytes {
+        Some(count) => s.get_partial_object(handle, 0, count)?,
+        None => s.get_object_bytes(handle)?,
+    };
+    std::fs::write(out, &data)
+        .with_context(|| format!("writing {}", out.display()))?;
+    println!(
+        "{} -> {} ({} bytes)",
+        library::hex(handle),
+        out.display(),
+        data.len()
+    );
+    Ok(())
+}
 
 fn cmd_push(s: &mut Session, key_path: Option<&Path>, paths: &[PathBuf], raw: bool) -> Result<()> {
     let files = expand(paths)?;

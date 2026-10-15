@@ -328,6 +328,14 @@ impl Session {
     ///
     /// The fallback when a firmware refuses GetObject for cover-art objects.
     /// `format` is the wanted thumbnail format code (JPEG = 0x3801, 0 = undefined).
+    /// GetPartialObject (0x101B): `count` bytes of an object, starting at `offset`.
+    pub fn get_partial_object(&mut self, handle: u32, offset: u32, count: u32) -> Result<Vec<u8>> {
+        self.send_cmd(OP_GET_PARTIAL_OBJECT, &[handle, offset, count])?;
+        let d = self.recv_data()?.data;
+        self.recv_resp()?;
+        Ok(d)
+    }
+
     pub fn get_thumb_data(&mut self, handle: u32, format: u16) -> Result<Vec<u8>> {
         self.send_cmd(OP_GET_THUMB, &[handle, format as u32])?;
         let d = self.recv_data()?.data;

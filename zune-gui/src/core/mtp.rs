@@ -30,6 +30,9 @@ pub const OP_GET_STORAGE_INFO: u16 = 0x1005;
 pub const OP_GET_OBJECT_HANDLES: u16 = 0x1007;
 // ZUNE-GUI addition: download an object payload (cover art).
 pub const OP_GET_OBJECT: u16 = 0x1009;
+/// GetPartialObject: read a byte range. Cover art lives in an ID3 tag near the start
+/// of an audio file, so this is the difference between 64 KB and 8 MB per album.
+pub const OP_GET_PARTIAL_OBJECT: u16 = 0x101B;
 // ZUNE-GUI addition: the thumbnail a device already has, when GetObject is refused.
 pub const OP_GET_THUMB: u16 = 0x100A;
 pub const OP_GET_OBJECT_INFO: u16 = 0x1008;

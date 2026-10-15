@@ -19,6 +19,7 @@ use anyhow::{bail, Context, Result};
 use crate::cache;
 use crate::coverfetch;
 use crate::core::{
+    id3,
     self,
     device::{Session, ROOT},
     library::{self, Library},
@@ -640,8 +641,8 @@ impl Backend {
                 b.push_album(&dir, name.as_deref(), cover.as_deref(), playlist, ev, cancel)
             }),
             Command::FetchCover(handle) => self.fetch_cover(handle, ev),
-            Command::FetchFallbackCover { key, artist, album } => {
-                self.fetch_fallback_cover(key, &artist, &album, ev)
+            Command::FetchFallbackCover { key, artist, album, track_handle } => {
+                self.fetch_fallback_cover(key, &artist, &album, track_handle, ev)
             }
             Command::DiagnoseAlbums(limit) => self.diagnose_albums(limit, ev),
             Command::DiagnoseCovers { images, albums } => self.diagnose_covers(images, albums, ev),
@@ -2068,7 +2069,69 @@ impl Backend {
 
     /// The device has no art for this album: local files first, then iTunes, and cache
     /// whatever comes back so the next run is instant.
-    fn fetch_fallback_cover(&mut self, key: u32, artist: &str, album: &str, ev: &Emitter) {
+    /// Pull an album's art out of the audio object itself.
+    ///
+    /// This is where cover art really is on a Zune 30: the device exposes no MTP read
+    /// for its library thumbnails (`MtpSvc.dll` imports `SetItemThumbnail` and
+    /// `IsItemArtPresent` but never `GetItemThumbnail`), while a good share of the MP3s
+    /// carry a full JPEG in an ID3v2 `APIC` frame. Two partial reads: the first 64 KB to
+    /// locate the frame, then exactly the picture's own bytes — because the picture is
+    /// ~272 KB and the file is ~8 MB.
+    ///
+    /// `Ok(true)` means a cover was found, decoded, cached and sent.
+    fn embedded_cover(
+        &mut self,
+        handle: u32,
+        serial: &str,
+        key: u32,
+        album: &str,
+        ev: &Emitter,
+    ) -> Result<bool> {
+        let Some(session) = self.session.as_mut() else {
+            return Ok(false);
+        };
+        const HEAD: u32 = 64 * 1024;
+        let head = session.get_partial_object(handle, 0, HEAD)?;
+        let Some(at) = id3::locate_picture(&head) else {
+            return Ok(false);
+        };
+        log::debug!(
+            "cover {key:#010x}: {album} carries a {} byte picture at {:#x}",
+            at.payload_size,
+            at.body_offset
+        );
+        // A preposterous size means the frame id was a false sync inside the audio.
+        if at.payload_size > 8 * 1024 * 1024 {
+            return Ok(false);
+        }
+        let picture =
+            session.get_partial_object(handle, at.body_offset as u32, at.payload_size as u32)?;
+        let image = decode_cover(&picture).with_context(|| {
+            format!("the APIC picture in {handle:#010x} would not decode")
+        })?;
+        // Cached like any other cover, so the next run needs no device read at all.
+        if let Err(e) = cache::write_cover(serial, key, &picture) {
+            log::debug!("embedded cover {key:#010x} not cached: {e:#}");
+        }
+        ev.log(LogLine::ok(format!(
+            "cover art for \"{album}\": embedded in the audio file"
+        )));
+        ev.send(Event::Cover {
+            handle: key,
+            image,
+            origin: "the audio file's ID3 APIC frame".to_owned(),
+        });
+        Ok(true)
+    }
+
+    fn fetch_fallback_cover(
+        &mut self,
+        key: u32,
+        artist: &str,
+        album: &str,
+        track_handle: Option<u32>,
+        ev: &Emitter,
+    ) {
         let serial = self.snapshot.serial.clone();
         if serial.is_empty() {
             ev.send(Event::CoverFailed {
@@ -2076,6 +2139,15 @@ impl Backend {
                 reason: "no device serial to key the cover cache by".to_owned(),
             });
             return;
+        }
+
+        // Before anything online: the art may simply be inside the album's audio file.
+        if let Some(handle) = track_handle {
+            match self.embedded_cover(handle, &serial, key, album, ev) {
+                Ok(true) => return,
+                Ok(false) => {}
+                Err(e) => log::debug!("embedded cover {handle:#010x}: {e:#}"),
+            }
         }
         // A miss is remembered: asking iTunes again on every repaint would be rude, and
         // asking on every refresh is pointless.

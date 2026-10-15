@@ -314,12 +314,15 @@ pub enum Command {
     },
     /// Download a cover-art object so it can be shown.
     FetchCover(u32),
-    /// The device has no art for this album: look in the local files, then online, and
-    /// cache whatever comes back. `key` is the album's cover key.
+    /// The device has no art object for this album. `track_handle` is its first track,
+    /// whose own file may carry an embedded ID3 `APIC` picture — on a Zune 30 that is
+    /// where the art actually is. Failing that, the local files and then the online
+    /// ladder are tried, and whatever comes back is cached under `key`.
     FetchFallbackCover {
         key: u32,
         artist: String,
         album: String,
+        track_handle: Option<u32>,
     },
     /// Dump the real reference/property structure of the first N albums on the
     /// device, so cover parsing can be written against facts instead of guesses.

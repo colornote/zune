@@ -239,6 +239,28 @@ impl Session {
         ObjectInfo::parse(&d)
     }
 
+    /// GetObject (0x1009): download an object's payload.
+    ///
+    /// Added to answer one question that the cover-art investigation could not settle
+    /// from the outside: does an audio object on this device carry an embedded ID3
+    /// `APIC` frame? If it does, album art has been on the device all along and the
+    /// read path is simply "GetObject the audio, extract APIC locally" — the device
+    /// exposes no thumbnail read through MTP at all.
+    pub fn get_object_bytes(&mut self, handle: u32) -> Result<Vec<u8>> {
+        self.send_cmd(OP_GET_OBJECT, &[handle])?;
+        let d = self.recv_data()?.data;
+        self.recv_resp()?;
+        Ok(d)
+    }
+
+    /// GetPartialObject (0x101B): read `count` bytes starting at `offset`.
+    pub fn get_partial_object(&mut self, handle: u32, offset: u32, count: u32) -> Result<Vec<u8>> {
+        self.send_cmd(OP_GET_PARTIAL_OBJECT, &[handle, offset, count])?;
+        let d = self.recv_data()?.data;
+        self.recv_resp()?;
+        Ok(d)
+    }
+
     // ── object creation & payload ───────────────────────────────────────────
 
     /// SendObjectInfo with a full ObjectInfo dataset; returns the new handle.

@@ -189,6 +189,8 @@ struct ArtistRow {
     key: u32,
     handle: Option<u32>,
     album_name: String,
+    /// The album's first track: its file may carry the art in an ID3 frame.
+    track_handle: Option<u32>,
     /// Whether that album actually has artwork yet.
     has_art: bool,
 }
@@ -718,7 +720,7 @@ impl ZuneApp {
         // ladder without blocking the frame. Note this cannot filter on cover_source —
         // that is 0 for every album on this device, because the Zune genuinely stores no
         // cover objects. "Has art" is a fact about the cache, not about the library.
-        let first: Vec<(u32, Option<u32>, String, String)> = self
+        let first: Vec<(u32, Option<u32>, String, String, Option<u32>)> = self
             .albums
             .iter()
             .take(12)
@@ -728,10 +730,11 @@ impl ZuneApp {
                     album.cover_handle,
                     album.artist.clone(),
                     album.name.clone(),
+                    album.track_handles.first().copied(),
                 )
             })
             .collect();
-        for (key, handle, artist, album) in first {
+        for (key, handle, artist, album, track_handle) in first {
             if self.covers.contains_key(&key) || self.cover_pending.contains(&key) {
                 continue;
             }
@@ -739,7 +742,12 @@ impl ZuneApp {
                 Some(handle) => self.request_cover(handle),
                 None => {
                     self.cover_pending.insert(key);
-                    self.worker.send(Command::FetchFallbackCover { key, artist, album });
+                    self.worker.send(Command::FetchFallbackCover {
+                        key,
+                        artist,
+                        album,
+                        track_handle,
+                    });
                 }
             }
         }
@@ -825,6 +833,7 @@ impl ZuneApp {
                     key: album.cover_key,
                     handle: album.cover_handle,
                     album_name: album.name.clone(),
+                    track_handle: album.track_handles.first().copied(),
                     has_art: album.cover_source.is_found(),
                 });
             row.albums += 1;
@@ -836,6 +845,7 @@ impl ZuneApp {
                 row.key = album.cover_key;
                 row.handle = album.cover_handle;
                 row.album_name = album.name.clone();
+                row.track_handle = album.track_handles.first().copied();
                 row.has_art = true;
             }
         }
@@ -872,6 +882,7 @@ impl ZuneApp {
                         key: row.key,
                         artist: row.name.clone(),
                         album: row.album_name.clone(),
+                        track_handle: row.track_handle,
                     });
                 }
             }
@@ -1785,6 +1796,8 @@ impl ZuneApp {
             /// The map key: the device handle, or a synthetic album key.
             key: u32,
             artist: String,
+            /// The album's first track, for the embedded-ID3 fallback.
+            track_handle: Option<u32>,
             cover: Option<egui::TextureId>,
             badge: CoverBadge,
         }
@@ -1811,6 +1824,7 @@ impl ZuneApp {
                 handle: album.cover_handle,
                 key: album.cover_key,
                 artist: album.artist.clone(),
+                track_handle: album.track_handles.first().copied(),
                 cover,
                 badge,
             });
@@ -1830,6 +1844,7 @@ impl ZuneApp {
                         key: tile.key,
                         artist: tile.artist.clone(),
                         album: tile.name.clone(),
+                        track_handle: tile.track_handle,
                     });
                 }
                 None => {}
@@ -1899,6 +1914,7 @@ impl ZuneApp {
                         key: album.cover_key,
                         artist: album.artist.clone(),
                         album: album.name.clone(),
+                        track_handle: album.track_handles.first().copied(),
                     });
                 }
                 None => {}

@@ -23,6 +23,11 @@ pub const OP_GET_OBJECT_INFO: u16 = 0x1008;
 pub const OP_DELETE_OBJECT: u16 = 0x100B;
 pub const OP_SEND_OBJECT_INFO: u16 = 0x100C;
 pub const OP_SEND_OBJECT: u16 = 0x100D;
+/// GetObject: download an object's payload (the read side of SendObject).
+pub const OP_GET_OBJECT: u16 = 0x1009;
+/// GetPartialObject: read a byte range, so a 8 MB MP3 does not have to cross USB to
+/// reach an ID3 tag that lives in its first 64 KB.
+pub const OP_GET_PARTIAL_OBJECT: u16 = 0x101B;
 pub const OP_SET_DEVICE_PROP_VALUE: u16 = 0x1015;
 pub const OP_SET_DEVICE_PROP: u16 = 0x1016;
 

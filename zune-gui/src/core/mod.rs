@@ -29,6 +29,7 @@
 //! Nothing here writes to `zune-rs`.
 
 pub mod device;
+pub mod id3;
 pub mod library;
 pub mod media;
 pub mod mtp;
