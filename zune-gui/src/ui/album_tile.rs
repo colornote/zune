@@ -5,7 +5,7 @@
 //! placeholder (pure black, 1px hairline, the album's initial in display type with a
 //! text glow) so a missing cover reads as a design, not as a loading failure.
 
-use eframe::egui::{self, Align2, Color32, FontId, Pos2, Rect, Response, Sense, TextureId, Ui, Vec2};
+use eframe::egui::{self, Color32, FontId, Pos2, Rect, Response, Sense, TextureId, Ui, Vec2};
 
 use crate::design::anim::{self, Lerp, Motion};
 use crate::design::paint::{self, GlowResponse, GLOW_MD, GLOW_SM, GLOW_TEXT};
@@ -82,34 +82,11 @@ impl<'a> AlbumTile<'a> {
         let lifted = Rect::from_center_size(cover.center(), cover.size() * scale);
         let painter = ui.painter();
 
-        match self.cover {
-            Some(texture) => {
-                paint::rounded_image(painter, texture, lifted, r_md(), CANVAS);
-            }
-            None => {
-                // The deliberate placeholder: black, hairline, one big initial.
-                painter.rect_filled(lifted, r_md(), CANVAS);
-                let initial = self
-                    .title
-                    .chars()
-                    .next()
-                    .map(|c| c.to_uppercase().to_string())
-                    .unwrap_or_else(|| "?".to_owned());
-                let galley = painter.layout_no_wrap(initial, FontId::new(size * 0.42, egui::FontFamily::Name(F_XLIGHT.into())), NEON_CYAN);
-                let pos = lifted.center() - galley.size() / 2.0;
-                paint::glow_galley(
-                    painter,
-                    pos,
-                    &galley,
-                    NEON_CYAN,
-                    GLOW_TEXT,
-                    GlowResponse::new(hover, press),
-                );
-                painter.galley(pos, galley, NEON_CYAN);
-            }
-        }
-
-        // The page signature lights the tile: cyan hairline + cyan glow.
+        // The page signature lights the tile from *behind*: the glow goes down first
+        // and the cover or the placeholder lands on top of it, so only the ring that
+        // escapes past the tile survives. The glow primitive fills its layers rather
+        // than stroking them, so painted on top it washed the whole face in cyan film
+        // — glaring on the thirty placeholder tiles, where nothing covers the fill.
         if hover > 0.01 || self.selected {
             paint::glow_rect(
                 painter,
@@ -119,6 +96,49 @@ impl<'a> AlbumTile<'a> {
                 GLOW_MD,
                 GlowResponse::new(hover, press),
             );
+        }
+
+        match self.cover {
+            Some(texture) => {
+                paint::rounded_image(painter, texture, lifted, r_md(), CANVAS);
+            }
+            None => {
+                // A tile without cover art is *designed*, not blank. Three layers:
+                // the surface tone lifts it off the canvas, the Zune dot grid gives
+                // it texture, and one small initial sits in the middle.
+                //
+                // It used to be a cyan initial at 42 % of the tile in full glow. In a
+                // wall of seventy-eight albums thirty of those shouted louder than the
+                // covers did, which is the opposite of what a placeholder is for: at
+                // rest this is furniture, and only hover is allowed to light it up.
+                painter.rect_filled(lifted, r_md(), SURFACE_1);
+                let grain = lifted.shrink(2.0);
+                paint::paint_dot_grid(painter, grain, &paint::dot_grid(ui.ctx()));
+
+                let initial = self
+                    .title
+                    .chars()
+                    .next()
+                    .map(|c| c.to_uppercase().to_string())
+                    .unwrap_or_else(|| "?".to_owned());
+                let font = FontId::new(size * 0.20, egui::FontFamily::Name(F_LIGHT.into()));
+                let color = TEXT_3.lerp(NEON_CYAN, hover);
+                let galley = painter.layout_no_wrap(initial, font, color);
+                let pos = lifted.center() - galley.size() / 2.0;
+                paint::glow_galley(
+                    painter,
+                    pos,
+                    &galley,
+                    NEON_CYAN,
+                    GLOW_TEXT,
+                    GlowResponse::new(hover, press),
+                );
+                painter.galley(pos, galley, color);
+            }
+        }
+
+        // The page signature lights the tile: cyan hairline + cyan glow.
+        if hover > 0.01 || self.selected {
             paint::hairline_lit(painter, lifted, r_md(), 0.55 + 0.35 * hover, NEON_CYAN);
         } else {
             paint::hairline(painter, lifted, r_md());
@@ -150,16 +170,12 @@ impl<'a> AlbumTile<'a> {
                 painter.circle_filled(dot, 3.5, paint::with_alpha(NEON_AMBER, 0.5 + 0.5 * phase));
             }
             CoverBadge::Failed(_) => {
-                let dot = Pos2::new(lifted.right() - 14.0, lifted.top() + 14.0);
-                paint::glow_circle(painter, dot, 4.0, NEON_MAGENTA, GLOW_SM, GlowResponse::IDLE);
-                painter.circle_filled(dot, 4.0, NEON_MAGENTA);
-                painter.text(
-                    Pos2::new(dot.x, dot.y),
-                    Align2::CENTER_CENTER,
-                    "!",
-                    FontId::new(9.0, egui::FontFamily::Name(F_BOLD.into())),
-                    TEXT_INV,
-                );
+                // A cover that was looked up and not found is not an incident — the
+                // tile already reads as a placeholder. A glowing magenta badge on
+                // thirty tiles was shouting; a small unlit dot only says "this one was
+                // attempted", and the reason is one hover away.
+                let dot = Pos2::new(lifted.right() - 13.0, lifted.top() + 13.0);
+                painter.circle_filled(dot, 2.5, paint::with_alpha(NEON_MAGENTA, 0.55));
             }
             CoverBadge::Ready | CoverBadge::Missing => {}
         }
@@ -174,6 +190,10 @@ impl<'a> AlbumTile<'a> {
 
         match &self.badge {
             CoverBadge::Failed(reason) => response.on_hover_text(format!("cover art unavailable: {reason}")),
+            CoverBadge::Missing => response.on_hover_text(format!(
+                "no cover art for {} · {}\n(the device stores none and no online match was close enough)",
+                self.title, self.subtitle
+            )),
             _ => {
                 let _ = TEXT_1.lerp(TEXT_2, 0.0);
                 response.on_hover_text(format!("{} · {}", self.title, self.subtitle))

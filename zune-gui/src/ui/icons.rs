@@ -10,6 +10,7 @@ use eframe::egui::{Color32, Painter, Pos2, Rect, Shape, Stroke, Vec2};
 pub enum Icon {
     Home,
     Note,
+    Disc,
     Grid,
     List,
     Person,
@@ -17,6 +18,7 @@ pub enum Icon {
     Film,
     Sync,
     Gear,
+    Device,
     Wifi,
     Search,
     Play,
@@ -36,9 +38,10 @@ pub enum Icon {
 
 impl Icon {
     /// Every icon, in board order.
-    pub const ALL: [Icon; 24] = [
+    pub const ALL: [Icon; 26] = [
         Icon::Home,
         Icon::Note,
+        Icon::Disc,
         Icon::Grid,
         Icon::List,
         Icon::Person,
@@ -46,6 +49,7 @@ impl Icon {
         Icon::Film,
         Icon::Sync,
         Icon::Gear,
+        Icon::Device,
         Icon::Wifi,
         Icon::Search,
         Icon::Play,
@@ -67,6 +71,7 @@ impl Icon {
         match self {
             Icon::Home => "Home",
             Icon::Note => "Note",
+            Icon::Disc => "Disc",
             Icon::Grid => "Grid",
             Icon::List => "List",
             Icon::Person => "Person",
@@ -74,6 +79,7 @@ impl Icon {
             Icon::Film => "Film",
             Icon::Sync => "Sync",
             Icon::Gear => "Gear",
+            Icon::Device => "Device",
             Icon::Wifi => "Wifi",
             Icon::Search => "Search",
             Icon::Play => "Play",
@@ -138,6 +144,11 @@ impl Icon {
                 line(vec![p(9.6, 5.0), p(16.0, 6.6), p(16.0, 11.0)]);
                 painter.circle_stroke(p(13.4, 13.0), 2.6 * scale, stroke);
             }
+            Icon::Disc => {
+                // A record: two concentric rings, nothing else — it reads at 16 px.
+                arc(10.0, 10.0, 7.4, 0.0, 360.0);
+                arc(10.0, 10.0, 2.6, 0.0, 360.0);
+            }
             Icon::Grid => {
                 rect_at(3.0, 3.0, 6.0, 6.0, 1.0);
                 rect_at(11.0, 3.0, 6.0, 6.0, 1.0);
@@ -178,6 +189,11 @@ impl Icon {
                     let (s, c) = a.sin_cos();
                     seg((10.0 + 4.6 * c, 10.0 + 4.6 * s), (10.0 + 7.0 * c, 10.0 + 7.0 * s));
                 }
+            }
+            Icon::Device => {
+                // A Zune-shaped player: tall rounded body, one round click pad.
+                rect_at(5.5, 2.5, 9.0, 15.0, 2.6);
+                painter.circle_stroke(p(10.0, 13.6), 2.1 * scale, stroke);
             }
             Icon::Wifi => {
                 arc(10.0, 15.5, 9.0, 200.0, 340.0);

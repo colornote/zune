@@ -341,7 +341,11 @@ fn is_audio(path: &Path) -> bool {
 /// answered 429, then 403, and a whole library came back empty for the rest of the run.
 /// A few one-off minutes is a fair price for a 90-album library.
 const ITUNES_INTERVAL: Duration = Duration::from_millis(3_000);
-const MUSICBRAINZ_INTERVAL: Duration = Duration::from_millis(1_100);
+/// MusicBrainz publishes "one request per second", but a run that keeps to exactly that
+/// still collected HTTP 503s: the limit is an average, and four prefetch threads asking
+/// in turn hit the burst ceiling. Two seconds is comfortably inside it, and a scan that is
+/// a little slower beats one that gets the whole run refused.
+const MUSICBRAINZ_INTERVAL: Duration = Duration::from_millis(2_000);
 
 static LAST_QUERY: Mutex<Option<Instant>> = Mutex::new(None);
 
@@ -555,11 +559,44 @@ fn musicbrainz_release(json: &str, artist: &str, album: &str) -> Option<String> 
 }
 
 /// A MusicBrainz query. Its API policy asks for a real User-Agent and one request a
-/// second; both are honoured here.
+/// second; both are honoured here. A 503 means the server is refusing rather than
+/// answering, so one slow retry is worth making before the album is written off.
 fn curl_musicbrainz(url: &str) -> Result<String> {
+    match curl_musicbrainz_once(url) {
+        Err(error) if is_server_busy(&error) => {
+            log::debug!("MusicBrainz answered 503 — retrying once after a pause");
+            std::thread::sleep(Duration::from_secs(4));
+            curl_musicbrainz_once(url)
+        }
+        other => other,
+    }
+}
+
+fn curl_musicbrainz_once(url: &str) -> Result<String> {
     throttle_queries(MUSICBRAINZ_INTERVAL);
     curl_status(url, MUSICBRAINZ_AGENT, false)
 }
+
+/// Did the server say "not now" rather than "no"?
+fn is_server_busy(error: &anyhow::Error) -> bool {
+    error.chain().any(|cause| {
+        cause
+            .downcast_ref::<ServerBusy>()
+            .is_some()
+    })
+}
+
+/// HTTP 503 from an online source: worth one retry, unlike a 404.
+#[derive(Debug)]
+pub struct ServerBusy;
+
+impl std::fmt::Display for ServerBusy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("the server answered 503 (busy or overloaded)")
+    }
+}
+
+impl std::error::Error for ServerBusy {}
 
 /// Download an image, following redirects and going through the local proxy when there
 /// is one.
@@ -737,6 +774,7 @@ fn curl_status(url: &str, agent: &str, proxy: bool) -> Result<String> {
     match code {
         "200" => Ok(body.to_owned()),
         "403" | "429" => bail!(RateLimited),
+        "503" => bail!(ServerBusy),
         other => bail!("curl for {url} answered HTTP {other}"),
     }
 }

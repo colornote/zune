@@ -7,16 +7,16 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 use eframe::egui::{
-    self, Align, Color32, CornerRadius, FontId, Layout, Rect, RichText, Sense, Stroke, Vec2,
+    self, Align, Align2, Color32, CornerRadius, FontId, Layout, Rect, RichText, Sense, Stroke, Vec2,
 };
 
 use crate::cache;
 use crate::design::anim::Motion;
-use crate::design::paint::{self, GlowResponse, GLOW_TEXT};
+use crate::design::paint::{self, GlowResponse, GLOW_MD, GLOW_SM, GLOW_TEXT};
 use crate::design::tokens::{
-    body, body_sm, h1, label, mono, r_md, tracked, BODY_SM, CARD_GAP, CANVAS, F_XLIGHT,
-    NEON_AMBER, NEON_CYAN, NEON_LIME, NEON_MAGENTA, SP_12, SP_24, SP_8, TEXT_1, TEXT_2,
-    TEXT_3,
+    body, body_sm, display, h1, h2, label, mono, r_md, r_pill, r_sm, subtitle, tracked, BODY_SM,
+    CARD_GAP, CANVAS, DISPLAY, F_LIGHT, F_XLIGHT, NEON_AMBER, NEON_CYAN, NEON_LIME, NEON_MAGENTA,
+    SP_12, SP_24, SP_8, SURFACE_1, SURFACE_2, TEXT_1, TEXT_2, TEXT_3,
 };
 use crate::ui::track_row::{track_row, TrackRow};
 use crate::core::library;
@@ -32,6 +32,7 @@ enum Page {
     Board,
     Tracks,
     Albums,
+    Artists,
     Push,
     Device,
     Wifi,
@@ -39,10 +40,11 @@ enum Page {
 }
 
 impl Page {
-    const ALL: [Page; 7] = [
+    const ALL: [Page; 8] = [
         Page::Board,
         Page::Tracks,
         Page::Albums,
+        Page::Artists,
         Page::Push,
         Page::Device,
         Page::Wifi,
@@ -54,6 +56,7 @@ impl Page {
             Page::Board => "Design",
             Page::Tracks => "Collection",
             Page::Albums => "Albums",
+            Page::Artists => "Artists",
             Page::Push => "Push",
             Page::Device => "Device",
             Page::Wifi => "Wi-Fi",
@@ -66,10 +69,27 @@ impl Page {
             Page::Board => "the design system, every token and component on one page",
             Page::Tracks => "every track on the device",
             Page::Albums => "albums and their cover art",
+            Page::Artists => "the names behind the albums",
             Page::Push => "copy music to the Zune",
             Page::Device => "identity, storage and the MTPZ session",
             Page::Wifi => "vendor WiFi opcodes 0x9225 / 0x9227 / 0x9228",
             Page::Log => "everything the device thread reported",
+        }
+    }
+
+    /// The navigation glyph. Chosen so the rail can be read at a glance: a disc for
+    /// the cover wall, a player body for the hardware page, a tray for uploads.
+    fn icon(self) -> crate::ui::icons::Icon {
+        use crate::ui::icons::Icon;
+        match self {
+            Page::Board => Icon::Grid,
+            Page::Tracks => Icon::Note,
+            Page::Albums => Icon::Disc,
+            Page::Artists => Icon::Person,
+            Page::Push => Icon::Upload,
+            Page::Device => Icon::Device,
+            Page::Wifi => Icon::Wifi,
+            Page::Log => Icon::List,
         }
     }
 }
@@ -136,6 +156,23 @@ enum CoverState {
     Failed(String),
 }
 
+/// One row of the Artists page: the library's albums folded by artist name.
+struct ArtistRow {
+    name: String,
+    albums: usize,
+    tracks: usize,
+    duration: u32,
+    /// The thumbnail is borrowed from one of the artist's albums — the device has no
+    /// image object of its own for an artist. These three mirror the album wall's own
+    /// lookup: a device handle to download, or a synthetic key plus an album name to
+    /// send down the fallback ladder.
+    key: u32,
+    handle: Option<u32>,
+    album_name: String,
+    /// Whether that album actually has artwork yet.
+    has_art: bool,
+}
+
 pub struct ZuneApp {
     worker: Worker,
     link: Link,
@@ -176,6 +213,8 @@ pub struct ZuneApp {
     album_sort: AlbumSort,
     album_search: String,
     album_open: Option<String>,
+    /// Artists page: the filter over the folded artist list.
+    artist_search: String,
     /// Set once the first frame has run (demo mode uses it to wait for the worker).
     warmed_up: bool,
     /// P0 component board demo state.
@@ -214,6 +253,7 @@ impl ZuneApp {
             page: match std::env::var("ZUNE_PAGE").ok().as_deref() {
                 Some("tracks") => Page::Tracks,
                 Some("albums") => Page::Albums,
+                Some("artists") => Page::Artists,
                 Some("push") => Page::Push,
                 Some("device") => Page::Device,
                 Some("wifi") => Page::Wifi,
@@ -239,6 +279,7 @@ impl ZuneApp {
             // Dev affordance: ZUNE_ALBUM="Kid A" opens that detail view directly,
             // so the page can be reviewed/screenshot without a click.
             album_open: std::env::var("ZUNE_ALBUM").ok(),
+            artist_search: String::new(),
             warmed_up: false,
             board: BoardState::default(),
             confirm_delete: None,
@@ -312,12 +353,13 @@ impl ZuneApp {
                     self.cover_pending.remove(&handle);
                 }
                 Event::CoverFailed { handle, reason } => {
-                    // The device refused it or the payload would not decode: say so in
-                    // the Log (warn), and let the tile carry the reason on hover.
-                    self.logs.push(LogLine::warn(format!(
+                    // The device refused it or the payload would not decode. This is the
+                    // *expected* outcome for the thirty-odd albums nothing online matches,
+                    // so it goes to the Log without claiming the status bar: a running
+                    // commentary of covers that do not exist is noise, not status.
+                    self.logs.push(LogLine::info(format!(
                         "cover art {handle:#010x} unavailable: {reason}"
                     )));
-                    self.last_log = self.logs.last().cloned();
                     self.covers.insert(handle, CoverState::Failed(reason));
                     self.cover_pending.remove(&handle);
                 }
@@ -482,7 +524,221 @@ impl ZuneApp {
         rows
     }
 
+    /// The library folded by artist name, in alphabetical order.
+    ///
+    /// Case is folded for grouping — "paramore" and "Paramore" are one artist — but the
+    /// first spelling the library produced is the one shown. The device has no artist
+    /// objects, so every number here is summed from the albums it owns.
+    fn artist_rows(&self) -> Vec<ArtistRow> {
+        let needle = self.artist_search.trim().to_lowercase();
+        let mut by_name: HashMap<String, ArtistRow> = HashMap::new();
+        for album in &self.albums {
+            let display = if album.artist.trim().is_empty() {
+                "Unknown Artist".to_owned()
+            } else {
+                album.artist.trim().to_owned()
+            };
+            let row = by_name
+                .entry(display.to_lowercase())
+                .or_insert_with(|| ArtistRow {
+                    name: display.clone(),
+                    albums: 0,
+                    tracks: 0,
+                    duration: 0,
+                    key: album.cover_key,
+                    handle: album.cover_handle,
+                    album_name: album.name.clone(),
+                    has_art: album.cover_source.is_found(),
+                });
+            row.albums += 1;
+            row.tracks += album.tracks;
+            row.duration += album.duration;
+            // The thumbnail wants an album that actually has art, and the first one seen
+            // may not. Art beats no art; otherwise the first album wins.
+            if !row.has_art && album.cover_source.is_found() {
+                row.key = album.cover_key;
+                row.handle = album.cover_handle;
+                row.album_name = album.name.clone();
+                row.has_art = true;
+            }
+        }
+        let mut rows: Vec<ArtistRow> = by_name
+            .into_values()
+            .filter(|row| needle.is_empty() || row.name.to_lowercase().contains(&needle))
+            .collect();
+        rows.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+        rows
+    }
+
+    /// Artists: a tall, calm list. The page signature is magenta, so the only neon here
+    /// is the hover marker and the monogram of an artist with no cached cover.
+    fn artists_page(&mut self, ui: &mut egui::Ui, motion: &mut Motion) {
+        self.banner(ui);
+        let rows = self.artist_rows();
+        let mut jump: Option<String> = None;
+
+        // Ask for the thumbnails before drawing, using exactly the album wall's two
+        // routes: a device handle gets downloaded, and an album with no art object goes
+        // down the fallback ladder. `cover_pending` keeps this from repeating every frame.
+        for row in &rows {
+            if !row.has_art
+                || self.covers.contains_key(&row.key)
+                || self.cover_pending.contains(&row.key)
+            {
+                continue;
+            }
+            match row.handle {
+                Some(handle) => self.request_cover(handle),
+                None => {
+                    self.cover_pending.insert(row.key);
+                    self.worker.send(Command::FetchFallbackCover {
+                        key: row.key,
+                        artist: row.name.clone(),
+                        album: row.album_name.clone(),
+                    });
+                }
+            }
+        }
+
+        ui.horizontal(|ui| {
+            ui.label(RichText::new(format!("{} artists", rows.len())).strong());
+            ui.add_space(SP_8);
+            ui.add(
+                egui::TextEdit::singleline(&mut self.artist_search)
+                    .hint_text("filter artists")
+                    .desired_width(220.0),
+            );
+            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                let tracks: usize = rows.iter().map(|r| r.tracks).sum();
+                ui.label(
+                    RichText::new(format!("{tracks} tracks"))
+                        .color(TEXT_3)
+                        .size(12.0),
+                );
+            });
+        });
+        ui.add_space(SP_12);
+
+        if rows.is_empty() {
+            self.empty_hint(ui, "No artist matches that filter.");
+            return;
+        }
+
+        egui::ScrollArea::vertical()
+            .auto_shrink([false; 2])
+            .show(ui, |ui| {
+                for (index, row) in rows.iter().enumerate() {
+                    let (rect, response) = ui.allocate_exact_size(
+                        Vec2::new(ui.available_width(), 64.0),
+                        Sense::click(),
+                    );
+                    let id = ui.id().with(("artist-row", index));
+                    let hover = crate::design::anim::spring_at(
+                        ui,
+                        id.with("hover"),
+                        response.hovered() as u8 as f32,
+                        motion,
+                    );
+                    let painter = ui.painter();
+
+                    if hover > 0.01 {
+                        painter.rect_filled(rect, r_md(), paint::with_alpha(SURFACE_2, hover));
+                        // The marker grows out of the row's centre rather than sliding in.
+                        let bar = Rect::from_min_max(
+                            egui::pos2(rect.left() + 2.0, rect.center().y - 11.0 * hover),
+                            egui::pos2(rect.left() + 5.0, rect.center().y + 11.0 * hover),
+                        );
+                        paint::neon_fill(
+                            painter,
+                            bar,
+                            r_pill(),
+                            NEON_MAGENTA,
+                            GLOW_MD,
+                            GlowResponse::hovered(hover),
+                        );
+                    }
+
+                    // Thumbnail: one of the artist's covers when it is already cached,
+                    // else a monogram on the surface tone.
+                    let thumb = Rect::from_center_size(
+                        egui::pos2(rect.left() + 42.0, rect.center().y),
+                        Vec2::splat(44.0),
+                    );
+                    match self.covers.get(&row.key) {
+                        Some(CoverState::Ready(texture)) => {
+                            paint::rounded_image(painter, texture.id(), thumb, r_sm(), CANVAS);
+                        }
+                        _ => {
+                            painter.rect_filled(thumb, r_sm(), SURFACE_1);
+                            paint::hairline(painter, thumb, r_sm());
+                            let initial = row
+                                .name
+                                .chars()
+                                .next()
+                                .map(|c| c.to_uppercase().to_string())
+                                .unwrap_or_default();
+                            painter.text(
+                                thumb.center(),
+                                Align2::CENTER_CENTER,
+                                initial,
+                                FontId::new(19.0, egui::FontFamily::Name(F_LIGHT.into())),
+                                paint::with_alpha(NEON_MAGENTA, 0.75),
+                            );
+                        }
+                    }
+
+                    painter.text(
+                        egui::pos2(rect.left() + 76.0, rect.center().y - 9.0),
+                        Align2::LEFT_CENTER,
+                        &row.name,
+                        h2(),
+                        TEXT_1,
+                    );
+                    painter.text(
+                        egui::pos2(rect.left() + 76.0, rect.center().y + 15.0),
+                        Align2::LEFT_CENTER,
+                        format!(
+                            "{} album{} · {} tracks",
+                            row.albums,
+                            if row.albums == 1 { "" } else { "s" },
+                            row.tracks
+                        ),
+                        body_sm(),
+                        TEXT_3,
+                    );
+                    painter.text(
+                        egui::pos2(rect.right() - 16.0, rect.center().y),
+                        Align2::RIGHT_CENTER,
+                        duration_label(row.duration),
+                        mono(13.0),
+                        TEXT_3,
+                    );
+
+                    if response.clicked() {
+                        jump = Some(row.name.clone());
+                    }
+                    response.on_hover_text(format!("Show {} in Albums", row.name));
+                }
+            });
+
+        if let Some(name) = jump {
+            // Reuse the album filter so the wall lands on exactly this artist, sorted by
+            // artist so the result reads as one block.
+            self.album_search = name;
+            self.album_sort = AlbumSort::Artist;
+            self.page = Page::Albums;
+        }
+    }
+
     fn request_cover(&mut self, handle: u32) {
+        // Synthetic keys (top bit set) are derived from artist + album *because* the device
+        // has no cover object for that album. Asking it for one can only ever fail, and it
+        // used to spend a GetObject plus a GetThumb per album to be told so — which is how
+        // "expected a DATA container, got type 0x0003" ended up in the status bar. Those
+        // covers come from the online ladder instead, which the worker prefetches.
+        if handle & 0x8000_0000 != 0 {
+            return;
+        }
         if self.covers.contains_key(&handle) || self.cover_pending.contains(&handle) {
             return;
         }
@@ -652,8 +908,19 @@ impl ZuneApp {
                         );
                     }
                     let color = if selected { ORANGE } else if response.hovered() { TEXT } else { MUTED };
+                    // The icon leads the label, and both take the row's state colour, so
+                    // a selected row reads as one lit object instead of a bar plus some
+                    // text that happens to sit next to it.
+                    page.icon().draw(
+                        painter,
+                        egui::Rect::from_center_size(
+                            egui::pos2(rect.left() + 26.0, rect.center().y),
+                            Vec2::splat(17.0),
+                        ),
+                        color,
+                    );
                     painter.text(
-                        egui::pos2(rect.left() + 18.0, rect.center().y),
+                        egui::pos2(rect.left() + 46.0, rect.center().y),
                         egui::Align2::LEFT_CENTER,
                         page.title(),
                         crate::design::tokens::body(),
@@ -710,10 +977,51 @@ impl ZuneApp {
                         }
                         _ => match (&self.last_summary, &self.last_log) {
                             (Some((ok, summary)), _) => {
-                                let color = if *ok { GREEN } else { RED };
-                                ui.label(RichText::new(summary).color(color));
+                                // A status line is furniture, not an alarm. A small lit
+                                // dot carries the verdict and the sentence stays in body
+                                // colour; painting the whole line in saturated red made
+                                // every lookup failure the loudest thing on screen.
+                                let (rect, _) =
+                                    ui.allocate_exact_size(Vec2::new(10.0, 10.0), Sense::hover());
+                                let tint = if *ok { NEON_LIME } else { NEON_MAGENTA };
+                                let painter = ui.painter();
+                                paint::glow_circle(
+                                    painter,
+                                    rect.center(),
+                                    3.0,
+                                    tint,
+                                    GLOW_SM,
+                                    GlowResponse::IDLE,
+                                );
+                                painter.circle_filled(rect.center(), 3.0, tint);
+                                let width = (ui.available_width() - 260.0).max(120.0);
+                                ui.allocate_ui_with_layout(
+                                    egui::vec2(width, 20.0),
+                                    Layout::left_to_right(Align::Center),
+                                    |ui| {
+                                        ui.add(
+                                            egui::Label::new(
+                                                RichText::new(summary.as_str()).color(TEXT_1),
+                                            )
+                                            .truncate(),
+                                        );
+                                    },
+                                );
                             }
                             (None, Some(line)) => {
+                                let (rect, _) =
+                                    ui.allocate_exact_size(Vec2::new(10.0, 10.0), Sense::hover());
+                                let tint = level_color(line.level);
+                                let painter = ui.painter();
+                                paint::glow_circle(
+                                    painter,
+                                    rect.center(),
+                                    3.0,
+                                    tint,
+                                    GLOW_SM,
+                                    GlowResponse::IDLE,
+                                );
+                                painter.circle_filled(rect.center(), 3.0, tint);
                                 let width = (ui.available_width() - 260.0).max(120.0);
                                 ui.allocate_ui_with_layout(
                                     egui::vec2(width, 20.0),
@@ -722,7 +1030,7 @@ impl ZuneApp {
                                         ui.add(
                                             egui::Label::new(
                                                 RichText::new(line.text.replace('\n', " "))
-                                                    .color(level_color(line.level)),
+                                                    .color(TEXT_2),
                                             )
                                             .truncate(),
                                         );
@@ -730,7 +1038,7 @@ impl ZuneApp {
                                 );
                             }
                             (None, None) => {
-                                ui.label(RichText::new("Ready").color(MUTED));
+                                ui.label(RichText::new("Ready").color(TEXT_3));
                             }
                         },
                     }
@@ -751,11 +1059,32 @@ impl ZuneApp {
     // ── pages ────────────────────────────────────────────────────────────────
 
     fn page_header(&mut self, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
-            ui.label(RichText::new(self.page.title()).size(26.0));
-            ui.label(RichText::new(self.page.subtitle()).color(MUTED));
-        });
-        ui.add_space(4.0);
+        // v1.1 §2.2.1: the page title is 88 pt ExtraLight and it *bleeds*. It is
+        // clipped by the content column instead of wrapping or shrinking, and the
+        // deliberately tight box crops the descender so the baseline sits low and
+        // heavy the way Zune HD's did. The italic subtitle underneath is the Metro
+        // counterweight to all that white.
+        let galley = ui.painter().layout_no_wrap(
+            self.page.title().to_owned(),
+            display(),
+            TEXT_1,
+        );
+        let height = DISPLAY * 0.80;
+        let (rect, _) =
+            ui.allocate_exact_size(egui::vec2(ui.available_width(), height), Sense::hover());
+        let painter = ui.painter().with_clip_rect(rect);
+        painter.galley(
+            egui::pos2(rect.left(), rect.bottom() - galley.size().y),
+            galley,
+            TEXT_1,
+        );
+        ui.add_space(2.0);
+        ui.label(
+            RichText::new(self.page.subtitle())
+                .font(subtitle())
+                .color(TEXT_3),
+        );
+        ui.add_space(SP_8);
     }
 
     fn banner(&mut self, ui: &mut egui::Ui) {
@@ -1820,6 +2149,7 @@ impl eframe::App for ZuneApp {
                     Page::Board => board::board(ui, &mut motion, &mut self.board),
                     Page::Tracks => self.tracks_page(ui),
                     Page::Albums => self.albums_page(ui, &mut motion),
+                    Page::Artists => self.artists_page(ui, &mut motion),
                     Page::Push => self.push_page(ui),
                     Page::Device => self.device_page(ui),
                     Page::Wifi => self.wifi_page(ui),
