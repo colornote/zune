@@ -144,6 +144,12 @@ enum Command {
         target: String,
     },
 
+    /// Read the device's own properties — battery level lives at 0x5001
+    DevProps {
+        /// Only read this property code (decimal or 0x…); default: all advertised
+        code: Option<String>,
+    },
+
     /// Inspect (and optionally reset) the USB link — diagnosis for a dead session
     Usb {
         /// Reset the device and wait for it to re-enumerate
@@ -220,6 +226,7 @@ fn main() -> Result<()> {
         Command::Tracks { grep } => cmd_tracks(&mut s, key_path.as_deref(), grep.as_deref()),
         Command::Ops => cmd_ops(&mut s),
         Command::Props { target } => cmd_props(&mut s, key_path.as_deref(), &target),
+        Command::DevProps { code } => cmd_dev_props(&mut s, code.as_deref()),
         Command::Albums => cmd_albums(&mut s, key_path.as_deref()),
         Command::List { kind } => cmd_list(&mut s, key_path.as_deref(), &kind),
         Command::GetObject { handle, out, bytes } => {
@@ -465,6 +472,50 @@ fn cmd_ops(s: &mut Session) -> Result<()> {
     ] {
         let yes = di.operations.contains(&op);
         println!("  {label:<24} {op:#06x}  {}", if yes { "supported" } else { "NOT advertised" });
+    }
+    Ok(())
+}
+
+fn cmd_dev_props(s: &mut Session, only: Option<&str>) -> Result<()> {
+    let di = s.device_info()?;
+    let codes: Vec<u16> = match only {
+        Some(t) => vec![parse_handle(t)? as u16],
+        None => di.device_props.clone(),
+    };
+    if codes.is_empty() {
+        println!("the device advertises no readable device properties");
+        return Ok(());
+    }
+    println!("{} device properties advertised:\n", di.device_props.len());
+    for code in codes {
+        let name = mtp::device_prop_name(code);
+        let desc = s.get_device_prop_desc(code);
+        // DeviceIcon / DeviceCertificates are blobs: report the size, not the bytes.
+        let value = match s.get_device_prop_value(code) {
+            Ok(v) if v.len() > 4096 => format!("<{} bytes>", v.len()),
+            Ok(v) => match &desc {
+                Ok(d) => d.decode(&v).unwrap_or_else(|_| hexdump(&v)),
+                Err(_) => hexdump(&v),
+            },
+            Err(e) => format!("<read failed: {e:#}>"),
+        };
+        match &desc {
+            Ok(d) => {
+                let form = if let Some((min, max, step)) = d.range {
+                    format!("range {min}..{max} step {step}")
+                } else if !d.enum_vals.is_empty() {
+                    format!("enum [{}]", d.enum_vals.join(", "))
+                } else {
+                    String::from("-")
+                };
+                println!(
+                    "  {code:#06x} {name:<26} {:#06x} {:<7} {form:<22} = {value}",
+                    d.datatype,
+                    if d.writable() { "get/set" } else { "get" },
+                );
+            }
+            Err(e) => println!("  {code:#06x} {name:<26} desc failed ({e:#}) = {value}"),
+        }
     }
     Ok(())
 }

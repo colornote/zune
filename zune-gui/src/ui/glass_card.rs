@@ -8,7 +8,7 @@
 use eframe::egui::{Color32, CornerRadius, Rect, Response, Sense, Ui, UiBuilder, Vec2};
 
 use crate::design::anim::{self, Motion};
-use crate::design::paint::{self, GlowResponse, GLOW_MD};
+use crate::design::paint::{self, GlowResponse, GLOW_SM};
 use crate::design::tokens::*;
 
 pub struct GlassCard {
@@ -110,33 +110,38 @@ impl GlassCard {
         let painter = ui.painter();
 
         let base = if self.raised { SURFACE_2 } else { SURFACE_1 };
-        painter.rect_filled(body, self.radius, base);
-
-        // The accent lights up the edge on hover/selection; the glow is what gives
-        // the card its presence on pure black.
         let lit = (hover * 0.5 + select).min(1.0);
-        if self.hairline {
-            if lit > 0.01 {
-                paint::hairline_lit(
-                    painter,
-                    body,
-                    self.radius,
-                    lit * 0.55,
-                    self.accent,
-                );
-            } else {
-                paint::hairline(painter, body, self.radius);
-            }
-        }
+
+        // Glow *under* the surface, not over it.
+        //
+        // `glow_rect` fills its layers rather than stroking them — right for a 3 px
+        // indicator, wrong for a 158 px card: painted after the fill, the wash covered
+        // the whole face and hovering a card turned it into a colour block. Underneath,
+        // the fill hides the inner half and only the ring escaping past the edge
+        // survives. That is the same trick the album tiles use for the same reason.
+        //
+        // GLOW_SM rather than GLOW_MD: a 40 px far ring is a quarter of a card's height,
+        // so it read as a wash even at low alpha.
         if select > 0.01 || hover > 0.01 {
             paint::glow_rect(
                 painter,
                 body,
                 self.radius,
                 self.accent,
-                GLOW_MD,
-                GlowResponse::new(hover * 0.55, press),
+                GLOW_SM,
+                GlowResponse::new(hover * 0.65, press),
             );
+        }
+
+        painter.rect_filled(body, self.radius, base);
+
+        // The edge is the signal. Hover brightens it; nothing else about the card moves.
+        if self.hairline {
+            if lit > 0.01 {
+                paint::hairline_lit(painter, body, self.radius, lit * 0.75, self.accent);
+            } else {
+                paint::hairline(painter, body, self.radius);
+            }
         }
 
         let inner = body.shrink2(self.padding);

@@ -82,7 +82,10 @@ pub fn device_pill(
 
     let painter = ui.painter();
     let body = surface_for(state);
-    painter.rect_filled(rect, r_pill(), body);
+
+    // Glow under the fill, not over it — `glow_rect` fills its layers rather than
+    // stroking them, so painted afterwards it washes the whole pill in the accent
+    // instead of ringing it. Same ordering as the cards; see `glass_card`.
     if hover > 0.01 {
         paint::glow_rect(
             painter,
@@ -93,6 +96,7 @@ pub fn device_pill(
             paint::GlowResponse::hovered(hover * 0.6),
         );
     }
+    painter.rect_filled(rect, r_pill(), body);
     // The hairline is what keeps the pill readable on pure black.
     paint::hairline(painter, rect, r_pill());
 

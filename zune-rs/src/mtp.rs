@@ -28,7 +28,10 @@ pub const OP_GET_OBJECT: u16 = 0x1009;
 /// GetPartialObject: read a byte range, so a 8 MB MP3 does not have to cross USB to
 /// reach an ID3 tag that lives in its first 64 KB.
 pub const OP_GET_PARTIAL_OBJECT: u16 = 0x101B;
-pub const OP_SET_DEVICE_PROP_VALUE: u16 = 0x1015;
+/// GetDevicePropDesc: a property's metadata (data type, readable/writable, range/enum).
+pub const OP_GET_DEVICE_PROP_DESC: u16 = 0x1014;
+/// GetDevicePropValue: read a device property. Battery level is 0x5001.
+pub const OP_GET_DEVICE_PROP_VALUE: u16 = 0x1015;
 pub const OP_SET_DEVICE_PROP: u16 = 0x1016;
 
 // object properties (MTP 1.0 extension block)
@@ -55,6 +58,34 @@ pub const OP_WIFI_TEST_CONNECTIVITY: u16 = 0x9228; // -> ZNetTestConnectivity
 
 // device properties
 pub const DEVPROP_SESSION_INITIATOR: u16 = 0xD406;
+
+/// Device property names (MTP 1.0, section 5.3). The Zune reports its own list in
+/// GetDeviceInfo; this only puts a name on a code.
+pub fn device_prop_name(code: u16) -> &'static str {
+    match code {
+        0x5001 => "BatteryLevel",
+        0x5002 => "FunctionalMode",
+        0x5003 => "ImageSize",
+        0x5004 => "Manufacturer",
+        0x5005 => "Model",
+        0x5006 => "DeviceVersion",
+        0x5007 => "SerialNumber",
+        0x5008 => "DeviceCertificates",
+        0x5009 => "SupportedFormats",
+        0x500A => "SupportedFormatsOrdered",
+        0x500B => "DeviceIcon",
+        0x500C => "PlaybackRate",
+        0x500D => "PlaybackObject",
+        0x500E => "PlaybackContainerIndex",
+        0x500F => "PlaybackPosition",
+        0x5010 => "SynchronizationPartner",
+        0x5011 => "DeviceFriendlyName",
+        0x5012 => "Volume",
+        0x5013 => "MaximumVolume",
+        DEVPROP_SESSION_INITIATOR => "SessionInitiator (vendor)",
+        _ => "unknown",
+    }
+}
 
 // object formats
 pub mod fmt {
@@ -126,6 +157,8 @@ pub fn op_name(op: u16) -> &'static str {
         OP_DELETE_OBJECT => "DeleteObject",
         OP_SEND_OBJECT_INFO => "SendObjectInfo",
         OP_SEND_OBJECT => "SendObject",
+        OP_GET_DEVICE_PROP_DESC => "GetDevicePropDesc",
+        OP_GET_DEVICE_PROP_VALUE => "GetDevicePropValue",
         OP_SET_DEVICE_PROP => "SetDevicePropValue",
         OP_SET_OBJECT_PROP => "SetObjectPropValue",
         OP_GET_OBJECT_PROP => "GetObjectPropValue",
@@ -240,6 +273,9 @@ pub fn u16_at(d: &[u8], o: usize) -> Result<u16> {
 }
 pub fn u32_at(d: &[u8], o: usize) -> Result<u32> {
     Ok(u32::from_le_bytes(d.get(o..o + 4).context("u32 out of range")?.try_into()?))
+}
+pub fn u64_at(d: &[u8], o: usize) -> Result<u64> {
+    Ok(u64::from_le_bytes(d.get(o..o + 8).context("u64 out of range")?.try_into()?))
 }
 
 /// List of u32 as carried in MTP arrays (leading count).

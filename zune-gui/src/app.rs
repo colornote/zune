@@ -15,7 +15,7 @@ use crate::cache;
 use crate::design::anim::Motion;
 use crate::design::paint::{self, GlowResponse, GLOW_MD, GLOW_SM, GLOW_TEXT};
 use crate::design::tokens::{
-    body, body_sm, display, h1, h2, human_bytes, label, mono, r_md, r_pill, r_sm, subtitle,
+    body, body_sm, display, h1, h2, h3, human_bytes, label, mono, r_md, r_pill, r_sm, subtitle,
     tracked, BODY_SM, CARD_GAP, CANVAS, DISPLAY, F_LIGHT, F_XLIGHT, HAIRLINE, NEON_AMBER, NEON_LIME,
     NEON_MAGENTA, NEON_ORANGE, SP_12, SP_16, SP_24, SP_32, SP_8, SURFACE_1, SURFACE_2, TEXT_1,
     TEXT_2, TEXT_3,
@@ -711,14 +711,17 @@ impl ZuneApp {
                     }
 
                     if self.snapshot.library_bytes > 0 {
-                        let foot = painter.layout_no_wrap(
-                            format!(
-                                "{} of audio in the library file",
-                                human_bytes(self.snapshot.library_bytes)
-                            ),
-                            body_sm(),
-                            TEXT_2,
-                        );
+                        // The format breakdown belongs here rather than in a section of its
+                        // own: it answers the same question as the figure above it ("what is
+                        // on here"), and "all WMA" is easier to notice next to the number it
+                        // explains. This is also the only place the client shows it.
+                        let mut foot_text =
+                            format!("{} of audio", human_bytes(self.snapshot.library_bytes));
+                        if !self.snapshot.format_summary.is_empty() {
+                            foot_text.push_str(" · ");
+                            foot_text.push_str(&self.snapshot.format_summary);
+                        }
+                        let foot = painter.layout_no_wrap(foot_text, body_sm(), TEXT_2);
                         painter.galley(
                             egui::pos2(rect.left(), rect.bottom() - CARD_FOOT - foot.size().y),
                             foot,
@@ -878,6 +881,9 @@ impl ZuneApp {
             }
         }
 
+        /// Wide enough for a caption to be readable, narrow enough that eight of them plus
+        /// gaps fill the column.
+        const STRIP_TILE: f32 = 124.0;
         let ready = |key: &u32| matches!(self.covers.get(key), Some(CoverState::Ready(_)));
         let mut strip: Vec<&Album> = self.albums.iter().take(12).collect();
         // Albums that already have art lead the strip; the rest keep their order behind
@@ -892,10 +898,12 @@ impl ZuneApp {
         if total == 0 {
             self.empty_hint(ui, "No library yet — Refresh reads the device once it is connected.");
         } else {
-            ui.horizontal(|ui| {
+            ui.horizontal_top(|ui| {
                 for album in &strip {
+                    ui.vertical(|ui| {
+                    ui.set_width(STRIP_TILE);
                     let (rect, response) =
-                        ui.allocate_exact_size(Vec2::splat(124.0), Sense::click());
+                        ui.allocate_exact_size(Vec2::splat(STRIP_TILE), Sense::click());
                     match self.covers.get(&album.cover_key) {
                         Some(CoverState::Ready(texture)) => {
                             paint::rounded_image(ui.painter(), texture.id(), rect, r_md(), CANVAS);
@@ -908,10 +916,26 @@ impl ZuneApp {
                             paint::hairline(painter, rect, r_md());
                         }
                     }
+                    // The same two-line caption the album wall puts under its tiles, so a
+                    // cover says the same thing in both places. Without it the strip was
+                    // eight anonymous squares and you had to hover to learn what they were.
+                    ui.add_space(SP_8);
+                    ui.add(
+                        egui::Label::new(RichText::new(&album.name).font(h3()).color(TEXT_1))
+                            .truncate(),
+                    );
+                    ui.add_space(1.0);
+                    ui.add(
+                        egui::Label::new(
+                            RichText::new(&album.artist).font(body_sm()).color(TEXT_2),
+                        )
+                        .truncate(),
+                    );
                     if response.clicked() {
                         open_album = Some(album.name.clone());
                     }
                     response.on_hover_text(format!("{} · {}", album.name, album.artist));
+                    });
                 }
             });
         }

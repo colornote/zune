@@ -149,6 +149,25 @@ impl Session {
         Ok(())
     }
 
+    // ── device properties ────────────────────────────────────────────────────
+
+    /// GetDevicePropDesc: the property's metadata (data type, read/write, range/enum).
+    pub fn get_device_prop_desc(&mut self, code: u16) -> Result<DevicePropDesc> {
+        self.send_cmd(OP_GET_DEVICE_PROP_DESC, &[code as u32])?;
+        let d = self.recv_data()?.data;
+        self.recv_resp()?;
+        DevicePropDesc::parse(&d)
+    }
+
+    /// GetDevicePropValue: the property's current value, still in wire form. The
+    /// caller decodes it with the data type the descriptor reported.
+    pub fn get_device_prop_value(&mut self, code: u16) -> Result<Vec<u8>> {
+        self.send_cmd(OP_GET_DEVICE_PROP_VALUE, &[code as u32])?;
+        let d = self.recv_data()?.data;
+        self.recv_resp()?;
+        Ok(d)
+    }
+
     // ── MTPZ handshake ──────────────────────────────────────────────────────
 
     pub fn reset_mtpz(&mut self) -> Result<()> {
@@ -496,6 +515,8 @@ pub struct DeviceInfo {
     pub vendor_ext_desc: String,
     pub functional_mode: u16,
     pub operations: Vec<u16>,
+    /// Device properties the device answers GetDevicePropValue for (1050 property).
+    pub device_props: Vec<u16>,
     pub manufacturer: String,
     pub model: String,
     pub device_version: String,
@@ -523,6 +544,8 @@ impl DeviceInfo {
             let n = u32_at(d, o)? as usize;
             if i == 0 {
                 out.operations = (0..n).filter_map(|k| u16_at(d, o + 4 + k * 2).ok()).collect();
+            } else if i == 2 {
+                out.device_props = (0..n).filter_map(|k| u16_at(d, o + 4 + k * 2).ok()).collect();
             }
             o += 4 + n * 2;
         }
@@ -539,6 +562,111 @@ impl DeviceInfo {
         out.serial_number = serial;
         Ok(out)
     }
+}
+
+// ── device property descriptor ───────────────────────────────────────────────
+
+/// A decoded GetDevicePropDesc response.
+///
+/// Layout: `u16 code, u16 datatype, u8 get_set, <datatype> factory,
+/// <datatype> current, u8 form` followed by form data (range: min/max/step;
+/// enumeration: `u16 count` then values).
+#[derive(Debug, Clone, Default)]
+pub struct DevicePropDesc {
+    pub code: u16,
+    pub datatype: u16,
+    pub get_set: u8,
+    pub factory: String,
+    pub current: String,
+    pub form: u8,
+    pub range: Option<(i64, i64, i64)>,
+    pub enum_vals: Vec<String>,
+}
+
+impl DevicePropDesc {
+    pub fn parse(d: &[u8]) -> Result<Self> {
+        let mut o = 0usize;
+        let mut out = DevicePropDesc::default();
+        out.code = u16_at(d, o)?;
+        o += 2;
+        out.datatype = u16_at(d, o)?;
+        o += 2;
+        out.get_set = *d.get(o).context("truncated DevicePropDesc (get/set)")?;
+        o += 1;
+        out.factory = read_typed(d, &mut o, out.datatype)?;
+        out.current = read_typed(d, &mut o, out.datatype)?;
+        out.form = *d.get(o).context("truncated DevicePropDesc (form flag)")?;
+        o += 1;
+        match out.form {
+            0x01 => {
+                let min = read_typed(d, &mut o, out.datatype)?;
+                let max = read_typed(d, &mut o, out.datatype)?;
+                let step = read_typed(d, &mut o, out.datatype)?;
+                out.range = Some((
+                    min.parse().unwrap_or(0),
+                    max.parse().unwrap_or(0),
+                    step.parse().unwrap_or(0),
+                ));
+            }
+            0x02 => {
+                let n = u16_at(d, o)? as usize;
+                o += 2;
+                for _ in 0..n {
+                    out.enum_vals.push(read_typed(d, &mut o, out.datatype)?);
+                }
+            }
+            _ => {}
+        }
+        Ok(out)
+    }
+
+    /// Decode a GetDevicePropValue payload using this descriptor's data type.
+    pub fn decode(&self, d: &[u8]) -> Result<String> {
+        let mut o = 0usize;
+        read_typed(d, &mut o, self.datatype)
+    }
+
+    pub fn writable(&self) -> bool {
+        self.get_set == 0x01
+    }
+}
+
+/// Read one `<datatype>` value as text: numbers in decimal, strings as text,
+/// 128-bit integers as hex.
+fn read_typed(d: &[u8], o: &mut usize, datatype: u16) -> Result<String> {
+    Ok(match datatype {
+        0x0001 | 0x0002 => {
+            let v = *d.get(*o).context("truncated 8-bit value")?;
+            *o += 1;
+            v.to_string()
+        }
+        0x0003 | 0x0004 => {
+            let v = u16_at(d, *o)?;
+            *o += 2;
+            v.to_string()
+        }
+        0x0005 | 0x0006 => {
+            let v = u32_at(d, *o)?;
+            *o += 4;
+            v.to_string()
+        }
+        0x0007 | 0x0008 => {
+            let v = u64_at(d, *o)?;
+            *o += 8;
+            v.to_string()
+        }
+        0x0009 | 0x000A => {
+            let v = d.get(*o..*o + 16).context("truncated 128-bit value")?;
+            *o += 16;
+            v.iter().map(|b| format!("{b:02x}")).collect::<String>()
+        }
+        0xFFFF => {
+            let (s, no) = dec_str(d, *o)?;
+            *o = no;
+            s
+        }
+        other => bail!("unknown device property data type {other:#06x}"),
+    })
 }
 
 // ── object info ──────────────────────────────────────────────────────────────
