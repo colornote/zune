@@ -305,6 +305,15 @@ struct Backend {
     /// The device's tracks as last read (or served from the cache), kept for the sync
     /// planner: it matches on file names and tags, not handles.
     tracks: Vec<Track>,
+    /// The library on screen came off the device just now (not from the cache). Only
+    /// then may its handles be used to read device files: a handle that the device has
+    /// since re-made does not fail politely — the firmware stops answering and only a
+    /// replug brings it back. Measured: one 64 KB partial read on a stale handle
+    /// wedged the session so hard that every later command timed out.
+    library_live: bool,
+    /// Set when a device file read timed out in this session: no further attempts, since
+    /// every one of them keeps the firmware in the wedged state.
+    device_reads_off: bool,
     /// Set once the sweep has run for the current library.
     harvested: bool,
     /// The track handles of the library currently on screen. One `GetObjectHandles`
@@ -439,9 +448,16 @@ impl Backend {
         self.bulk_props_unavailable = false;
         // A session may have appeared long after the library did (the cached start loads
         // the library with no device attached). This is the moment the embedded-art sweep
-        // becomes possible, so it runs here rather than from `handle`: an idle UI sends no
-        // commands, and `busy` is still set during a connect.
-        self.harvested = true;
+        // becomes possible, so it runs from `handle` rather than here: an idle UI sends no
+        // commands, and `busy` is still set during a connect. A cached library is already
+        // marked done in `apply_cache`; a live one is swept once `handle` sees it.
+        //
+        // A new session also means the handles in hand are no longer promised: the device
+        // may have re-made every object since they were read, and reading through a stale
+        // handle wedges the firmware. So the library stays on screen, but counts as
+        // cached until the next live read.
+        self.library_live = false;
+        self.device_reads_off = false;
         ev.link(Link::Connected);
         ev.send(Event::Snapshot(Box::new(self.snapshot.clone())));
 
@@ -583,6 +599,8 @@ impl Backend {
         // library the UI was given.
         self.albums = albums.clone();
         self.harvested = true;
+        // Cached handles are not to be trusted for device reads — see `library_live`.
+        self.library_live = false;
         // Whatever is left is not part of the cache: even a fast start has to fetch it, and
         // the Albums page opens straight from this path. Start the background pass here.
         Self::spawn_cover_prefetch(&self.snapshot.serial, &albums, ev);
@@ -652,15 +670,35 @@ impl Backend {
     }
 
     /// Run the embedded-art sweep the first time a session and a library are both here.
+    ///
+    /// Only ever with a library that came off the device just now ([`Self::library_live`]).
+    /// A cached library's handles may have been re-made since, and reading through one
+    /// that is gone wedges the firmware (measured), so the sweep is not the place to
+    /// find that out 88 times.
     fn sweep_embedded_art_if_ready(&mut self, ev: &Emitter) {
-        if self.harvested || self.albums.is_empty() || self.session.is_none() || self.busy {
+        if self.harvested
+            || self.albums.is_empty()
+            || self.session.is_none()
+            || self.busy
+            || !self.library_live
+            || self.device_reads_off
+        {
             return;
         }
         self.harvested = true;
         let albums = self.albums.clone();
         let serial = self.snapshot.serial.clone();
         if let Some(session) = self.session.as_mut() {
-            Self::harvest_embedded_art(session, &serial, &albums, ev);
+            let finished = Self::harvest_embedded_art(session, &serial, &albums, ev);
+            if !finished {
+                // A read timed out and the device stopped answering: leave it alone until
+                // the cable comes out, rather than spending a timeout per album.
+                self.device_reads_off = true;
+                ev.log(LogLine::warn(
+                    "the cover sweep stopped early — the device stopped answering; unplug the \
+                     Zune, plug it back in, and Refresh",
+                ));
+            }
         }
     }
 
@@ -990,6 +1028,10 @@ impl Backend {
         );
         self.albums = albums.clone();
         self.harvested = false;
+        // The handles just came off the device, so device file reads may use them, and a
+        // read that timed out earlier in the session is worth one more try.
+        self.library_live = true;
+        self.device_reads_off = false;
         let need_fallback = albums.iter().filter(|a| !a.cover_source.is_found()).count();
         if need_fallback > 0 {
             ev.log(LogLine::info(format!(
@@ -2241,9 +2283,9 @@ impl Backend {
         serial: &str,
         albums: &[Album],
         ev: &Emitter,
-    ) {
+    ) -> bool {
         if !cache::is_usable_serial(serial) {
-            return;
+            return true;
         }
         let mut found = 0usize;
         let mut tried = 0usize;
@@ -2259,7 +2301,13 @@ impl Backend {
             match Self::embedded_cover(session, serial, handle, album.cover_key, &album.name, ev) {
                 Ok(true) => found += 1,
                 Ok(false) => {}
-                Err(e) => log::debug!("embedded cover {handle:#010x}: {e:#}"),
+                Err(e) => {
+                    log::debug!("embedded cover {handle:#010x}: {e:#}");
+                    // A wedged device punishes every further attempt with another timeout.
+                    if usb::is_stuck(&e) {
+                        return false;
+                    }
+                }
             }
         }
         if tried > 0 {
@@ -2269,6 +2317,7 @@ impl Backend {
             log::info!("{line}");
             ev.log(LogLine::info(line));
         }
+        true
     }
 
     /// Pull an album's art out of the audio object itself.
@@ -2560,13 +2609,32 @@ impl Backend {
             }
         }
 
-        // Before anything online: the art may simply be inside the album's audio file.
-        if let Some(handle) = track_handle {
-            if let Some(session) = self.session.as_mut() {
-                match Self::embedded_cover(session, &serial, handle, key, album, ev) {
+        // Before anything online: the art may simply be inside the album's audio file —
+        // but only read through a handle the device itself just gave us, and only until a
+        // read has timed out once this session. A stale handle wedges the firmware
+        // (measured), and a wedged device punishes every further attempt.
+        if self.library_live && !self.device_reads_off {
+            if let Some(handle) = track_handle {
+                let outcome = match self.session.as_mut() {
+                    Some(session) => {
+                        Self::embedded_cover(session, &serial, handle, key, album, ev)
+                    }
+                    None => Ok(false),
+                };
+                match outcome {
                     Ok(true) => return,
                     Ok(false) => {}
-                    Err(e) => log::debug!("embedded cover {handle:#010x}: {e:#}"),
+                    Err(e) => {
+                        if usb::is_stuck(&e) {
+                            self.device_reads_off = true;
+                            ev.log(LogLine::warn(
+                                "a cover read from the audio files timed out — the device looks \
+                                 wedged, so no further file reads this session (Refresh \
+                                 re-reads the device and clears this)",
+                            ));
+                        }
+                        log::debug!("embedded cover {handle:#010x}: {e:#}");
+                    }
                 }
             }
         }

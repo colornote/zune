@@ -2086,6 +2086,33 @@ impl ZuneApp {
             self.album_detail(ui, motion, &name);
             return;
         }
+        // Say it where it matters: with a cached library the audio files are deliberately
+        // not read — a handle the device has since re-made wedges the firmware (measured)
+        // — so the device's own artwork only comes through after a live read.
+        let missing_art = self
+            .albums
+            .iter()
+            .filter(|album| !album.cover_source.is_found())
+            .count();
+        if self.origin.source == Source::Cached && missing_art > 0 {
+            ui.horizontal(|ui| {
+                ui.label(
+                    RichText::new(format!(
+                        "{missing_art} album(s) have no art on the device. A cached library is \
+                         not read from (a stale handle can wedge the Zune), so Refresh is what \
+                         lets the device's own artwork be consulted."
+                    ))
+                    .color(TEXT_3)
+                    .size(11.0),
+                );
+                if quiet_button(ui, "Refresh", TEXT_2).clicked() {
+                    self.worker.clear_cancel();
+                    self.sync_plan = None;
+                    self.worker.send(Command::Refresh { force: true });
+                }
+            });
+            ui.add_space(SP_8);
+        }
         let mut diagnose = false;
         let mut diagnose_covers = false;
         let mut refresh = false;
