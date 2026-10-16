@@ -15,7 +15,7 @@ use crate::design::anim::Motion;
 use crate::design::paint::{self, GlowResponse, GLOW_MD, GLOW_SM, GLOW_TEXT};
 use crate::design::tokens::{
     body, body_sm, display, h1, h2, human_bytes, label, mono, r_md, r_pill, r_sm, subtitle,
-    tracked, BODY_SM, CARD_GAP, CANVAS, DISPLAY, F_LIGHT, F_XLIGHT, NEON_AMBER, NEON_LIME,
+    tracked, BODY_SM, CARD_GAP, CANVAS, DISPLAY, F_LIGHT, F_XLIGHT, HAIRLINE, NEON_AMBER, NEON_LIME,
     NEON_MAGENTA, NEON_ORANGE, SP_12, SP_16, SP_24, SP_32, SP_8, SURFACE_1, SURFACE_2, TEXT_1,
     TEXT_2, TEXT_3,
 };
@@ -1529,13 +1529,10 @@ impl ZuneApp {
         self.banner(ui);
         let filtered = self.album_filter.is_some() || !self.search.trim().is_empty();
         ui.horizontal(|ui| {
-            ui.label("Search");
-            ui.add(
-                egui::TextEdit::singleline(&mut self.search)
-                    .hint_text("title, artist, album or file name")
-                    .desired_width(280.0),
-            );
-            if filtered && ui.button("Clear filter").clicked() {
+            // No "Search" caption: the hint text already says what the field takes, and a
+            // label beside a box that has a label is one label too many.
+            search_field(ui, &mut self.search, "search title, artist, album or file", 300.0);
+            if filtered && quiet_button(ui, "Clear filter", TEXT_2) {
                 self.search.clear();
                 self.album_filter = None;
             }
@@ -1543,8 +1540,14 @@ impl ZuneApp {
                 theme::tag(ui, &format!("album: {album}"), ORANGE);
             }
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                let label = if self.sort_desc { "▼" } else { "▲" };
-                ui.label(RichText::new(format!("sorted by {} {label}", self.sort.label())).color(MUTED));
+                // Mono, and out of the way: the sort state is a fact about the table, not
+                // a control, and the header already shows which column is active.
+                let arrow = if self.sort_desc { "↓" } else { "↑" };
+                ui.label(
+                    RichText::new(format!("{arrow} {}", self.sort.label()))
+                        .font(mono(11.0))
+                        .color(TEXT_3),
+                );
             });
         });
         ui.add_space(4.0);
@@ -1573,17 +1576,35 @@ impl ZuneApp {
                     5 => Some(SortKey::Duration),
                     _ => Some(SortKey::Size),
                 };
+                // Numeric columns are monospaced and right-aligned so their digits line up
+                // down the column; the text columns take the tracked uppercase treatment the
+                // rest of the chrome uses. Sorting is the only thing these labels do, so the
+                // active one is the only one that gets a colour.
+                let numeric = matches!(index, 1 | 5 | 6);
+                let colour = match key {
+                    Some(key) if self.sort == key => ORANGE,
+                    _ => TEXT_3,
+                };
+                let text = if numeric {
+                    RichText::new(tracked(&label.to_uppercase())).font(mono(10.0)).color(colour)
+                } else {
+                    RichText::new(tracked(&label.to_uppercase())).size(10.0).color(colour)
+                };
                 match key {
                     Some(key) => {
-                        let active = self.sort == key;
-                        let text = RichText::new(*label)
-                            .color(if active { ORANGE } else { MUTED })
-                            .size(12.0)
-                            .strong();
-                        if ui
-                            .add_sized([*width, 18.0], egui::Button::new(text).frame(false))
+                        let clicked = if numeric {
+                            ui.allocate_ui_with_layout(
+                                Vec2::new(*width, 18.0),
+                                Layout::right_to_left(Align::Center),
+                                |ui| ui.add(egui::Button::new(text).frame(false)),
+                            )
+                            .inner
                             .clicked()
-                        {
+                        } else {
+                            ui.add_sized([*width, 18.0], egui::Button::new(text).frame(false))
+                                .clicked()
+                        };
+                        if clicked {
                             if self.sort == key {
                                 self.sort_desc = !self.sort_desc;
                             } else {
@@ -1650,29 +1671,36 @@ impl ZuneApp {
                         if dot_response.clicked() {
                             toggle = Some((row.handle, !selected));
                         }
+                        // Widths come from the same table the header uses, so a column can
+                        // only be resized in one place. Three levels of brightness: the title
+                        // is what you read, the artist is what you scan, the rest is reference.
                         let number = row
                             .track_no
                             .map(|n| n.to_string())
                             .unwrap_or_else(|| "—".to_string());
-                        ui.add_sized([36.0, 18.0], egui::Label::new(RichText::new(number).color(MUTED).size(12.0)));
+                        cell_right(ui, theme::COLS[1].0, RichText::new(number).font(mono(11.0)).color(TEXT_3));
                         let title = if selected {
                             RichText::new(&row.title).color(ORANGE)
                         } else {
-                            RichText::new(&row.title)
+                            RichText::new(&row.title).color(TEXT_1)
                         };
-                        ui.add_sized([250.0, 18.0], egui::Label::new(title).truncate());
                         ui.add_sized(
-                            [180.0, 18.0],
-                            egui::Label::new(RichText::new(if row.artist.is_empty() { "—" } else { &row.artist }).color(MUTED)).truncate(),
+                            [theme::COLS[2].0, 18.0],
+                            egui::Label::new(title).truncate(),
                         );
                         ui.add_sized(
-                            [180.0, 18.0],
-                            egui::Label::new(RichText::new(if row.album.is_empty() { "—" } else { &row.album }).color(MUTED)).truncate(),
+                            [theme::COLS[3].0, 18.0],
+                            egui::Label::new(RichText::new(if row.artist.is_empty() { "—" } else { &row.artist }).color(TEXT_2)).truncate(),
                         );
-                        ui.add_sized([62.0, 18.0], egui::Label::new(RichText::new(&row.length).color(MUTED).size(12.0)));
                         ui.add_sized(
-                            [78.0, 18.0],
-                            egui::Label::new(RichText::new(theme::human_bytes(row.size as u64)).color(MUTED).size(12.0)),
+                            [theme::COLS[4].0, 18.0],
+                            egui::Label::new(RichText::new(if row.album.is_empty() { "—" } else { &row.album }).color(TEXT_3)).truncate(),
+                        );
+                        cell_right(ui, theme::COLS[5].0, RichText::new(&row.length).font(mono(11.0)).color(TEXT_3));
+                        cell_right(
+                            ui,
+                            theme::COLS[6].0,
+                            RichText::new(theme::human_bytes(row.size as u64)).font(mono(11.0)).color(TEXT_3),
                         );
                         },
                     );
@@ -1729,26 +1757,37 @@ impl ZuneApp {
         ui.separator();
         ui.horizontal(|ui| {
             let bytes: u64 = rows.iter().map(|r| r.size as u64).sum();
-            ui.label(format!(
-                "{} shown · {} MB · {} selected",
-                rows.len(),
-                bytes / 1_048_576,
-                self.selected.len()
-            ));
-            if ui.button("Select all shown").clicked() {
+            let selected = self.selected.len();
+            // The same value/unit split as the rail: figures are what you look for, the
+            // words beside them are what you read once.
+            stat_inline(ui, &thousands(rows.len() as u64), "shown", TEXT_1);
+            ui.add_space(SP_16);
+            stat_inline(ui, &theme::human_bytes(bytes), "", TEXT_1);
+            ui.add_space(SP_16);
+            // Selection is a state, so it gets the accent — but only when there is one.
+            stat_inline(
+                ui,
+                &thousands(selected as u64),
+                "selected",
+                if selected > 0 { NEON_ORANGE } else { TEXT_3 },
+            );
+            ui.add_space(SP_24);
+            if quiet_button(ui, "Select all shown", TEXT_2) {
                 for row in &rows {
                     self.selected.insert(row.handle);
                 }
             }
-            if ui.button("Select none").clicked() {
+            if quiet_button(ui, "Select none", TEXT_2) {
                 self.selected.clear();
             }
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                let enabled = !self.selected.is_empty() && !self.busy && self.link == Link::Connected;
-                if ui
-                    .add_enabled(enabled, egui::Button::new(RichText::new("Delete selected").color(RED)))
-                    .clicked()
-                {
+                let enabled =
+                    !self.selected.is_empty() && !self.busy && self.link == Link::Connected;
+                // Kept visible while disabled rather than hidden: the action exists, it
+                // just needs a selection first.
+                let clicked =
+                    ui.add_enabled_ui(enabled, |ui| quiet_button(ui, "Delete selected", RED)).inner;
+                if clicked {
                     self.confirm_delete = Some(self.selected.iter().copied().collect());
                 }
             });
@@ -2642,6 +2681,78 @@ impl eframe::App for ZuneApp {
 /// The Zune mark: a ring with the bar through it, which is what makes it a Zune and not
 /// a record. This is the one piece of chrome that keeps a fixed colour — it is the brand,
 /// so it stays orange while everything around it takes the page's signature.
+/// A search input: a dark well with a hairline edge, and the accent only while focused.
+///
+/// egui's default text field is a light-grey box, which on this canvas reads as a hole
+/// punched in the page. Three pages have a search box; this is the one definition.
+fn search_field(ui: &mut egui::Ui, value: &mut String, hint: &str, width: f32) {
+    ui.scope(|ui| {
+        let v = ui.visuals_mut();
+        v.extreme_bg_color = SURFACE_1;
+        v.widgets.inactive.corner_radius = r_sm();
+        v.widgets.hovered.corner_radius = r_sm();
+        v.widgets.active.corner_radius = r_sm();
+        v.widgets.inactive.bg_stroke = Stroke::new(1.0, HAIRLINE);
+        v.widgets.hovered.bg_stroke = Stroke::new(1.0, paint::with_alpha(TEXT_2, 0.55));
+        v.widgets.active.bg_stroke = Stroke::new(1.0, NEON_ORANGE);
+        ui.add(
+            egui::TextEdit::singleline(value)
+                .hint_text(RichText::new(hint).color(TEXT_3))
+                .desired_width(width)
+                .font(body_sm()),
+        );
+    });
+}
+
+/// A button with no chrome until you reach for it.
+///
+/// Row-level actions — "select all", "clear filter" — sit next to content and should not
+/// compete with it. A stock button puts a filled box on every one of them; this stays
+/// invisible until hovered, and dims rather than disappears when disabled.
+fn quiet_button(ui: &mut egui::Ui, text: &str, colour: egui::Color32) -> bool {
+    let enabled = ui.is_enabled();
+    let galley = ui.painter().layout_no_wrap(text.to_owned(), body_sm(), colour);
+    let size = galley.size() + Vec2::new(18.0, 8.0);
+    let (rect, response) = ui.allocate_exact_size(size, Sense::click());
+    let hovered = enabled && response.hovered();
+    if hovered {
+        ui.painter().rect_filled(rect, r_sm(), SURFACE_2);
+    }
+    let colour = if !enabled {
+        TEXT_3
+    } else if hovered {
+        TEXT_1
+    } else {
+        colour
+    };
+    let galley = ui.painter().layout_no_wrap(text.to_owned(), body_sm(), colour);
+    ui.painter()
+        .galley(rect.center() - galley.size() / 2.0, galley, colour);
+    enabled && response.clicked()
+}
+
+/// A right-aligned cell, so digits line up down a numeric column.
+fn cell_right(ui: &mut egui::Ui, width: f32, text: RichText) {
+    ui.allocate_ui_with_layout(
+        Vec2::new(width, 18.0),
+        Layout::right_to_left(Align::Center),
+        |ui| {
+            ui.label(text);
+        },
+    );
+}
+
+/// A figure with its unit, inline: "2,425 shown". The value carries the row.
+fn stat_inline(ui: &mut egui::Ui, value: &str, unit: &str, colour: egui::Color32) {
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = 5.0;
+        ui.label(RichText::new(value).size(15.0).color(colour));
+        if !unit.is_empty() {
+            ui.label(RichText::new(unit).size(11.0).color(MUTED));
+        }
+    });
+}
+
 /// One figure in the left rail: a large value with a small unit after it.
 fn rail_stat(ui: &mut egui::Ui, value: &str, unit: &str, colour: egui::Color32) {
     ui.horizontal(|ui| {
