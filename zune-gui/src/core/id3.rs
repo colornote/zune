@@ -12,9 +12,21 @@
 //! and cache whatever comes out. No network involved.
 //!
 //! Only what is needed is implemented: the v2.2/v2.3/v2.4 tag header, the frame
-//! header of each version, unsynchronisation (v2.3/v2.4 only — v2.2's scheme
-//! applies to the whole tag and is rare enough here to skip), and the `APIC` /
-//! `PIC` picture frame. Everything else is walked over by length.
+//! header of each version, unsynchronisation (tag-level and per-frame), the v2.4
+//! Data Length Indicator, and the `APIC` / `PIC` picture frame. Everything else is
+//! walked over by length, and a frame that lies about its own size is still found
+//! by scanning for its id.
+//!
+//! Two layouts were measured on the device after covers went missing for albums
+//! that plainly carry one (`Believe`, a 500x500 JPEG):
+//!
+//!   * a v2.4 APIC frame with format flags `0x01` — a Data Length Indicator sits
+//!     between the frame header and the encoding byte, and reading it as the MIME
+//!     name is why the frame was skipped;
+//!   * a whole tag with the unsynchronisation flag `0x80` — every `0xFF` in the
+//!     tag, picture bytes included, is stored as `0xFF 0x00` and has to be undone
+//!     exactly once.
+//!
 
 /// A picture pulled out of an ID3 tag.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -78,7 +90,9 @@ pub fn locate_picture(bytes: &[u8]) -> Option<PayloadLocation> {
         if declared < 4 {
             continue;
         }
-        let body = &bytes[at + 10..];
+        let flags = bytes.get(at + 8..at + 10).unwrap_or(&[0, 0]);
+        let dli = flags[1] & 0x01 != 0;
+        let body = if dli { bytes.get(at + 14..)? } else { &bytes[at + 10..] };
         let Some(payload) = payload_offset(body) else {
             continue;
         };
@@ -86,8 +100,9 @@ pub fn locate_picture(bytes: &[u8]) -> Option<PayloadLocation> {
         if payload_size == 0 {
             continue;
         }
+        let start = at + 10 + if dli { 4 } else { 0 };
         return Some(PayloadLocation {
-            body_offset: at + 10 + payload,
+            body_offset: start + payload,
             declared_size: declared,
             payload_size,
         });
@@ -147,19 +162,39 @@ fn scanned_pictures(bytes: &[u8]) -> Vec<Picture> {
         if at + 10 > bytes.len() {
             break;
         }
-        let size = u32::from_be_bytes([
+        // The size field is not trustworthy on every writer: v2.4 wants synchsafe,
+        // plain big-endian is common anyway, and this device holds files of both
+        // kinds. Read it both ways and keep the candidate that validates.
+        let raw_size = u32::from_be_bytes([
             bytes[at + 4],
             bytes[at + 5],
             bytes[at + 6],
             bytes[at + 7],
         ]) as usize;
-        if size < 4 || at + 10 + size > bytes.len() {
-            continue;
-        }
-        if let Some(picture) = parse_apic(&bytes[at + 10..at + 10 + size]) {
-            // Only keep it if the payload really is an image.
-            if picture.is_decodable() {
-                out.push(picture);
+        let syn_size = synchsafe(&bytes[at + 4..at + 8]) as usize;
+        let flags = bytes.get(at + 8..at + 10).unwrap_or(&[0, 0]);
+        let dli = flags[1] & 0x01 != 0;
+        let tag_unsync = bytes.len() > 5 && &bytes[..3] == b"ID3" && bytes[5] & 0x80 != 0;
+        let frame_unsync = flags[1] & 0x02 != 0 && !tag_unsync;
+        for size in [raw_size, syn_size] {
+            if size < 4 || at + 10 >= bytes.len() {
+                continue;
+            }
+            // The declared size counts post-de-escape bytes, so the raw window may
+            // be shorter than the frame really is; take what the head holds.
+            let end = (at + 10 + size).min(bytes.len());
+            let raw_body = &bytes[at + 10..end];
+            let body = if frame_unsync || tag_unsync {
+                deunsynchronise(raw_body)
+            } else {
+                raw_body.to_vec()
+            };
+            if let Some(picture) = parse_apic(&body, dli) {
+                // Only keep it if the payload really is an image.
+                if picture.is_decodable() {
+                    out.push(picture);
+                    return out;
+                }
             }
         }
     }
@@ -179,7 +214,7 @@ fn framed_pictures(bytes: &[u8]) -> Vec<Picture> {
     let Some(parsed) = tag_body(bytes) else {
         return Vec::new();
     };
-    let (tag, version) = (parsed.body.as_slice(), parsed.version);
+    let (tag, version, tag_unsync) = (parsed.body.as_slice(), parsed.version, parsed.unsynchronised);
     // APIC is v2.3/v2.4; v2.2 called it PIC and used 3-byte frame headers.
     let mut out = Vec::new();
     let mut offset = 0usize;
@@ -226,27 +261,69 @@ fn framed_pictures(bytes: &[u8]) -> Vec<Picture> {
             }
         };
         let body_start = offset + header;
-        let body_end = body_start.saturating_add(size).min(tag.len());
-        if body_end <= body_start {
+        if body_start >= tag.len() {
             break;
         }
-        let body = &tag[body_start..body_end];
+        // v2.4 frame format flags: bit 0 = Data Length Indicator, bit 1 =
+        // unsynchronisation applied to this frame alone. When the whole tag was
+        // unsynchronised it has already been undone, and doing it twice would
+        // corrupt an image whose own bytes contain 0xFF 0x00.
+        let flags = tag.get(offset + 8..offset + 10).unwrap_or(&[0, 0]);
+        let frame_unsync = version >= 4 && flags[1] & 0x02 != 0 && !tag_unsync;
+        // A per-frame unsynchronised frame stores more raw bytes than its size
+        // says (the escapes); walk them to find where the next frame starts, and
+        // decode exactly `size` bytes.
+        let (body, consumed) = if frame_unsync {
+            frame_body_unsynchronised(&tag[body_start..], size)
+        } else {
+            let end = body_start.saturating_add(size).min(tag.len());
+            (tag[body_start..end].to_vec(), end - body_start)
+        };
+        if body.is_empty() {
+            break;
+        }
 
         if version == 2 {
             if id == b"PIC" {
-                if let Some(picture) = parse_pic_v22(body) {
+                if let Some(picture) = parse_pic_v22(&body) {
                     out.push(picture);
                 }
             }
         } else if id == b"APIC" {
-            if let Some(picture) = parse_apic(body) {
+            let dli = version >= 4 && flags[1] & 0x01 != 0;
+            if let Some(picture) = parse_apic(&body, dli) {
                 out.push(picture);
             }
         }
 
-        offset = body_end;
+        offset = body_start + consumed;
     }
     out
+}
+
+/// De-escape `size` bytes' worth of a frame-level unsynchronised frame.
+/// Returns the decoded body and how many raw bytes it consumed.
+fn frame_body_unsynchronised(raw: &[u8], size: usize) -> (Vec<u8>, usize) {
+    let mut out = Vec::with_capacity(size.min(raw.len()));
+    let mut index = 0;
+    while out.len() < size && index < raw.len() {
+        let byte = raw[index];
+        out.push(byte);
+        index += 1;
+        if byte == 0xFF && raw.get(index) == Some(&0x00) {
+            index += 1;
+        }
+    }
+    (out, index)
+}
+
+/// True when the bytes hold a frame id that could carry a picture.
+///
+/// A cheap gate for callers: a file that plainly has no picture does not need a
+/// megabyte of device read to decide that. False positives cost one extra read,
+/// so the test stays deliberately loose.
+pub fn may_carry_a_picture(bytes: &[u8]) -> bool {
+    find(bytes, b"APIC").is_some() || find(bytes, b"PIC").is_some()
 }
 
 /// The best picture in the file: a front cover if there is one, else the first.
@@ -263,6 +340,8 @@ pub fn best_picture(bytes: &[u8]) -> Option<Picture> {
 struct Tag {
     body: Vec<u8>,
     version: u8,
+    /// The whole tag was stored with 0xFF escaping, which `body` has already undone.
+    unsynchronised: bool,
 }
 
 fn tag_body(bytes: &[u8]) -> Option<Tag> {
@@ -312,7 +391,7 @@ fn tag_body(bytes: &[u8]) -> Option<Tag> {
         flags & 0x80 != 0
     };
     let body = if unsync { deunsynchronise(raw) } else { raw.to_vec() };
-    Some(Tag { body, version: major })
+    Some(Tag { body, version: major, unsynchronised: unsync })
 }
 
 /// ID3 synchsafe integers: 7 bits per byte, high bit always clear.
@@ -341,7 +420,13 @@ fn deunsynchronise(input: &[u8]) -> Vec<u8> {
 
 /// `APIC`: encoding, MIME (latin-1, NUL-terminated), picture type, description
 /// (in `encoding`), then the bytes.
-fn parse_apic(body: &[u8]) -> Option<Picture> {
+fn parse_apic(body: &[u8], dli: bool) -> Option<Picture> {
+    // A v2.4 frame may carry a Data Length Indicator: four synchsafe bytes before
+    // the body proper. Measured on this device (`Believe`, a 500x500 cover): the
+    // frame is written as DLI + encoding + MIME + picture type + description +
+    // picture, and reading the DLI as the MIME is the difference between finding
+    // the cover and silently giving up.
+    let body = if dli { body.get(4..)? } else { body };
     if body.len() < 4 {
         return None;
     }
@@ -617,5 +702,91 @@ mod tests {
     fn tag_size_is_read_as_a_synchsafe_integer() {
         // 0x00 0x00 0x02 0x01 is 257, not 513.
         assert_eq!(synchsafe(&[0x00, 0x00, 0x02, 0x01]), 257);
+    }
+
+    /// The shape the device actually stores for some albums (`Believe`: a 500x500
+    /// JPEG): a v2.4 APIC frame whose format flags announce a Data Length
+    /// Indicator, which sits between the frame header and the encoding byte.
+    fn tag_v24_with_dli(picture: &[u8]) -> Vec<u8> {
+        let mut frame_body = Vec::new();
+        frame_body.extend_from_slice(&synchsafe_bytes(picture.len() as u32 + 12)); // DLI
+        frame_body.push(0); // latin-1
+        frame_body.extend_from_slice(b"image/jpeg");
+        frame_body.push(0);
+        frame_body.push(3); // front cover
+        frame_body.push(0); // empty description
+        frame_body.extend_from_slice(picture);
+
+        let mut frame = Vec::new();
+        frame.extend_from_slice(b"APIC");
+        frame.extend_from_slice(&synchsafe_bytes(frame_body.len() as u32));
+        frame.extend_from_slice(&[0, 0x01]); // flags: data length indicator
+        frame.extend_from_slice(&frame_body);
+
+        let mut tag = Vec::new();
+        tag.extend_from_slice(b"ID3");
+        tag.push(4);
+        tag.push(0);
+        tag.push(0);
+        tag.extend_from_slice(&synchsafe_bytes(frame.len() as u32));
+        tag.extend_from_slice(&frame);
+        tag
+    }
+
+    #[test]
+    fn a_v24_frame_with_a_data_length_indicator_yields_its_picture() {
+        let picture = jpeg();
+        let file = tag_v24_with_dli(&picture);
+        let found = best_picture(&file).expect("the APIC that carries a DLI");
+        assert_eq!(found.data, picture);
+        assert_eq!(found.kind, 3);
+        assert_eq!(found.mime, "image/jpeg");
+    }
+
+    /// Escape bytes the way an unsynchronised tag stores them.
+    fn escape(data: &[u8]) -> Vec<u8> {
+        let mut out = Vec::new();
+        for &byte in data {
+            out.push(byte);
+            if byte == 0xFF {
+                out.push(0x00);
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn an_unsynchronised_tag_yields_the_original_picture() {
+        // The picture contains 0xFF 0x00 of its own, so de-escaping twice — or not
+        // at all — cannot produce these bytes back. This is the shape measured on
+        // the device for the same album as the DLI test.
+        let mut picture = vec![0xFF, 0xD8, 0xFF, 0xE0];
+        picture.extend_from_slice(&[0xFF, 0x00, 0x11, 0x22]);
+        picture.extend_from_slice(&[0xFF, 0xD9]);
+
+        let mut frame_body = vec![0u8];
+        frame_body.extend_from_slice(b"image/jpeg");
+        frame_body.push(0);
+        frame_body.push(3);
+        frame_body.push(0);
+        frame_body.extend_from_slice(&picture);
+
+        let mut frame = Vec::new();
+        frame.extend_from_slice(b"APIC");
+        frame.extend_from_slice(&(frame_body.len() as u32).to_be_bytes());
+        frame.extend_from_slice(&[0, 0]);
+        frame.extend_from_slice(&frame_body);
+
+        let escaped = escape(&frame);
+        let mut tag = Vec::new();
+        tag.extend_from_slice(b"ID3");
+        tag.push(3);
+        tag.push(0);
+        tag.push(0x80); // the whole tag is unsynchronised
+        tag.extend_from_slice(&synchsafe_bytes(escaped.len() as u32));
+        tag.extend_from_slice(&escaped);
+
+        let found = best_picture(&tag).expect("the picture inside an unsynchronised tag");
+        assert_eq!(found.data, picture);
     }
 }

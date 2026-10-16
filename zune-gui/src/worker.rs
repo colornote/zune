@@ -18,6 +18,7 @@ use anyhow::{bail, Context, Result};
 
 use crate::cache;
 use crate::coverfetch;
+use crate::locallib;
 use crate::core::{
     id3,
     self,
@@ -289,6 +290,9 @@ struct Backend {
     /// device connects afterwards — so the sweep cannot simply run where the library
     /// arrives.
     albums: Vec<Album>,
+    /// The device's tracks as last read (or served from the cache), kept for the sync
+    /// planner: it matches on file names and tags, not handles.
+    tracks: Vec<Track>,
     /// Set once the sweep has run for the current library.
     harvested: bool,
     /// The track handles of the library currently on screen. One `GetObjectHandles`
@@ -552,6 +556,7 @@ impl Backend {
         let tracks = cache.to_tracks();
         let albums = cache.to_albums();
         self.cached_track_handles = tracks.iter().map(|t| t.handle).collect();
+        self.tracks = tracks.clone();
         log::debug!("served {} cached tracks", tracks.len());
         self.busy = false;
         ev.busy(false);
@@ -711,6 +716,24 @@ impl Backend {
             Command::FetchCover(handle) => self.fetch_cover(handle, ev),
             Command::FetchFallbackCover { key, artist, album, track_handle } => {
                 self.fetch_fallback_cover(key, &artist, &album, track_handle, ev)
+            }
+            Command::SetCover { key, artist, album, path } => {
+                self.set_cover(key, &artist, &album, &path, ev)
+            }
+            Command::SyncScan => {
+                // Deliberately not `run_task`: a plan needs no session, and must not
+                // demand one — the whole point is that it works with the Zune unplugged.
+                if let Err(e) = self.plan_sync(ev) {
+                    ev.log(LogLine::error(format!(
+                        "Could not scan the local folders: {e:#}"
+                    )));
+                    ev.busy(false);
+                    ev.task_finished(false, "local scan failed");
+                }
+            }
+            Command::SyncSources(sources) => self.set_sync_sources(sources, ev),
+            Command::SyncRun(paths) => {
+                self.run_task(ev, "Syncing", move |b, ev| b.run_sync(&paths, ev, cancel))
             }
             Command::DiagnoseAlbums(limit) => self.diagnose_albums(limit, ev),
             Command::DiagnoseCovers { images, albums } => self.diagnose_covers(images, albums, ev),
@@ -1047,6 +1070,7 @@ impl Backend {
 
         self.busy = false;
         ev.busy(false);
+        self.tracks = tracks.clone();
         ev.send(Event::Library { tracks, albums });
         ev.send(Event::Origin(Box::new(DataOrigin {
             source: Source::Live,
@@ -2254,37 +2278,234 @@ impl Backend {
         ev: &Emitter,
     ) -> Result<bool> {
         const HEAD: u32 = 64 * 1024;
-        let head = session.get_partial_object(handle, 0, HEAD)?;
-        let Some(at) = id3::locate_picture(&head) else {
+        // Probe first: most files carry no picture at all, and 64 KB decides that
+        // without paying for the megabyte a real cover needs.
+        let probe = session.get_partial_object(handle, 0, HEAD)?;
+        if !id3::may_carry_a_picture(&probe) {
             return Ok(false);
+        }
+        // One read of the tag area covers every embedded cover measured on this
+        // device (largest so far: 258 KB). Where the picture starts cannot be known
+        // without parsing the frames, and the frames need the bytes.
+        const PICTURE_AREA: u32 = 1024 * 1024;
+        let head = session.get_partial_object(handle, 0, PICTURE_AREA)?;
+        let mut pictures = id3::pictures(&head);
+        // A front cover beats a scan; order decides which one is tried first.
+        pictures.sort_by_key(|picture| if picture.kind == 3 { 0 } else { 1 });
+        for picture in pictures {
+            let Ok(image) = decode_cover(&picture.data) else {
+                log::debug!(
+                    "cover {key:#010x}: a {} byte embedded picture would not decode",
+                    picture.data.len()
+                );
+                continue;
+            };
+            // Cached like any other cover, so the next run needs no device read at all.
+            if let Err(e) = cache::write_cover(serial, key, &picture.data) {
+                log::debug!("embedded cover {key:#010x} not cached: {e:#}");
+            }
+            ev.log(LogLine::ok(format!(
+                "cover art for \"{album}\": embedded in the audio file ({} KB, {})",
+                picture.data.len() / 1024,
+                picture.mime
+            )));
+            ev.send(Event::Cover {
+                handle: key,
+                image,
+                origin: "the audio file's ID3 APIC frame".to_owned(),
+            });
+            return Ok(true);
+        }
+        Ok(false)
+    }
+
+    /// Adopt a cover the user picked: verify it decodes, cache it, and tell the UI.
+    ///
+    /// This outranks the ladder by construction — the cache is consulted before
+    /// anything else — and the album's recorded miss is dropped so a later Refresh
+    /// consults the online sources again instead of trusting the old "not found".
+    fn set_cover(&mut self, key: u32, artist: &str, album: &str, path: &Path, ev: &Emitter) {
+        let serial = self.snapshot.serial.clone();
+        if !cache::is_usable_serial(&serial) {
+            ev.log(LogLine::error(
+                "no device serial — the cover cache cannot be keyed",
+            ));
+            return;
+        }
+        let name = path
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| path.display().to_string());
+        let bytes = match std::fs::read(path) {
+            Ok(bytes) => bytes,
+            Err(e) => {
+                ev.log(LogLine::error(format!("could not read {name}: {e}")));
+                return;
+            }
         };
-        log::debug!(
-            "cover {key:#010x}: {album} carries a {} byte picture at {:#x}",
-            at.payload_size,
-            at.body_offset
-        );
-        // A preposterous size means the frame id was a false sync inside the audio.
-        if at.payload_size > 8 * 1024 * 1024 {
-            return Ok(false);
+        let image = match decode_cover(&bytes) {
+            Ok(image) => image,
+            Err(e) => {
+                ev.log(LogLine::error(format!(
+                    "{name} is not an image the cover view can decode: {e:#}"
+                )));
+                return;
+            }
+        };
+        if let Err(e) = cache::write_cover(&serial, key, &bytes) {
+            ev.log(LogLine::error(format!("could not cache the cover: {e:#}")));
+            return;
         }
-        let picture =
-            session.get_partial_object(handle, at.body_offset as u32, at.payload_size as u32)?;
-        let image = decode_cover(&picture).with_context(|| {
-            format!("the APIC picture in {handle:#010x} would not decode")
-        })?;
-        // Cached like any other cover, so the next run needs no device read at all.
-        if let Err(e) = cache::write_cover(serial, key, &picture) {
-            log::debug!("embedded cover {key:#010x} not cached: {e:#}");
-        }
+        coverfetch::clear_miss(&serial, artist, album);
         ev.log(LogLine::ok(format!(
-            "cover art for \"{album}\": embedded in the audio file"
+            "cover art for \"{album}\": {name} ({} KB, your file)",
+            bytes.len() / 1024
         )));
         ev.send(Event::Cover {
             handle: key,
             image,
-            origin: "the audio file's ID3 APIC frame".to_owned(),
+            origin: format!("your file · {name}"),
         });
-        Ok(true)
+    }
+
+    // ── one-way sync (local → device) ────────────────────────────────────────
+
+    /// Walk the source folders, then compare them with the library in hand.
+    ///
+    /// The comparison side is `self.tracks` — whatever the last read or the cache
+    /// provided — so a plan can be produced with nothing plugged in. The result is
+    /// sent as a whole; the UI keeps it and hands the paths back to `SyncRun`.
+    fn plan_sync(&mut self, ev: &Emitter) -> Result<String> {
+        let config = locallib::load_config();
+        ev.busy(true);
+        ev.task_started("Scanning local folders", config.sources.len());
+        if config.sources.is_empty() {
+            ev.send(Event::SyncPlan(Box::new(crate::sync::SyncPlan::default())));
+            ev.busy(false);
+            ev.task_finished(true, "no source folders yet");
+            return Ok("no source folders yet".to_owned());
+        }
+        let previous = locallib::load_index();
+        let started = Instant::now();
+        let (index, stats) = locallib::scan(&config.sources, previous.as_ref())?;
+        if let Err(e) = locallib::save_index(&index) {
+            ev.log(LogLine::warn(format!(
+                "could not write the local index — the next scan will re-read every file: {e:#}"
+            )));
+        }
+        let device = crate::sync::device_index(&self.tracks);
+        let plan = crate::sync::plan(&index, &device, &config.sources);
+        ev.log(LogLine::info(format!(
+            "local scan: {} files in {} folder(s), {} re-read, {} matched on the device ({:.1}s)",
+            stats.files,
+            config.sources.len(),
+            stats.read,
+            plan.present,
+            started.elapsed().as_secs_f32()
+        )));
+        let summary = if plan.to_push.is_empty() {
+            format!("{} local files · all of them are already on the device", plan.local_files)
+        } else {
+            format!(
+                "{} to push · {} already there · {} local files",
+                plan.to_push.len(),
+                plan.present,
+                plan.local_files
+            )
+        };
+        ev.send(Event::SyncPlan(Box::new(plan)));
+        ev.busy(false);
+        ev.task_finished(true, summary.clone());
+        Ok(summary)
+    }
+
+    fn set_sync_sources(&mut self, sources: Vec<PathBuf>, ev: &Emitter) {
+        let config = locallib::SyncConfig { version: locallib::INDEX_VERSION, sources };
+        if let Err(e) = locallib::save_config(&config) {
+            ev.log(LogLine::error(format!(
+                "could not save the sync folders: {e:#}"
+            )));
+            return;
+        }
+        if let Err(e) = self.plan_sync(ev) {
+            ev.log(LogLine::error(format!("Could not scan the local folders: {e:#}")));
+            ev.task_finished(false, "local scan failed");
+        }
+    }
+
+    /// Push every planned file, reporting each one's state as it goes.
+    fn run_sync(&mut self, paths: &[PathBuf], ev: &Emitter, cancel: &AtomicBool) -> Result<String> {
+        let total = paths.len();
+        let mut pushed = 0usize;
+        let mut failed = 0usize;
+        for (index, path) in paths.iter().enumerate() {
+            if cancel.load(Ordering::Relaxed) {
+                ev.log(LogLine::warn(format!(
+                    "stopped after {index} of {total} files — the rest was not pushed"
+                )));
+                break;
+            }
+            let label = file_label(path);
+            ev.send(Event::SyncItem(Box::new(SyncItemEvent {
+                index,
+                total,
+                label: label.clone(),
+                state: SyncState::Started,
+                note: String::new(),
+            })));
+            match self.push_one(path, index, total, ev) {
+                Ok(()) => {
+                    pushed += 1;
+                    let size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
+                    self.note_pushed(path, size);
+                    ev.send(Event::SyncItem(Box::new(SyncItemEvent {
+                        index,
+                        total,
+                        label,
+                        state: SyncState::Done,
+                        note: String::new(),
+                    })));
+                }
+                Err(e) => {
+                    failed += 1;
+                    let note = format!("{e:#}");
+                    ev.log(LogLine::error(format!("{label}: {note}")));
+                    ev.send(Event::SyncItem(Box::new(SyncItemEvent {
+                        index,
+                        total,
+                        label,
+                        state: SyncState::Failed,
+                        note,
+                    })));
+                    if usb::is_stuck(&e) {
+                        ev.log(LogLine::warn("the USB link looks dead — stopping the sync"));
+                        break;
+                    }
+                }
+            }
+        }
+        let summary = format!("{pushed} pushed, {failed} failed");
+        ev.send(Event::SyncFinished { pushed, failed, summary: summary.clone() });
+        Ok(summary)
+    }
+
+    /// Remember a file this app just pushed, so the next plan knows it is on the
+    /// device without paying for a full re-read. The firmware renames the object as it
+    /// ingests it, so the entry carries the tags — the tag signature is what matches
+    /// on the next pass.
+    fn note_pushed(&mut self, path: &Path, size: u64) {
+        let tags = tags::read(path);
+        self.tracks.push(Track {
+            handle: 0,
+            filename: tags::stored_name(path),
+            size: size.min(u32::MAX as u64) as u32,
+            format: 0x3008,
+            title: tags.title,
+            artist: tags.artist.unwrap_or_default(),
+            album: tags.album.unwrap_or_default(),
+            track_no: tags.track,
+            duration: None,
+        });
     }
 
     fn fetch_fallback_cover(

@@ -181,6 +181,14 @@ pub fn clear_misses(serial: &str) -> usize {
     clear_misses_in(&cache::covers_dir(serial))
 }
 
+/// Forget one album's recorded miss, so a later pass asks again.
+///
+/// Used when the user supplies the art by hand: the album's stored miss should not
+/// outlive that, or a future Refresh would keep skipping the online sources.
+pub fn clear_miss(serial: &str, artist: &str, album: &str) -> bool {
+    std::fs::remove_file(miss_path(&cache::covers_dir(serial), artist, album)).is_ok()
+}
+
 fn recently_missed_in(dir: &Path, artist: &str, album: &str) -> bool {
     let Ok(text) = std::fs::read_to_string(miss_path(dir, artist, album)) else {
         return false;

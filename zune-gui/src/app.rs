@@ -17,8 +17,8 @@ use crate::design::paint::{self, GlowResponse, GLOW_MD, GLOW_SM, GLOW_TEXT};
 use crate::design::tokens::{
     body, body_sm, display, h1, h2, h3, human_bytes, label, mono, r_md, r_pill, r_sm, subtitle,
     tracked, BODY_SM, CARD_GAP, CANVAS, DISPLAY, F_LIGHT, F_XLIGHT, HAIRLINE, NEON_AMBER, NEON_LIME,
-    NEON_MAGENTA, NEON_ORANGE, SP_12, SP_16, SP_24, SP_32, SP_8, SURFACE_1, SURFACE_2, TEXT_1,
-    TEXT_2, TEXT_3,
+    NEON_MAGENTA, NEON_ORANGE, SP_12, SP_16, SP_24, SP_32, SP_4, SP_8, SURFACE_1, SURFACE_2,
+    TEXT_1, TEXT_2, TEXT_3,
 };
 use crate::ui::track_row::{track_row, TrackRow};
 use crate::core::library;
@@ -41,6 +41,8 @@ enum Page {
     Albums,
     Artists,
     Tracks,
+    /// Local → Zune: source folders, a plan, and the push that follows.
+    Sync,
     Push,
     Device,
     Wifi,
@@ -50,11 +52,12 @@ enum Page {
 }
 
 impl Page {
-    const ALL: [Page; 9] = [
+    const ALL: [Page; 10] = [
         Page::Home,
         Page::Albums,
         Page::Artists,
         Page::Tracks,
+        Page::Sync,
         Page::Push,
         Page::Device,
         Page::Wifi,
@@ -66,6 +69,7 @@ impl Page {
         match self {
             Page::Home => "Collection",
             Page::Tracks => "Tracks",
+            Page::Sync => "Sync",
             Page::Albums => "Albums",
             Page::Artists => "Artists",
             Page::Push => "Push",
@@ -80,6 +84,7 @@ impl Page {
         match self {
             Page::Home => "everything on the device, at a glance",
             Page::Tracks => "every track on the device",
+            Page::Sync => "what your folders hold that the Zune does not",
             Page::Albums => "albums and their cover art",
             Page::Artists => "the names behind the albums",
             Page::Push => "copy music to the Zune",
@@ -106,6 +111,7 @@ impl Page {
             Page::Albums => Icon::Disc,
             Page::Artists => Icon::Person,
             Page::Tracks => Icon::Note,
+            Page::Sync => Icon::Sync,
             Page::Push => Icon::Upload,
             Page::Device => Icon::Device,
             Page::Wifi => Icon::Wifi,
@@ -177,6 +183,14 @@ enum CoverState {
     Failed(String),
 }
 
+/// One line of the running-sync list: what is being pushed and where it stands.
+struct SyncRow {
+    index: usize,
+    label: String,
+    state: SyncState,
+    note: String,
+}
+
 /// One row of the Artists page: the library's albums folded by artist name.
 struct ArtistRow {
     name: String,
@@ -229,6 +243,9 @@ pub struct ZuneApp {
     /// so the album page can say it instead of implying everything is from the Zune.
     cover_origins: HashMap<u32, String>,
     cover_pending: HashSet<u32>,
+    /// Album page: whether the "set cover" row is open, and the path typed into it.
+    set_cover_open: bool,
+    cover_path_input: String,
 
     /// Paths queued for the push page.
     queue: Vec<PathBuf>,
@@ -237,6 +254,15 @@ pub struct ZuneApp {
     album_name: String,
     cover_path: String,
     make_playlist: bool,
+
+    /// Sync page: the last plan, the rows of a running push, the source folders and
+    /// the text being typed to add one.
+    sync_plan: Option<crate::sync::SyncPlan>,
+    sync_items: Vec<SyncRow>,
+    sync_sources: Vec<PathBuf>,
+    sync_input: String,
+    /// Set once, so opening the page scans without a click.
+    sync_scanned: bool,
 
     /// Albums page: ordering, filter and the album whose detail view is open.
     album_sort: AlbumSort,
@@ -322,6 +348,7 @@ impl ZuneApp {
                 Some("albums") => Page::Albums,
                 Some("artists") => Page::Artists,
                 Some("push") => Page::Push,
+                Some("sync") => Page::Sync,
                 Some("device") => Page::Device,
                 Some("wifi") => Page::Wifi,
                 Some("log") => Page::Log,
@@ -336,12 +363,19 @@ impl ZuneApp {
             covers: HashMap::new(),
             cover_origins: HashMap::new(),
             cover_pending: HashSet::new(),
+            set_cover_open: false,
+            cover_path_input: String::new(),
             queue: Vec::new(),
             path_input: String::new(),
             album_mode: false,
             album_name: String::new(),
             cover_path: String::new(),
             make_playlist: true,
+            sync_plan: None,
+            sync_items: Vec::new(),
+            sync_sources: crate::locallib::load_config().sources,
+            sync_input: String::new(),
+            sync_scanned: false,
             album_sort: AlbumSort::Name,
             album_search: String::new(),
             // Dev affordance: ZUNE_ALBUM="Kid A" opens that detail view directly,
@@ -497,6 +531,33 @@ impl ZuneApp {
                     self.wifi_networks = networks;
                     self.wifi_hex = hex;
                 }
+                Event::SyncPlan(plan) => {
+                    self.sync_plan = Some(*plan);
+                    self.sync_items.clear();
+                }
+                Event::SyncItem(item) => {
+                    match self.sync_items.iter_mut().find(|row| row.index == item.index) {
+                        Some(row) => {
+                            row.state = item.state;
+                            row.note = item.note.clone();
+                        }
+                        None => self.sync_items.push(SyncRow {
+                            index: item.index,
+                            label: item.label.clone(),
+                            state: item.state,
+                            note: item.note.clone(),
+                        }),
+                    }
+                    self.sync_items.sort_by_key(|row| row.index);
+                }
+                Event::SyncFinished { pushed, failed, summary } => {
+                    self.logs.push(LogLine::ok(format!(
+                        "sync finished: {summary} ({pushed} pushed, {failed} failed)"
+                    )));
+                    // The worker recorded the pushed files in its in-memory library, so
+                    // one more plan now reflects what is actually left — usually nothing.
+                    self.worker.send(Command::SyncScan);
+                }
             }
         }
     }
@@ -512,6 +573,24 @@ impl ZuneApp {
         });
         if dropped.is_empty() {
             return;
+        }
+        // On an album's page an image sets that album's cover — the gesture the page
+        // invites. Everything else still goes to the push queue.
+        if let Some(open) = self.album_open.clone() {
+            let picked = dropped
+                .iter()
+                .find(|path| crate::core::media::is_image(path))
+                .cloned();
+            let album = self
+                .albums
+                .iter()
+                .find(|a| a.name == open)
+                .map(|a| (a.cover_key, a.artist.clone(), a.name.clone()));
+            if let (Some(path), Some((key, artist, album))) = (picked, album) {
+                self.worker.send(Command::SetCover { key, artist, album, path });
+                self.set_cover_open = false;
+                return;
+            }
         }
         for path in dropped {
             self.add_to_queue(path);
@@ -2153,7 +2232,41 @@ impl ZuneApp {
                 self.album_open = None;
             }
             ui.label(RichText::new(tracked("album")).font(label()).color(NEON_ORANGE));
+            ui.add_space(SP_12);
+            if quiet_button(ui, "Set cover…", TEXT_2).clicked() {
+                self.set_cover_open = !self.set_cover_open;
+                self.cover_path_input.clear();
+            }
         });
+        if self.set_cover_open {
+            ui.add_space(SP_8);
+            ui.horizontal(|ui| {
+                text_field(
+                    ui,
+                    &mut self.cover_path_input,
+                    "path to a .jpg or .png — or drag one onto this window",
+                    420.0,
+                );
+                let raw = self
+                    .cover_path_input
+                    .trim()
+                    .trim_matches('"')
+                    .to_string();
+                let ready = !raw.is_empty() && std::path::Path::new(&raw).is_file();
+                if ui
+                    .add_enabled(ready, egui::Button::new("Use this image"))
+                    .clicked()
+                {
+                    self.worker.send(Command::SetCover {
+                        key: album.cover_key,
+                        artist: album.artist.clone(),
+                        album: album.name.clone(),
+                        path: PathBuf::from(raw),
+                    });
+                    self.set_cover_open = false;
+                }
+            });
+        }
         ui.add_space(SP_12);
 
         // Cover + headline statistics.
@@ -2332,6 +2445,240 @@ impl ZuneApp {
                 );
             }
         });
+    }
+
+    /// Local → Zune. Where the music comes from, what a sync would do, and the push
+    /// itself. A plan needs no device; running one does.
+    fn sync_page(&mut self, ui: &mut egui::Ui) {
+        self.banner(ui);
+        ui.label(
+            RichText::new(
+                "Folders are compared with the Zune: anything the device does not have yet can \
+                 be pushed. Matching is by file name and by tag — the device renames what it \
+                 stores, so neither alone is enough.",
+            )
+            .color(MUTED)
+            .size(12.0),
+        );
+        ui.add_space(SP_12);
+
+        // ── the source folders ──
+        ui.horizontal(|ui| {
+            ui.label(RichText::new(tracked("source folders")).font(label()).color(NEON_ORANGE));
+            ui.label(
+                RichText::new(self.sync_sources.len().to_string())
+                    .color(TEXT_3)
+                    .size(11.0),
+            );
+        });
+        ui.add_space(SP_8);
+        if self.sync_sources.is_empty() {
+            ui.label(
+                RichText::new("None yet — add the folder your music lives in.")
+                    .color(TEXT_3)
+                    .size(12.0),
+            );
+        }
+        let mut remove: Option<usize> = None;
+        for (index, source) in self.sync_sources.iter().enumerate() {
+            ui.horizontal(|ui| {
+                ui.add_sized(
+                    [560.0, 18.0],
+                    egui::Label::new(
+                        RichText::new(source.display().to_string()).monospace().size(12.0),
+                    )
+                    .truncate(),
+                );
+                if ui.small_button("remove").clicked() {
+                    remove = Some(index);
+                }
+            });
+        }
+        if let Some(index) = remove {
+            self.sync_sources.remove(index);
+            self.worker.send(Command::SyncSources(self.sync_sources.clone()));
+        }
+        ui.add_space(SP_4);
+        ui.horizontal(|ui| {
+            text_field(ui, &mut self.sync_input, "/Users/you/Music", 420.0);
+            if ui.button("Add folder").clicked() {
+                let raw = self.sync_input.trim().trim_matches('"').to_string();
+                let path = PathBuf::from(&raw);
+                if raw.is_empty() {
+                    // Nothing typed; the button does nothing rather than complaining.
+                } else if !path.is_dir() {
+                    self.logs.push(LogLine::error(format!("{raw} is not a folder")));
+                } else if self.sync_sources.contains(&path) {
+                    self.logs
+                        .push(LogLine::info(format!("{raw} is already a source")));
+                } else {
+                    self.sync_sources.push(path);
+                    self.sync_input.clear();
+                    self.worker.send(Command::SyncSources(self.sync_sources.clone()));
+                }
+            }
+            if quiet_button(ui, "Scan", TEXT_2).clicked() {
+                self.worker.send(Command::SyncScan);
+            }
+        });
+        ui.add_space(SP_16);
+
+        // ── the plan ──
+        let Some(plan) = self.sync_plan.clone() else {
+            ui.label(RichText::new("Scanning the folders…").color(TEXT_3).size(12.0));
+            return;
+        };
+        ui.horizontal(|ui| {
+            ui.label(RichText::new(tracked("plan")).font(label()).color(NEON_ORANGE));
+            if plan.local_files == 0 {
+                ui.label(RichText::new("nothing scanned yet").color(TEXT_3).size(12.0));
+            } else {
+                ui.label(
+                    RichText::new(format!(
+                        "{} to push · {} already on the device · {} local file(s)",
+                        plan.to_push.len(),
+                        plan.present,
+                        plan.local_files
+                    ))
+                    .color(TEXT_2)
+                    .size(12.0),
+                );
+                if plan.bytes > 0 {
+                    ui.label(
+                        RichText::new(format!("· about {}", theme::human_bytes(plan.bytes)))
+                            .color(TEXT_3)
+                            .size(12.0),
+                    );
+                }
+            }
+            if !plan.duplicates.is_empty() {
+                ui.label(
+                    RichText::new(format!("· {} skipped as duplicates", plan.duplicates.len()))
+                        .color(TEXT_3)
+                        .size(11.0),
+                );
+            }
+        });
+        ui.add_space(SP_8);
+
+        let can_push = !plan.to_push.is_empty() && !self.busy && self.link == Link::Connected;
+        ui.horizontal(|ui| {
+            if ui
+                .add_enabled(
+                    can_push,
+                    egui::Button::new(
+                        RichText::new(format!("Push {} file(s) to the Zune", plan.to_push.len()))
+                            .color(ORANGE)
+                            .strong(),
+                    )
+                    .min_size(Vec2::new(240.0, 30.0)),
+                )
+                .clicked()
+            {
+                let paths: Vec<PathBuf> =
+                    plan.to_push.iter().map(|item| item.path.clone()).collect();
+                self.worker.clear_cancel();
+                self.sync_items.clear();
+                self.worker.send(Command::SyncRun(paths));
+            }
+            if self.busy && ui.button("Stop after current").clicked() {
+                self.worker.request_cancel();
+            }
+            if !can_push && !self.busy {
+                ui.label(
+                    RichText::new(if self.link != Link::Connected {
+                        "connect a Zune to push"
+                    } else if plan.to_push.is_empty() {
+                        "nothing new to push"
+                    } else {
+                        ""
+                    })
+                    .color(MUTED)
+                    .size(11.0),
+                );
+            }
+        });
+        ui.add_space(SP_8);
+
+        // ── the list: the running push when there is one, else the plan ──
+        // Owned rows so the drawing closure borrows nothing from `self`.
+        let rows: Vec<(String, String, u64, Option<SyncState>, String)> =
+            if self.sync_items.is_empty() {
+                plan.to_push
+                    .iter()
+                    .map(|item| {
+                        (
+                            item.label(),
+                            crate::sync::SyncPlan::album_of(item),
+                            item.size,
+                            None,
+                            String::new(),
+                        )
+                    })
+                    .collect()
+            } else {
+                self.sync_items
+                    .iter()
+                    .map(|row| {
+                        (
+                            row.label.clone(),
+                            String::new(),
+                            0,
+                            Some(row.state),
+                            row.note.clone(),
+                        )
+                    })
+                    .collect()
+            };
+        let row_height = 22.0;
+        egui::ScrollArea::vertical()
+            .id_salt("sync-plan")
+            .auto_shrink([false, false])
+            .show_rows(ui, row_height, rows.len(), |ui, range| {
+                for index in range {
+                    let (label, album, size, state, note) = &rows[index];
+                    ui.horizontal(|ui| {
+                        match state {
+                            None => {
+                                ui.label(RichText::new("○").color(TEXT_3).size(11.0));
+                            }
+                            Some(SyncState::Started) => {
+                                ui.label(RichText::new("◐").color(NEON_ORANGE).size(11.0));
+                            }
+                            Some(SyncState::Done) => {
+                                ui.label(RichText::new("✓").color(NEON_ORANGE).size(11.0));
+                            }
+                            Some(SyncState::Failed) => {
+                                ui.label(RichText::new("✗").color(RED).size(11.0));
+                            }
+                        }
+                        ui.add_sized(
+                            [380.0, 18.0],
+                            egui::Label::new(RichText::new(label).size(12.0).color(TEXT_1))
+                                .truncate(),
+                        );
+                        if !album.is_empty() {
+                            ui.add_sized(
+                                [220.0, 18.0],
+                                egui::Label::new(RichText::new(album).size(11.0).color(TEXT_3))
+                                    .truncate(),
+                            );
+                        }
+                        if *size > 0 {
+                            ui.label(
+                                RichText::new(theme::human_bytes(*size)).color(TEXT_3).size(11.0),
+                            );
+                        }
+                        if !note.is_empty() {
+                            ui.add_sized(
+                                [320.0, 18.0],
+                                egui::Label::new(RichText::new(note).size(11.0).color(RED))
+                                    .truncate(),
+                            );
+                        }
+                    });
+                }
+            });
     }
 
     fn push_page(&mut self, ui: &mut egui::Ui) {
@@ -2781,6 +3128,11 @@ impl eframe::App for ZuneApp {
             self.wifi_autoscan = false;
             self.worker.send(Command::WifiScan);
         }
+        // Opening the Sync page asks for a plan once; the button asks again on demand.
+        if self.page == Page::Sync && !self.sync_scanned {
+            self.sync_scanned = true;
+            self.worker.send(Command::SyncScan);
+        }
         // Dev affordance: one refresh, once, so the quick change check can be exercised
         // without racing another window for the pointer.
         if let Some(force) = self.refresh_on_start {
@@ -2817,6 +3169,7 @@ impl eframe::App for ZuneApp {
                     Page::Tracks => self.tracks_page(ui),
                     Page::Albums => self.albums_page(ui, &mut motion),
                     Page::Artists => self.artists_page(ui, &mut motion),
+                    Page::Sync => self.sync_page(ui),
                     Page::Push => self.push_page(ui),
                     Page::Device => self.device_page(ui),
                     Page::Wifi => self.wifi_page(ui),

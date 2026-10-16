@@ -290,6 +290,31 @@ pub enum Event {
     CoversPrefetched { albums: usize },
     /// A WiFi scan came back: the parsed networks, plus the raw hex for the log.
     WifiScan { networks: Vec<crate::core::wifi::WifiNetwork>, hex: String },
+    /// A local scan finished: the full plan (what to push, what is already there).
+    SyncPlan(Box<crate::sync::SyncPlan>),
+    /// One item of a running sync changed state.
+    SyncItem(Box<SyncItemEvent>),
+    /// The sync finished; `summary` is the one-line status for the page.
+    SyncFinished { pushed: usize, failed: usize, summary: String },
+}
+
+/// Where one file in a running sync stands.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SyncState {
+    Started,
+    Done,
+    Failed,
+}
+
+/// One row of the running-sync list, sent per state change.
+#[derive(Debug, Clone)]
+pub struct SyncItemEvent {
+    pub index: usize,
+    pub total: usize,
+    pub label: String,
+    pub state: SyncState,
+    /// Empty unless something went wrong or the step says so.
+    pub note: String,
 }
 
 /// UI → worker.
@@ -326,6 +351,23 @@ pub enum Command {
         album: String,
         track_handle: Option<u32>,
     },
+    /// The user picked a cover image for this album. It is verified, cached as the
+    /// album's art, and outranks whatever the ladder finds on a later pass.
+    SetCover {
+        key: u32,
+        artist: String,
+        album: String,
+        path: PathBuf,
+    },
+    /// Scan the local source folders and publish a plan. Deliberately needs no
+    /// device: the "already on the Zune" side comes from the library in hand (the
+    /// cache when the device is unplugged, the live read when it is not).
+    SyncScan,
+    /// Replace the source list, save it, and re-plan.
+    SyncSources(Vec<PathBuf>),
+    /// Push these files. The UI hands back the plan it showed, so nothing has to be
+    /// remembered in the worker between the two commands.
+    SyncRun(Vec<PathBuf>),
     /// Dump the real reference/property structure of the first N albums on the
     /// device, so cover parsing can be written against facts instead of guesses.
     DiagnoseAlbums(usize),

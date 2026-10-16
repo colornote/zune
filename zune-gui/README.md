@@ -17,8 +17,9 @@ window, no runtime dependencies, cross-compiled from Linux to macOS arm64.
 | Design system **v1.1** (pure black, neon + glow, tokens, fonts, motion) | ✅ `src/design/` |
 | Component library + **component board** for visual review | ✅ `src/ui/` |
 | **Albums page**: cover wall, sort/filter, detail view, cover diagnosis | ✅ P3 (first page done) |
+| **Sync page**: local folders → plan → push, one way (see [SYNC.md](SYNC.md)) | ✅ |
 | Other pages (Collection / Tracks / Push / Device / Wi-Fi) | 🚧 functional, still on the old theme — P4+ |
-| Album cover art resolution | ✅ format-verified, with an on-device diagnostic |
+| Album cover art resolution | ✅ format-verified (ID3v2 DLI + unsynchronisation included), with an on-device diagnostic |
 
 ## Layout
 
@@ -39,6 +40,8 @@ zune-gui/
 │   │   └── board.rs         the component board: every token and component on one page
 │   ├── core/                read-only snapshot of zune-rs (see below)
 │   ├── cache.rs             on-disk library cache (CACHE.md) — why a start is instant
+│   ├── locallib.rs          the local source folders: scan + incremental index (SYNC.md)
+│   ├── sync.rs              the one-way planner: what the Zune does not have yet
 │   ├── worker.rs            the only thread that touches USB
 │   ├── model.rs             worker ↔ UI message types
 │   ├── app.rs               shell: nav, top bar, status bar, page routing
@@ -151,12 +154,25 @@ The rules are:
 
 ### Where a cover can come from
 
-The device is not a cover source for its own library on this firmware, so `coverfetch`
-provides the fallback ladder (**disk cache → local music file → iTunes Search**), each
-result labelled with its origin in the UI. Matching is deliberately conservative —
-normalised names, a generated Traditional→Simplified table (`src/t2s.rs`, from OpenCC),
-and a same-script artist veto — because a wrong cover is worse than none. Misses are
-cached for a week; `Refresh` retries.
+The device exposes no cover-art object for its own library on this firmware, so
+`zune-gui` resolves covers in this order, and labels the origin in the UI:
+
+1. **the on-disk cache** — instant, offline, and consulted before the ladder;
+2. **the album's own audio file** (`src/core/id3.rs`) — a Zune 30 stores art *inside*
+   the track, in an ID3 `APIC` frame; of 41 files sampled across a real library,
+   10 (about a quarter) carry one. One 1 MB partial read per album, no network, and
+   the device's own art rather than a guess. The reader understands v2.2/v2.3/v2.4,
+   tag-level and per-frame unsynchronisation, and the v2.4 Data Length Indicator —
+   three independent reasons a cover that was present used to be silently missed;
+3. **a local music file** (embedded ID3/FLAC picture, or `cover.jpg` beside matching tags);
+4. **iTunes Search** — free, keyless, official art;
+5. **MusicBrainz + Cover Art Archive** — free, keyless, and better at Chinese releases.
+
+Both online sources are rate-limited (iTunes ~20 req/min, MusicBrainz 1 req/s) and both are
+matched strictly: a wrong cover is worse than no cover, so a candidate must agree on album
+*and* artist before it is accepted. Traditional↔Simplified folding (`zune-gui/src/t2s.rs`)
+is what lets `"04.华丽的冒险(2005.09)"` match MusicBrainz' `"華麗的冒險"`. Misses are cached
+for a week; `Refresh` retries, and the embedded-file pass runs again with it.
 
 ### The wedged-device trap
 
@@ -244,7 +260,8 @@ Each file carries its source path and sha256 in the header.
   the worker already emits everything needed
 * **P3** 🚧 **Albums done** (cover wall, sort by name/artist/year, filter, detail view,
   cover provenance + diagnostics). Collection (bento) and the Tracks list are next.
-* **P4** transfer: drag & drop, queue, progress, completion toasts
+* **P4** 🚧 transfer: the **Sync page** (source folders → plan → push, one way) is in;
+  drag & drop onto the plan, a shared queue with Push, and completion toasts remain
 * **P5** polish: micro-interactions everywhere, empty/loading/error states, keyboard
   navigation, ≥4.5:1 contrast, layout degradation at 900px
 * **P6** Photos / Videos, Wi-Fi configuration, Settings + diagnostics
