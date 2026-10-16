@@ -477,24 +477,34 @@ impl<'a> Library<'a> {
     /// properties the Zune displays. Existing objects with the same name are
     /// replaced. Returns the new handle.
     pub fn push_track(&mut self, path: &Path, data: &[u8], t: &TrackTags) -> Result<u32> {
-        self.push_track_reported(path, data, t, &mut |_, _| {})
+        self.push_track_reported(path, data, t, true, &mut |_, _| {})
     }
 
     /// ZUNE-GUI addition: `push_track` with byte-level upload progress, so a single
     /// large file still moves the progress bar. Identical wire behaviour.
+    ///
+    /// `replace` keeps the historical rule — an object the device already holds under
+    /// the same name is deleted first. Callers that already know the name is free (a
+    /// sync plan, checked against the live library) pass `false`, which skips the
+    /// lookup in [`Self::find_track`]: that walk is one `GetObjectInfo` per object on
+    /// the device, measured at ~2 minutes for a 2425-track library, and it is paid
+    /// once per pushed file.
     pub fn push_track_reported(
         &mut self,
         path: &Path,
         data: &[u8],
         t: &TrackTags,
+        replace: bool,
         progress: &mut dyn FnMut(usize, usize),
     ) -> Result<u32> {
         let stem = path
             .file_stem()
             .map(|s| s.to_string_lossy().to_string())
             .unwrap_or_default();
-        if let Some(old) = self.find_track(&stem)? {
-            self.session.delete_object(old)?;
+        if replace {
+            if let Some(old) = self.find_track(&stem)? {
+                self.session.delete_object(old)?;
+            }
         }
 
         let filename = tags::stored_name(path);

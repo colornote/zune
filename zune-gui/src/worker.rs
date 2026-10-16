@@ -1169,8 +1169,8 @@ impl Backend {
                 )));
                 break;
             }
-            match self.push_one(path, index, total, ev) {
-                Ok(()) => pushed += 1,
+            match self.push_one(path, index, total, true, ev) {
+                Ok(_) => pushed += 1,
                 Err(e) => {
                     failed += 1;
                     ev.log(LogLine::error(format!("{}: {e:#}", file_label(path))));
@@ -1186,7 +1186,14 @@ impl Backend {
     }
 
     /// Convert one file and push it as a track, with byte-level progress.
-    fn push_one(&mut self, path: &Path, index: usize, total: usize, ev: &Emitter) -> Result<()> {
+    fn push_one(
+        &mut self,
+        path: &Path,
+        index: usize,
+        total: usize,
+        replace: bool,
+        ev: &Emitter,
+    ) -> Result<u32> {
         let label = file_label(path);
         ev.progress(Progress {
             task: "Pushing".to_owned(),
@@ -1210,7 +1217,7 @@ impl Backend {
         let session = self.session.as_mut().context("not connected")?;
         let mut lib = Library::new(session)?;
         let handle = lib
-            .push_track_reported(path, &converted.data, &track_tags, &mut |sent, tot| {
+            .push_track_reported(path, &converted.data, &track_tags, replace, &mut |sent, tot| {
                 ev.progress_throttled(Progress {
                     task: "Pushing".to_owned(),
                     step: format!("{label} — {:.1} / {:.1} MB", sent as f64 / 1e6, tot as f64 / 1e6),
@@ -1236,7 +1243,7 @@ impl Backend {
             bytes as f64 / 1e6
         )));
         log::debug!("track handle {handle:#010x} for {label}");
-        Ok(())
+        Ok(handle)
     }
 
     /// The album workflow from `lib.sync_album`, but reporting progress and
@@ -1296,7 +1303,7 @@ impl Backend {
             let session = self.session.as_mut().context("not connected")?;
             let mut lib = Library::new(session)?;
             let handle = lib
-                .push_track_reported(path, &converted.data, track_tags, &mut |sent, tot| {
+                .push_track_reported(path, &converted.data, track_tags, true, &mut |sent, tot| {
                     ev.progress_throttled(Progress {
                         task: "Pushing album".to_owned(),
                         step: format!(
@@ -2499,6 +2506,7 @@ impl Backend {
         let total = paths.len();
         let mut pushed = 0usize;
         let mut failed = 0usize;
+        let mut skipped = 0usize;
         for (index, path) in paths.iter().enumerate() {
             if cancel.load(Ordering::Relaxed) {
                 ev.log(LogLine::warn(format!(
@@ -2507,6 +2515,37 @@ impl Backend {
                 break;
             }
             let label = file_label(path);
+            // The plan already asked whether the device holds this file, and asked the
+            // live library. Asking the device again is what `push_track` would do by
+            // default, and that walk costs one `GetObjectInfo` per object — about two
+            // minutes per file on this 2425-track device. The in-memory library answers
+            // the same question for free; when it says the name is taken, the file is
+            // skipped rather than replaced.
+            let stem = path
+                .file_stem()
+                .map(|s| s.to_string_lossy().to_string())
+                .unwrap_or_default();
+            let key = locallib::name_key(&format!("{stem}.mp3"));
+            let taken = !key.is_empty()
+                && self
+                    .tracks
+                    .iter()
+                    .any(|track| !track.filename.is_empty() && locallib::name_key(&track.filename) == key);
+            if taken {
+                skipped += 1;
+                ev.log(LogLine::warn(format!(
+                    "{label}: the device already has an object with this name — skipped"
+                )));
+                ev.send(Event::SyncItem(Box::new(SyncItemEvent {
+                    index,
+                    total,
+                    label,
+                    path: path.clone(),
+                    state: SyncState::Done,
+                    note: "already on the device".to_owned(),
+                })));
+                continue;
+            }
             ev.send(Event::SyncItem(Box::new(SyncItemEvent {
                 index,
                 total,
@@ -2515,11 +2554,11 @@ impl Backend {
                 state: SyncState::Started,
                 note: String::new(),
             })));
-            match self.push_one(path, index, total, ev) {
-                Ok(()) => {
+            match self.push_one(path, index, total, false, ev) {
+                Ok(handle) => {
                     pushed += 1;
                     let size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
-                    self.note_pushed(path, size);
+                    self.note_pushed(path, size, handle);
                     ev.send(Event::SyncItem(Box::new(SyncItemEvent {
                         index,
                         total,
@@ -2548,7 +2587,11 @@ impl Backend {
                 }
             }
         }
-        let summary = format!("{pushed} pushed, {failed} failed");
+        let summary = if skipped > 0 {
+            format!("{pushed} pushed, {failed} failed, {skipped} already on the device")
+        } else {
+            format!("{pushed} pushed, {failed} failed")
+        };
         ev.send(Event::SyncFinished { pushed, failed, summary: summary.clone() });
         Ok(summary)
     }
@@ -2557,10 +2600,10 @@ impl Backend {
     /// device without paying for a full re-read. The firmware renames the object as it
     /// ingests it, so the entry carries the tags — the tag signature is what matches
     /// on the next pass.
-    fn note_pushed(&mut self, path: &Path, size: u64) {
+    fn note_pushed(&mut self, path: &Path, size: u64, handle: u32) {
         let tags = tags::read(path);
-        self.tracks.push(Track {
-            handle: 0,
+        let track = Track {
+            handle,
             filename: tags::stored_name(path),
             size: size.min(u32::MAX as u64) as u32,
             format: 0x3008,
@@ -2569,7 +2612,16 @@ impl Backend {
             album: tags.album.unwrap_or_default(),
             track_no: tags.track,
             duration: None,
-        });
+        };
+        // The cache has to know too: a sync push does not check names on the device (that
+        // walk costs about two minutes here), so without this a later start would offer
+        // the same file again and land a second object under the same name.
+        if cache::is_usable_serial(&self.snapshot.serial) {
+            if let Err(e) = cache::LibraryCache::note_track(&self.snapshot.serial, &track) {
+                log::debug!("could not record the pushed track in the cache: {e:#}");
+            }
+        }
+        self.tracks.push(track);
     }
 
     fn fetch_fallback_cover(

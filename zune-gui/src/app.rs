@@ -273,6 +273,10 @@ pub struct ZuneApp {
     sync_input: String,
     /// Set once, so opening the page scans without a click.
     sync_scanned: bool,
+    /// Set by `ZUNE_SYNC_PUSH_ON_START=1`: push the first plan that arrives, once.
+    /// A dev affordance like `ZUNE_REFRESH_ON_START` — driving a button from a
+    /// screenshot or CI session is not always reliable.
+    sync_push_on_start: bool,
 
     /// Albums page: ordering, filter and the album whose detail view is open.
     album_sort: AlbumSort,
@@ -387,6 +391,7 @@ impl ZuneApp {
             sync_sources: crate::locallib::load_config().sources,
             sync_input: String::new(),
             sync_scanned: false,
+            sync_push_on_start: std::env::var_os("ZUNE_SYNC_PUSH_ON_START").is_some(),
             album_sort: AlbumSort::Name,
             album_search: String::new(),
             // Dev affordance: ZUNE_ALBUM="Kid A" opens that detail view directly,
@@ -468,7 +473,18 @@ impl ZuneApp {
         }
         while let Some(event) = self.worker.try_recv() {
             match event {
-                Event::Link(link) => self.link = link,
+                Event::Link(link) => {
+                    let was = self.link;
+                    self.link = link;
+                    if link == Link::Connected && was != Link::Connected {
+                        // Covers asked for before the session existed could not have
+                        // consulted the device; let those albums ask again.
+                        self.covers
+                            .retain(|_, state| !matches!(state, CoverState::Failed(_)));
+                        self.cover_pending.clear();
+                    }
+                    self.maybe_push_on_start();
+                }
                 Event::Snapshot(snapshot) => self.snapshot = *snapshot,
                 Event::Library { tracks, albums } => {
                     let live: HashSet<u32> = tracks.iter().map(|t| t.handle).collect();
@@ -500,8 +516,16 @@ impl ZuneApp {
                     self.busy = false;
                     self.last_summary = Some((ok, summary));
                     self.progress = None;
+                    // A finished task is a moment the world may now allow something that
+                    // it did not a second ago (a push that was waiting for the scan).
+                    self.maybe_push_on_start();
                 }
-                Event::Busy(busy) => self.busy = busy,
+                Event::Busy(busy) => {
+                    self.busy = busy;
+                    if !busy {
+                        self.maybe_push_on_start();
+                    }
+                }
                 Event::Cover { handle, image, origin } => {
                     let texture = ctx.load_texture(
                         format!("cover-{handle}"),
@@ -545,6 +569,7 @@ impl ZuneApp {
                 Event::SyncPlan(plan) => {
                     self.sync_plan = Some(*plan);
                     self.sync_items.clear();
+                    self.maybe_push_on_start();
                 }
                 Event::SyncItem(item) => {
                     if item.state == SyncState::Failed {
@@ -581,8 +606,38 @@ impl ZuneApp {
     }
 
     /// Files and folders dropped on the window go straight into the push queue.
-    fn take_dropped_files(&mut self, ctx: &egui::Context) {
-        let dropped: Vec<PathBuf> = ctx.input(|i| {
+    /// `ZUNE_SYNC_PUSH_ON_START=1`: push the first plan that arrives, once — but only
+    /// once there is both a plan and a session. The plan is computed from the local
+    /// folders alone, so it lands long before the device has finished connecting.
+    ///
+    /// A dev affordance like `ZUNE_REFRESH_ON_START`: in a screenshot or CI session a
+    /// button click is not always reliable.
+    fn maybe_push_on_start(&mut self) {
+        if !self.sync_push_on_start {
+            return;
+        }
+        let Some(plan) = self.sync_plan.clone() else {
+            log::debug!("auto-push: no plan yet");
+            return;
+        };
+        log::debug!(
+            "auto-push: {} to push · link={:?} · busy={}",
+            plan.to_push.len(),
+            self.link,
+            self.busy
+        );
+        if plan.to_push.is_empty() || self.link != Link::Connected || self.busy {
+            return;
+        }
+        self.sync_push_on_start = false;
+        let paths: Vec<PathBuf> = plan.to_push.iter().map(|item| item.path.clone()).collect();
+        self.worker.clear_cancel();
+        self.sync_items.clear();
+        self.sync_failures.clear();
+        self.worker.send(Command::SyncRun(paths));
+    }
+
+    fn take_dropped_files(&mut self, ctx: &egui::Context) {        let dropped: Vec<PathBuf> = ctx.input(|i| {
             i.raw
                 .dropped_files
                 .iter()

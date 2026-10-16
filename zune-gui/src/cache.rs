@@ -340,6 +340,30 @@ impl LibraryCache {
         Ok(path)
     }
 
+    /// Record a track this app just wrote to the device, and write the cache back.
+    ///
+    /// Without this the next start would offer to push a file the device already has —
+    /// and because a sync push deliberately skips the device-side name check (it costs
+    /// one `GetObjectInfo` per object, measured at ~2 minutes on a 2425-track library),
+    /// that would land a second object with the same name.
+    ///
+    /// Albums are left alone: their handles only come from a full read, and the Albums
+    /// page already says Refresh is what re-reads the device.
+    pub fn note_track(serial: &str, track: &Track) -> Result<()> {
+        let Some(mut library) = LibraryCache::load(serial) else {
+            // No cache to extend: the next cached start is a device read anyway.
+            return Ok(());
+        };
+        if library.tracks.iter().any(|t| {
+            (track.handle != 0 && t.handle == track.handle)
+                || (!track.filename.is_empty() && t.filename == track.filename)
+        }) {
+            return Ok(());
+        }
+        library.tracks.push(CachedTrack::from(track, now_unix()));
+        library.save().map(|_| ())
+    }
+
     /// Load the cache for one serial, or `None` when there is none (or it is stale
     /// in shape). A broken file is reported and treated as absent.
     pub fn load(serial: &str) -> Option<LibraryCache> {
