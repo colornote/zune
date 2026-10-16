@@ -6,6 +6,7 @@
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
+use anyhow::{Context, Result};
 use eframe::egui::{
     self, Align, Align2, Color32, CornerRadius, FontId, Layout, Rect, RichText, Sense, Stroke, Vec2,
 };
@@ -191,8 +192,14 @@ struct ArtistRow {
     album_name: String,
     /// The album's first track: its file may carry the art in an ID3 frame.
     track_handle: Option<u32>,
-    /// Whether that album actually has artwork yet.
+    /// Whether that album has artwork *on the device*. Not a gate on asking for a cover:
+    /// a Zune 30 stores art in the audio files, so this is false for nearly every album
+    /// and the fallback ladder is the normal path, not the exception.
     has_art: bool,
+    /// Whether the representative album has been picked yet. Separate from `has_art`
+    /// because "this album has art on the device" and "stop looking for a better album"
+    /// are different questions.
+    art_chosen: bool,
 }
 
 pub struct ZuneApp {
@@ -255,6 +262,38 @@ pub struct ZuneApp {
     wifi_autoscan: bool,
     wifi_profile_input: String,
     wifi_note: String,
+    /// Set by `ZUNE_SCREENSHOT`: draw for a while, save one PNG, close.
+    shot: Option<Shot>,
+}
+
+/// `ZUNE_SCREENSHOT=/path/out.png` — draw, save one PNG, close.
+///
+/// The pixels come from egui's own framebuffer rather than from the screen, which is the
+/// point: `screencapture` can only photograph whatever is on top, and the machine is
+/// usually in use for something else while a UI change wants checking. `ZUNE_PAGE` picks
+/// the page; `ZUNE_SCREENSHOT_FRAMES` (default 120) is how long to let the cached library
+/// and its covers arrive before the shutter opens.
+struct Shot {
+    path: PathBuf,
+    wait: u32,
+    frame: u32,
+    asked: bool,
+}
+
+impl Shot {
+    fn from_env() -> Option<Self> {
+        let path = std::env::var_os("ZUNE_SCREENSHOT")?;
+        let wait = std::env::var("ZUNE_SCREENSHOT_FRAMES")
+            .ok()
+            .and_then(|value| value.trim().parse().ok())
+            .unwrap_or(120);
+        Some(Shot {
+            path: PathBuf::from(path),
+            wait,
+            frame: 0,
+            asked: false,
+        })
+    }
 }
 
 impl ZuneApp {
@@ -322,6 +361,51 @@ impl ZuneApp {
             wifi_autoscan: std::env::var_os("ZUNE_WIFI_SCAN").is_some(),
             wifi_profile_input: String::new(),
             wifi_note: String::new(),
+            shot: Shot::from_env(),
+        }
+    }
+
+    /// The `ZUNE_SCREENSHOT` state machine: wait, ask, save, close.
+    ///
+    /// Three frames are involved and none of them can be skipped. Asking is one frame
+    /// (`ViewportCommand` is read after the frame is submitted), the answer arrives as an
+    /// input event on a later one, and the window has to stay alive until it does.
+    fn screenshot_tick(&mut self, ctx: &egui::Context) {
+        let Some(mut shot) = self.shot.take() else { return };
+        shot.frame += 1;
+        if shot.frame < shot.wait {
+            self.shot = Some(shot);
+            ctx.request_repaint();
+            return;
+        }
+        if !shot.asked {
+            shot.asked = true;
+            ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(Default::default()));
+            self.shot = Some(shot);
+            ctx.request_repaint();
+            return;
+        }
+        let image = ctx.input(|input| {
+            input.events.iter().find_map(|event| match event {
+                egui::Event::Screenshot { image, .. } => Some(image.clone()),
+                _ => None,
+            })
+        });
+        match image {
+            Some(image) => {
+                match save_png(&shot.path, &image) {
+                    Ok(()) => eprintln!("» screenshot written to {}", shot.path.display()),
+                    Err(e) => eprintln!("» screenshot failed: {e:#}"),
+                }
+                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            }
+            // Not this frame. Ask again rather than giving up: the reply can land either
+            // side of the frame the request went out on, depending on the backend.
+            None => {
+                shot.asked = false;
+                self.shot = Some(shot);
+                ctx.request_repaint();
+            }
         }
     }
 
@@ -844,18 +928,25 @@ impl ZuneApp {
                     album_name: album.name.clone(),
                     track_handle: album.track_handles.first().copied(),
                     has_art: album.cover_source.is_found(),
+                    art_chosen: album.cover_source.is_found(),
                 });
             row.albums += 1;
             row.tracks += album.tracks;
             row.duration += album.duration;
-            // The thumbnail wants an album that actually has art, and the first one seen
-            // may not. Art beats no art; otherwise the first album wins.
-            if !row.has_art && album.cover_source.is_found() {
+            // The thumbnail wants an album that can actually supply one. Device art wins,
+            // then a cover already on disk, then whatever was seen first — the first album
+            // an artist has is often the one without art, and on a Zune 30 *no* album has
+            // device art, so "already on disk" is the case that matters here.
+            if !row.art_chosen
+                && (album.cover_source.is_found()
+                    || self.covers.contains_key(&album.cover_key))
+            {
                 row.key = album.cover_key;
                 row.handle = album.cover_handle;
                 row.album_name = album.name.clone();
                 row.track_handle = album.track_handles.first().copied();
-                row.has_art = true;
+                row.has_art = album.cover_source.is_found();
+                row.art_chosen = true;
             }
         }
         let mut rows: Vec<ArtistRow> = by_name
@@ -876,11 +967,14 @@ impl ZuneApp {
         // Ask for the thumbnails before drawing, using exactly the album wall's two
         // routes: a device handle gets downloaded, and an album with no art object goes
         // down the fallback ladder. `cover_pending` keeps this from repeating every frame.
+        //
+        // Note what this does *not* test: `row.has_art`. That flag says whether the
+        // *device* has a cover object, and on a Zune 30 the answer is nearly always no —
+        // the art is in the audio files' ID3 tags and has to come down the ladder. Gating
+        // on it meant every artist drew a monogram, forever. The album wall never tested
+        // it, which is exactly why the wall worked and this page did not.
         for row in &rows {
-            if !row.has_art
-                || self.covers.contains_key(&row.key)
-                || self.cover_pending.contains(&row.key)
-            {
+            if self.covers.contains_key(&row.key) || self.cover_pending.contains(&row.key) {
                 continue;
             }
             match row.handle {
@@ -897,20 +991,18 @@ impl ZuneApp {
             }
         }
 
+        // Same toolbar idiom as Albums and Tracks: the count is the headline, filters sit
+        // beside it, and the right-hand side carries facts about the list in mono.
         ui.horizontal(|ui| {
-            ui.label(RichText::new(format!("{} artists", rows.len())).strong());
-            ui.add_space(SP_8);
-            ui.add(
-                egui::TextEdit::singleline(&mut self.artist_search)
-                    .hint_text("filter artists")
-                    .desired_width(220.0),
-            );
+            stat_inline(ui, &thousands(rows.len() as u64), "artists", TEXT_1);
+            ui.add_space(SP_16);
+            text_field(ui, &mut self.artist_search, "filter artists", 220.0);
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 let tracks: usize = rows.iter().map(|r| r.tracks).sum();
                 ui.label(
-                    RichText::new(format!("{tracks} tracks"))
-                        .color(TEXT_3)
-                        .size(12.0),
+                    RichText::new(format!("{} tracks", thousands(tracks as u64)))
+                        .font(mono(11.0))
+                        .color(TEXT_3),
                 );
             });
         });
@@ -957,17 +1049,19 @@ impl ZuneApp {
 
                     // Thumbnail: one of the artist's covers when it is already cached,
                     // else a monogram on the surface tone.
+                    // r_md, the same corner the album wall uses — these are the same
+                    // covers, and two radii for one image reads as a mistake.
                     let thumb = Rect::from_center_size(
                         egui::pos2(rect.left() + 42.0, rect.center().y),
                         Vec2::splat(44.0),
                     );
                     match self.covers.get(&row.key) {
                         Some(CoverState::Ready(texture)) => {
-                            paint::rounded_image(painter, texture.id(), thumb, r_sm(), CANVAS);
+                            paint::rounded_image(painter, texture.id(), thumb, r_md(), CANVAS);
                         }
                         _ => {
-                            painter.rect_filled(thumb, r_sm(), SURFACE_1);
-                            paint::hairline(painter, thumb, r_sm());
+                            painter.rect_filled(thumb, r_md(), SURFACE_1);
+                            paint::hairline(painter, thumb, r_md());
                             let initial = row
                                 .name
                                 .chars()
@@ -1007,7 +1101,7 @@ impl ZuneApp {
                         egui::pos2(rect.right() - 16.0, rect.center().y),
                         Align2::RIGHT_CENTER,
                         duration_label(row.duration),
-                        mono(13.0),
+                        mono(11.0),
                         TEXT_3,
                     );
 
@@ -1531,8 +1625,8 @@ impl ZuneApp {
         ui.horizontal(|ui| {
             // No "Search" caption: the hint text already says what the field takes, and a
             // label beside a box that has a label is one label too many.
-            search_field(ui, &mut self.search, "search title, artist, album or file", 300.0);
-            if filtered && quiet_button(ui, "Clear filter", TEXT_2) {
+            text_field(ui, &mut self.search, "search title, artist, album or file", 300.0);
+            if filtered && quiet_button(ui, "Clear filter", TEXT_2).clicked() {
                 self.search.clear();
                 self.album_filter = None;
             }
@@ -1592,18 +1686,18 @@ impl ZuneApp {
                 };
                 match key {
                     Some(key) => {
-                        let clicked = if numeric {
-                            ui.allocate_ui_with_layout(
+                        let clicked = ui
+                            .allocate_ui_with_layout(
                                 Vec2::new(*width, 18.0),
-                                Layout::right_to_left(Align::Center),
+                                if numeric {
+                                    Layout::right_to_left(Align::Center)
+                                } else {
+                                    Layout::left_to_right(Align::Center)
+                                },
                                 |ui| ui.add(egui::Button::new(text).frame(false)),
                             )
                             .inner
-                            .clicked()
-                        } else {
-                            ui.add_sized([*width, 18.0], egui::Button::new(text).frame(false))
-                                .clicked()
-                        };
+                            .clicked();
                         if clicked {
                             if self.sort == key {
                                 self.sort_desc = !self.sort_desc;
@@ -1684,17 +1778,20 @@ impl ZuneApp {
                         } else {
                             RichText::new(&row.title).color(TEXT_1)
                         };
-                        ui.add_sized(
-                            [theme::COLS[2].0, 18.0],
-                            egui::Label::new(title).truncate(),
+                        cell(ui, theme::COLS[2].0, title, false);
+                        cell(
+                            ui,
+                            theme::COLS[3].0,
+                            RichText::new(if row.artist.is_empty() { "—" } else { &row.artist })
+                                .color(TEXT_2),
+                            false,
                         );
-                        ui.add_sized(
-                            [theme::COLS[3].0, 18.0],
-                            egui::Label::new(RichText::new(if row.artist.is_empty() { "—" } else { &row.artist }).color(TEXT_2)).truncate(),
-                        );
-                        ui.add_sized(
-                            [theme::COLS[4].0, 18.0],
-                            egui::Label::new(RichText::new(if row.album.is_empty() { "—" } else { &row.album }).color(TEXT_3)).truncate(),
+                        cell(
+                            ui,
+                            theme::COLS[4].0,
+                            RichText::new(if row.album.is_empty() { "—" } else { &row.album })
+                                .color(TEXT_3),
+                            false,
                         );
                         cell_right(ui, theme::COLS[5].0, RichText::new(&row.length).font(mono(11.0)).color(TEXT_3));
                         cell_right(
@@ -1772,12 +1869,12 @@ impl ZuneApp {
                 if selected > 0 { NEON_ORANGE } else { TEXT_3 },
             );
             ui.add_space(SP_24);
-            if quiet_button(ui, "Select all shown", TEXT_2) {
+            if quiet_button(ui, "Select all shown", TEXT_2).clicked() {
                 for row in &rows {
                     self.selected.insert(row.handle);
                 }
             }
-            if quiet_button(ui, "Select none", TEXT_2) {
+            if quiet_button(ui, "Select none", TEXT_2).clicked() {
                 self.selected.clear();
             }
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
@@ -1785,8 +1882,10 @@ impl ZuneApp {
                     !self.selected.is_empty() && !self.busy && self.link == Link::Connected;
                 // Kept visible while disabled rather than hidden: the action exists, it
                 // just needs a selection first.
-                let clicked =
-                    ui.add_enabled_ui(enabled, |ui| quiet_button(ui, "Delete selected", RED)).inner;
+                let clicked = ui
+                    .add_enabled_ui(enabled, |ui| quiet_button(ui, "Delete selected", RED))
+                    .inner
+                    .clicked();
                 if clicked {
                     self.confirm_delete = Some(self.selected.iter().copied().collect());
                 }
@@ -1804,53 +1903,49 @@ impl ZuneApp {
         let mut diagnose_covers = false;
         let mut refresh = false;
         ui.horizontal(|ui| {
-            ui.label(RichText::new(format!("{} albums", self.albums.len())).strong());
-            ui.add_space(SP_8);
-            ui.label(RichText::new("sort").color(MUTED).size(12.0));
+            stat_inline(ui, &thousands(self.albums.len() as u64), "albums", TEXT_1);
+            ui.add_space(SP_16);
+            // No "sort" caption: three buttons of which one is orange explains itself.
             for key in AlbumSort::ALL {
-                let active = self.album_sort == key;
-                if ui
-                    .add(
-                        egui::Button::new(RichText::new(key.label()).color(if active { NEON_ORANGE } else { MUTED }))
-                            .frame(false),
-                    )
-                    .clicked()
-                {
+                if quiet_toggle(ui, key.label(), self.album_sort == key).clicked() {
                     self.album_sort = key;
                 }
             }
-            ui.add(
-                egui::TextEdit::singleline(&mut self.album_search)
-                    .hint_text("filter albums")
-                    .desired_width(200.0),
-            );
+            ui.add_space(SP_12);
+            text_field(ui, &mut self.album_search, "filter albums", 200.0);
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 // Deliberately *not* gated on `busy`: pressing this stops the library
                 // read early so the answer arrives in seconds instead of minutes.
-                if ui
-                    .add_enabled(self.link == Link::Connected, egui::Button::new("Diagnose covers"))
+                let covers = ui
+                    .add_enabled_ui(self.link == Link::Connected, |ui| {
+                        quiet_button(ui, "Diagnose covers", TEXT_2)
+                    })
+                    .inner
                     .on_hover_text(
                         "Fast: reads only the image objects and a few albums (seconds, not minutes) and \
                          writes the real association structure to the Log page",
-                    )
-                    .clicked()
-                {
+                    );
+                if covers.clicked() {
                     diagnose_covers = true;
                 }
-                if ui
-                    .add_enabled(self.link == Link::Connected, egui::Button::new("Diagnose albums"))
+                let albums_diag = ui
+                    .add_enabled_ui(self.link == Link::Connected, |ui| {
+                        quiet_button(ui, "Diagnose albums", TEXT_2)
+                    })
+                    .inner
                     .on_hover_text(
                         "Dump the real reference/property structure of the first albums to the Log page",
-                    )
-                    .clicked()
-                {
+                    );
+                if albums_diag.clicked() {
                     diagnose = true;
                 }
-                if ui
-                    .add_enabled(!self.busy && self.link == Link::Connected, egui::Button::new("Refresh"))
-                    .on_hover_text("Re-read the device now and overwrite the cached library")
-                    .clicked()
-                {
+                let refresh_button = ui
+                    .add_enabled_ui(!self.busy && self.link == Link::Connected, |ui| {
+                        quiet_button(ui, "Refresh", TEXT_2)
+                    })
+                    .inner
+                    .on_hover_text("Re-read the device now and overwrite the cached library");
+                if refresh_button.clicked() {
                     refresh = true;
                 }
             });
@@ -2186,11 +2281,7 @@ impl ZuneApp {
         self.banner(ui);
         ui.label(RichText::new("Drag files or folders onto this window, or type a path.").color(MUTED));
         ui.horizontal(|ui| {
-            ui.add(
-                egui::TextEdit::singleline(&mut self.path_input)
-                    .hint_text("/Users/you/Music/Album")
-                    .desired_width(420.0),
-            );
+            text_field(ui, &mut self.path_input, "/Users/you/Music/Album", 420.0);
             if ui.button("Add").clicked() {
                 let raw = self.path_input.trim().trim_matches('"').to_string();
                 if !raw.is_empty() {
@@ -2262,20 +2353,22 @@ impl ZuneApp {
         });
         if self.album_mode {
             ui.horizontal(|ui| {
-                ui.label("Album title");
-                ui.add(
-                    egui::TextEdit::singleline(&mut self.album_name)
-                        .hint_text("(default: folder name / first track's album tag)")
-                        .desired_width(300.0),
+                ui.label(RichText::new("Album title").color(TEXT_2));
+                text_field(
+                    ui,
+                    &mut self.album_name,
+                    "(default: folder name / first track's album tag)",
+                    300.0,
                 );
                 ui.checkbox(&mut self.make_playlist, "create playlist");
             });
             ui.horizontal(|ui| {
-                ui.label("Cover art");
-                ui.add(
-                    egui::TextEdit::singleline(&mut self.cover_path)
-                        .hint_text("(default: largest JPEG in the folder)")
-                        .desired_width(380.0),
+                ui.label(RichText::new("Cover art").color(TEXT_2));
+                text_field(
+                    ui,
+                    &mut self.cover_path,
+                    "(default: largest JPEG in the folder)",
+                    380.0,
                 );
             });
         }
@@ -2675,17 +2768,37 @@ impl eframe::App for ZuneApp {
             });
         self.confirm_dialog(ui.ctx());
         motion.finish(ui.ctx());
+        self.screenshot_tick(ui.ctx());
     }
 }
 
 /// The Zune mark: a ring with the bar through it, which is what makes it a Zune and not
 /// a record. This is the one piece of chrome that keeps a fixed colour — it is the brand,
 /// so it stays orange while everything around it takes the page's signature.
-/// A search input: a dark well with a hairline edge, and the accent only while focused.
+/// Write an egui framebuffer out as a PNG.
+///
+/// `image` is already a dependency for decoding cover art, so the screenshot path costs
+/// nothing new — and going through it gets 8-bit RGBA conversion and PNG encoding right
+/// for free.
+fn save_png(path: &std::path::Path, image: &egui::ColorImage) -> Result<()> {
+    let [width, height] = image.size;
+    let mut rgba = Vec::with_capacity(width * height * 4);
+    for pixel in &image.pixels {
+        rgba.extend_from_slice(&pixel.to_array());
+    }
+    let buffer = image::RgbaImage::from_raw(width as u32, height as u32, rgba)
+        .context("the framebuffer did not match its own dimensions")?;
+    buffer
+        .save(path)
+        .with_context(|| format!("writing {}", path.display()))?;
+    Ok(())
+}
+
+/// A text input: a dark well with a hairline edge, and the accent only while focused.
 ///
 /// egui's default text field is a light-grey box, which on this canvas reads as a hole
-/// punched in the page. Three pages have a search box; this is the one definition.
-fn search_field(ui: &mut egui::Ui, value: &mut String, hint: &str, width: f32) {
+/// punched in the page. Every input in the app goes through here.
+fn text_field(ui: &mut egui::Ui, value: &mut String, hint: &str, width: f32) {
     ui.scope(|ui| {
         let v = ui.visuals_mut();
         v.extreme_bg_color = SURFACE_1;
@@ -2706,10 +2819,31 @@ fn search_field(ui: &mut egui::Ui, value: &mut String, hint: &str, width: f32) {
 
 /// A button with no chrome until you reach for it.
 ///
-/// Row-level actions — "select all", "clear filter" — sit next to content and should not
-/// compete with it. A stock button puts a filled box on every one of them; this stays
-/// invisible until hovered, and dims rather than disappears when disabled.
-fn quiet_button(ui: &mut egui::Ui, text: &str, colour: egui::Color32) -> bool {
+/// Row-level actions — "select all", "clear filter", "diagnose covers" — sit next to
+/// content and should not compete with it. A stock button puts a filled box on every one
+/// of them; this stays invisible until hovered, and dims rather than disappears when
+/// disabled. The `Response` comes back rather than a bool so callers keep `on_hover_text`,
+/// which is how the diagnose actions explain themselves.
+fn quiet_button(ui: &mut egui::Ui, text: &str, colour: egui::Color32) -> egui::Response {
+    quiet_button_styled(ui, text, colour, TEXT_1)
+}
+
+/// A quiet button that is one of a set: the active one keeps the accent on hover, because
+/// brightening it to white would read as "and now this one is selected".
+fn quiet_toggle(ui: &mut egui::Ui, text: &str, active: bool) -> egui::Response {
+    if active {
+        quiet_button_styled(ui, text, NEON_ORANGE, NEON_ORANGE)
+    } else {
+        quiet_button_styled(ui, text, TEXT_2, TEXT_1)
+    }
+}
+
+fn quiet_button_styled(
+    ui: &mut egui::Ui,
+    text: &str,
+    colour: egui::Color32,
+    hover_colour: egui::Color32,
+) -> egui::Response {
     let enabled = ui.is_enabled();
     let galley = ui.painter().layout_no_wrap(text.to_owned(), body_sm(), colour);
     let size = galley.size() + Vec2::new(18.0, 8.0);
@@ -2721,25 +2855,41 @@ fn quiet_button(ui: &mut egui::Ui, text: &str, colour: egui::Color32) -> bool {
     let colour = if !enabled {
         TEXT_3
     } else if hovered {
-        TEXT_1
+        hover_colour
     } else {
         colour
     };
     let galley = ui.painter().layout_no_wrap(text.to_owned(), body_sm(), colour);
     ui.painter()
         .galley(rect.center() - galley.size() / 2.0, galley, colour);
-    enabled && response.clicked()
+    response
+}
+
+/// A cell of the track table, aligned to the edge its column is read from.
+///
+/// `add_sized` centres, which is wrong for every column in a table: a short title floats
+/// in the middle of its slot while the one above it starts at the left edge, so nothing
+/// lines up. Numbers go right so their digits share a column; text goes left so its
+/// first letter does.
+fn cell(ui: &mut egui::Ui, width: f32, text: RichText, right: bool) {
+    ui.allocate_ui_with_layout(
+        Vec2::new(width, 18.0),
+        if right {
+            Layout::right_to_left(Align::Center)
+        } else {
+            Layout::left_to_right(Align::Center)
+        },
+        |ui| {
+            // `.truncate()`, not `ui.label()`: without it a long title runs straight over
+            // the next column, because nothing is holding it to its own width.
+            ui.add(egui::Label::new(text).truncate());
+        },
+    );
 }
 
 /// A right-aligned cell, so digits line up down a numeric column.
 fn cell_right(ui: &mut egui::Ui, width: f32, text: RichText) {
-    ui.allocate_ui_with_layout(
-        Vec2::new(width, 18.0),
-        Layout::right_to_left(Align::Center),
-        |ui| {
-            ui.label(text);
-        },
-    );
+    cell(ui, width, text, true);
 }
 
 /// A figure with its unit, inline: "2,425 shown". The value carries the row.
