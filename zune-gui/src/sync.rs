@@ -6,7 +6,7 @@
 //! neither a file name nor a title string. Three keys are derived on both sides
 //! instead, and a local file counts as present when any one of them matches:
 //!
-//!   1. the file name, normalised the way the firmware does (`tags::device_key`);
+//!   1. the file name, normalised the way the firmware does (`locallib::name_key`);
 //!   2. the name the firmware itself would have derived, `{track:02} {title}.mp3`;
 //!   3. a tag signature — title, artist, album, with a leading track number removed
 //!      from the title, lowercased and stripped of punctuation.
@@ -17,7 +17,6 @@
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
-use crate::core::tags;
 use crate::locallib::{name_key, LocalEntry, LocalIndex};
 use crate::model::Track;
 

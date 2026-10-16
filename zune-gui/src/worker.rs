@@ -2450,6 +2450,7 @@ impl Backend {
                 index,
                 total,
                 label: label.clone(),
+                path: path.clone(),
                 state: SyncState::Started,
                 note: String::new(),
             })));
@@ -2462,6 +2463,7 @@ impl Backend {
                         index,
                         total,
                         label,
+                        path: path.clone(),
                         state: SyncState::Done,
                         note: String::new(),
                     })));
@@ -2474,6 +2476,7 @@ impl Backend {
                         index,
                         total,
                         label,
+                        path: path.clone(),
                         state: SyncState::Failed,
                         note,
                     })));

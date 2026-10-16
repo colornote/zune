@@ -191,6 +191,14 @@ struct SyncRow {
     note: String,
 }
 
+/// A push that failed, kept so a retry can be offered even after the plan was
+/// recomputed — which clears the running list it was drawn from.
+struct SyncFailure {
+    path: PathBuf,
+    label: String,
+    note: String,
+}
+
 /// One row of the Artists page: the library's albums folded by artist name.
 struct ArtistRow {
     name: String,
@@ -259,6 +267,8 @@ pub struct ZuneApp {
     /// the text being typed to add one.
     sync_plan: Option<crate::sync::SyncPlan>,
     sync_items: Vec<SyncRow>,
+    /// The failures of the last run, so they can be retried by themselves.
+    sync_failures: Vec<SyncFailure>,
     sync_sources: Vec<PathBuf>,
     sync_input: String,
     /// Set once, so opening the page scans without a click.
@@ -373,6 +383,7 @@ impl ZuneApp {
             make_playlist: true,
             sync_plan: None,
             sync_items: Vec::new(),
+            sync_failures: Vec::new(),
             sync_sources: crate::locallib::load_config().sources,
             sync_input: String::new(),
             sync_scanned: false,
@@ -536,6 +547,13 @@ impl ZuneApp {
                     self.sync_items.clear();
                 }
                 Event::SyncItem(item) => {
+                    if item.state == SyncState::Failed {
+                        self.sync_failures.push(SyncFailure {
+                            path: item.path.clone(),
+                            label: item.label.clone(),
+                            note: item.note.clone(),
+                        });
+                    }
                     match self.sync_items.iter_mut().find(|row| row.index == item.index) {
                         Some(row) => {
                             row.state = item.state;
@@ -589,6 +607,39 @@ impl ZuneApp {
             if let (Some(path), Some((key, artist, album))) = (picked, album) {
                 self.worker.send(Command::SetCover { key, artist, album, path });
                 self.set_cover_open = false;
+                return;
+            }
+        }
+        // On the Sync page a dropped folder becomes a source, and a dropped file is
+        // pushed straight away — that is what the gesture means on a page about moving
+        // music. Both cases stay on the page instead of hopping to another one.
+        if self.page == Page::Sync {
+            let folders: Vec<PathBuf> = dropped.iter().filter(|p| p.is_dir()).cloned().collect();
+            let files: Vec<PathBuf> = dropped.iter().filter(|p| p.is_file()).cloned().collect();
+            let had_folders = !folders.is_empty();
+            let had_files = !files.is_empty();
+            if had_folders {
+                for folder in folders {
+                    if !self.sync_sources.contains(&folder) {
+                        self.sync_sources.push(folder);
+                    }
+                }
+                self.worker.send(Command::SyncSources(self.sync_sources.clone()));
+            }
+            if had_files {
+                if self.link == Link::Connected && !self.busy {
+                    self.worker.clear_cancel();
+                    self.sync_items.clear();
+                    self.sync_failures.clear();
+                    self.worker.send(Command::SyncRun(files));
+                } else {
+                    self.logs.push(LogLine::warn(
+                        "a Zune has to be connected (and idle) before files can be dropped \
+                         onto the Sync page to push them",
+                    ));
+                }
+            }
+            if had_folders || had_files {
                 return;
             }
         }
@@ -2558,6 +2609,31 @@ impl ZuneApp {
                         .size(11.0),
                 );
             }
+            // The plan is only as fresh as the device side behind it, so say which side
+            // that was.
+            if plan.local_files > 0 {
+                match self.origin.source {
+                    Source::Cached => {
+                        let age = self
+                            .origin
+                            .read_at
+                            .map(|at| cache::relative_age(at, cache::now_unix()))
+                            .unwrap_or_else(|| "no read yet".to_owned());
+                        ui.label(
+                            RichText::new(format!("· device side from cache ({age})"))
+                                .color(TEXT_3)
+                                .size(11.0),
+                        );
+                    }
+                    Source::Live => {
+                        ui.label(
+                            RichText::new("· device side read live")
+                                .color(TEXT_3)
+                                .size(11.0),
+                        );
+                    }
+                }
+            }
         });
         ui.add_space(SP_8);
 
@@ -2579,10 +2655,30 @@ impl ZuneApp {
                     plan.to_push.iter().map(|item| item.path.clone()).collect();
                 self.worker.clear_cancel();
                 self.sync_items.clear();
+                self.sync_failures.clear();
                 self.worker.send(Command::SyncRun(paths));
             }
             if self.busy && ui.button("Stop after current").clicked() {
                 self.worker.request_cancel();
+            }
+            if !self.sync_failures.is_empty() && !self.busy {
+                let failed = self.sync_failures.len();
+                if ui
+                    .add_enabled(
+                        self.link == Link::Connected,
+                        egui::Button::new(
+                            RichText::new(format!("Retry {failed} failed")).color(ORANGE),
+                        ),
+                    )
+                    .clicked()
+                {
+                    let paths: Vec<PathBuf> =
+                        self.sync_failures.iter().map(|failure| failure.path.clone()).collect();
+                    self.worker.clear_cancel();
+                    self.sync_failures.clear();
+                    self.sync_items.clear();
+                    self.worker.send(Command::SyncRun(paths));
+                }
             }
             if !can_push && !self.busy {
                 ui.label(
@@ -2600,23 +2696,11 @@ impl ZuneApp {
         });
         ui.add_space(SP_8);
 
-        // ── the list: the running push when there is one, else the plan ──
+        // ── the list: the running push when there is one, the last run's failures
+        // until a retry, else the plan ──
         // Owned rows so the drawing closure borrows nothing from `self`.
         let rows: Vec<(String, String, u64, Option<SyncState>, String)> =
-            if self.sync_items.is_empty() {
-                plan.to_push
-                    .iter()
-                    .map(|item| {
-                        (
-                            item.label(),
-                            crate::sync::SyncPlan::album_of(item),
-                            item.size,
-                            None,
-                            String::new(),
-                        )
-                    })
-                    .collect()
-            } else {
+            if !self.sync_items.is_empty() {
                 self.sync_items
                     .iter()
                     .map(|row| {
@@ -2626,6 +2710,34 @@ impl ZuneApp {
                             0,
                             Some(row.state),
                             row.note.clone(),
+                        )
+                    })
+                    .collect()
+            } else if !self.sync_failures.is_empty() {
+                // The run ended and the plan was recomputed; what failed is still worth
+                // showing, because the retry button refers to exactly this list.
+                self.sync_failures
+                    .iter()
+                    .map(|failure| {
+                        (
+                            failure.label.clone(),
+                            String::new(),
+                            0,
+                            Some(SyncState::Failed),
+                            failure.note.clone(),
+                        )
+                    })
+                    .collect()
+            } else {
+                plan.to_push
+                    .iter()
+                    .map(|item| {
+                        (
+                            item.label(),
+                            crate::sync::SyncPlan::album_of(item),
+                            item.size,
+                            None,
+                            String::new(),
                         )
                     })
                     .collect()

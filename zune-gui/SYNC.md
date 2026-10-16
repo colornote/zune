@@ -494,6 +494,14 @@ Event::SyncFinished(Box<SyncRun>)
 - `Command::SetCover` → 读文件 → `decode_cover` 验证 → `cache::write_cover` → `Event::Cover`
   （origin 显示为 `your file · x.jpg`）；同时 `coverfetch::clear_miss` 撤掉该专辑的 miss 记录。
 
+**Sync 页面打磨** — 拖放 + 失败重试：
+
+- 拖**文件夹**到 Sync 页 → 变成源文件夹（存盘 + 重扫）；拖**音频文件** → 直接推送那几首
+  （设备未连接/忙时给warning，不乱跳页面）。
+- 一次运行里的失败项在计划重算（会清空运行列表）之后仍然保留，`Retry N failed`
+  只重跑那些文件（`SyncItemEvent` 因此携带 `path`）。
+- 计划摘要会说明设备侧来自缓存的年龄还是实时读取（诚实性）。
+
 **封面提取修复** — `src/core/id3.rs` + `src/worker.rs::embedded_cover`：
 
 - 根因（设备实测）：真实文件的 APIC 帧带 **v2.4 Data Length Indicator**（帧 flags `0x01`），

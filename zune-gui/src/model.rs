@@ -306,12 +306,14 @@ pub enum SyncState {
     Failed,
 }
 
-/// One row of the running-sync list, sent per state change.
+/// One row of the running-sync list, sent per state change. `path` is carried so the
+/// UI can offer a retry for exactly what failed.
 #[derive(Debug, Clone)]
 pub struct SyncItemEvent {
     pub index: usize,
     pub total: usize,
     pub label: String,
+    pub path: PathBuf,
     pub state: SyncState,
     /// Empty unless something went wrong or the step says so.
     pub note: String,
