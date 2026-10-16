@@ -654,6 +654,19 @@ impl ZuneApp {
         const CARD_H: f32 = 158.0;
         const RING_W: f32 = 238.0;
         const DEVICE_W: f32 = 252.0;
+        /// Where each card's own content starts, below its label. One number for all
+        /// three so the figures sit on a shared line across the row — they used to be
+        /// 36, a hand-tuned 22 and 28, which is why the ring looked low and the device
+        /// name looked high.
+        const CARD_BODY_TOP: f32 = 34.0;
+        /// How far a card's last line sits above its bottom edge. The library and device
+        /// cards both end in a footnote, and anchoring both from the bottom is what puts
+        /// them on the same baseline.
+        const CARD_FOOT: f32 = 4.0;
+        /// Vertical padding, shared by all three cards. The ring card used to be 16 while
+        /// the others were 20, which put its label four pixels above theirs — invisible on
+        /// its own, obvious next to the other two.
+        const CARD_PAD_Y: f32 = 20.0;
         let library_w = (ui.available_width() - RING_W - DEVICE_W - CARD_GAP * 2.0).max(300.0);
 
         let mut goto: Option<Page> = None;
@@ -663,7 +676,7 @@ impl ZuneApp {
             // ── the library's own numbers ───────────────────────────────────────
             GlassCard::new(Vec2::new(library_w, CARD_H))
                 .accent(NEON_ORANGE)
-                .padding(Vec2::new(SP_24, 20.0))
+                .padding(Vec2::new(SP_24, CARD_PAD_Y))
                 .salt(1)
                 .show(ui, motion, |ui, rect, _motion| {
                     let painter = ui.painter();
@@ -678,7 +691,7 @@ impl ZuneApp {
                     let column = rect.width() / 3.0;
                     for (index, (value, name)) in stats.iter().enumerate() {
                         let x = rect.left() + column * index as f32;
-                        let y = rect.top() + 36.0;
+                        let y = rect.top() + CARD_BODY_TOP;
                         let number = painter.layout_no_wrap(value.clone(), h1(), TEXT_1);
                         paint::glow_galley(
                             painter,
@@ -688,9 +701,13 @@ impl ZuneApp {
                             GLOW_TEXT,
                             GlowResponse::IDLE,
                         );
+                        let height = number.size().y;
                         painter.galley(egui::pos2(x, y), number, TEXT_1);
+                        // Follow the figure's own height instead of a fixed 52 px: the
+                        // galley carries leading above the cap, and hard-coding the gap
+                        // left it looking adrift under a 44 pt number.
                         let caption = painter.layout_no_wrap(tracked(name), label(), TEXT_3);
-                        painter.galley(egui::pos2(x, y + 52.0), caption, TEXT_3);
+                        painter.galley(egui::pos2(x, y + height + 1.0), caption, TEXT_3);
                     }
 
                     if self.snapshot.library_bytes > 0 {
@@ -703,7 +720,7 @@ impl ZuneApp {
                             TEXT_2,
                         );
                         painter.galley(
-                            egui::pos2(rect.left(), rect.bottom() - foot.size().y),
+                            egui::pos2(rect.left(), rect.bottom() - CARD_FOOT - foot.size().y),
                             foot,
                             TEXT_2,
                         );
@@ -713,7 +730,9 @@ impl ZuneApp {
             // ── capacity ────────────────────────────────────────────────────────
             GlassCard::new(Vec2::new(RING_W, CARD_H))
                 .accent(NEON_ORANGE)
-                .padding(Vec2::new(SP_16, SP_16))
+                // Horizontal padding is tighter because this card is narrower; vertical
+                // matches the other two so all three labels land on one line.
+                .padding(Vec2::new(SP_16, CARD_PAD_Y))
                 .salt(2)
                 .show(ui, motion, |ui, rect, motion| {
                     let head = ui
@@ -746,10 +765,15 @@ impl ZuneApp {
                     } else {
                         format!("{unit} FREE")
                     };
-                    ui.add_space(22.0);
+                    // Centre the ring in whatever is left below the label. The old 22 px
+                    // was tuned against one card height and stopped being right the
+                    // moment either the padding or the ring changed.
+                    const RING: f32 = 88.0;
+                    let body = (rect.height() - CARD_BODY_TOP - RING) / 2.0;
+                    ui.add_space(CARD_BODY_TOP + body.max(0.0));
                     ui.with_layout(Layout::top_down(Align::Center), |ui| {
                         ProgressRing::new(fraction, &figure, &caption)
-                            .size(88.0)
+                            .size(RING)
                             .accent(NEON_ORANGE)
                             .show(ui, motion, 1);
                     });
@@ -758,7 +782,7 @@ impl ZuneApp {
             // ── the device ──────────────────────────────────────────────────────
             GlassCard::new(Vec2::new(DEVICE_W, CARD_H))
                 .accent(NEON_ORANGE)
-                .padding(Vec2::new(SP_24, 20.0))
+                .padding(Vec2::new(SP_24, CARD_PAD_Y))
                 .salt(3)
                 .show(ui, motion, |ui, rect, _motion| {
                     let painter = ui.painter();
@@ -771,10 +795,12 @@ impl ZuneApp {
                         self.snapshot.name.as_str()
                     };
                     let name_galley = painter.layout_no_wrap(name.to_owned(), h2(), TEXT_1);
-                    painter.galley(egui::pos2(rect.left(), rect.top() + 28.0), name_galley, TEXT_1);
+                    let name_y = rect.top() + CARD_BODY_TOP;
+                    let name_h = name_galley.size().y;
+                    painter.galley(egui::pos2(rect.left(), name_y), name_galley, TEXT_1);
 
                     // One lit dot for the link, then the facts a support ticket needs.
-                    let dot = egui::pos2(rect.left() + 4.0, rect.top() + 74.0);
+                    let dot = egui::pos2(rect.left() + 4.0, name_y + name_h + 8.0);
                     let tint = if self.link == Link::Connected {
                         NEON_LIME
                     } else {
@@ -793,16 +819,23 @@ impl ZuneApp {
                     );
                     painter.galley(egui::pos2(rect.left() + 14.0, dot.y - state.size().y / 2.0), state, TEXT_2);
 
-                    let mut line = |offset: f32, text: String| {
-                        let galley = painter.layout_no_wrap(text, mono(11.0), TEXT_3);
-                        painter.galley(egui::pos2(rect.left(), rect.top() + offset), galley, TEXT_3);
-                    };
-                    if !self.snapshot.firmware.is_empty() {
-                        line(98.0, format!("fw  {}", self.snapshot.firmware));
-                    }
+                    // Stacked from the bottom edge rather than down from the top, so the
+                    // last line lands where the library card's footnote does. Collected
+                    // first and laid out in reverse for the same reason.
+                    let mut footnotes: Vec<String> = Vec::new();
                     if !self.snapshot.serial.is_empty() {
                         let serial = &self.snapshot.serial[..self.snapshot.serial.len().min(18)];
-                        line(114.0, format!("sn  {serial}"));
+                        footnotes.push(format!("sn  {serial}"));
+                    }
+                    if !self.snapshot.firmware.is_empty() {
+                        footnotes.push(format!("fw  {}", self.snapshot.firmware));
+                    }
+                    let mut y = rect.bottom() - CARD_FOOT;
+                    for text in footnotes {
+                        let galley = painter.layout_no_wrap(text, mono(11.0), TEXT_3);
+                        y -= galley.size().y;
+                        painter.galley(egui::pos2(rect.left(), y), galley, TEXT_3);
+                        y -= 3.0;
                     }
                 });
         });
@@ -888,7 +921,7 @@ impl ZuneApp {
         section_rule(ui, "go to", None);
         ui.horizontal(|ui| {
             for page in [Page::Albums, Page::Artists, Page::Tracks, Page::Push, Page::Wifi] {
-                if ui.button(page.title()).clicked() {
+                if nav_chip(ui, page.icon(), page.title()).clicked() {
                     goto = Some(page);
                 }
             }
@@ -2792,6 +2825,45 @@ fn save_png(path: &std::path::Path, image: &egui::ColorImage) -> Result<()> {
         .save(path)
         .with_context(|| format!("writing {}", path.display()))?;
     Ok(())
+}
+
+/// A navigation entry on the home page: a small tile with its glyph.
+///
+/// These are the only controls on the page that *go* somewhere, so unlike the row-level
+/// `quiet_button`s they get a surface and an edge — and the edge lights orange on hover,
+/// the same "this is what you are about to touch" the album tiles use.
+fn nav_chip(
+    ui: &mut egui::Ui,
+    icon: crate::ui::icons::Icon,
+    text: &str,
+) -> egui::Response {
+    let galley = ui.painter().layout_no_wrap(text.to_owned(), body_sm(), TEXT_1);
+    let size = Vec2::new(galley.size().x + 56.0, 34.0);
+    let (rect, response) = ui.allocate_exact_size(size, Sense::click());
+    let hovered = response.hovered();
+    let colour = if hovered { NEON_ORANGE } else { TEXT_1 };
+    let painter = ui.painter();
+    painter.rect_filled(rect, r_sm(), if hovered { SURFACE_2 } else { SURFACE_1 });
+    if hovered {
+        paint::hairline_lit(painter, rect, r_sm(), 1.0, NEON_ORANGE);
+    } else {
+        paint::hairline(painter, rect, r_sm());
+    }
+    icon.draw(
+        painter,
+        egui::Rect::from_center_size(
+            egui::pos2(rect.left() + 18.0, rect.center().y),
+            Vec2::splat(15.0),
+        ),
+        colour,
+    );
+    let galley = painter.layout_no_wrap(text.to_owned(), body_sm(), colour);
+    painter.galley(
+        egui::pos2(rect.left() + 34.0, rect.center().y - galley.size().y / 2.0),
+        galley,
+        colour,
+    );
+    response
 }
 
 /// A text input: a dark well with a hairline edge, and the accent only while focused.
