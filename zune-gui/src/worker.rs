@@ -34,6 +34,11 @@ use crate::model::*;
 const IDLE_TICK: Duration = Duration::from_millis(400);
 /// How often we ask the OS whether a Zune has appeared.
 const DEVICE_SEARCH_INTERVAL: Duration = Duration::from_secs(3);
+/// The long end of the search backoff. A device that is unhappy about being asked
+/// must be asked less often, not more: measured on this Zune, a 3-second retry loop
+/// against a connection that is failing ends with the device dropping off the USB
+/// bus altogether, and the firmware only comes back on a physical replug.
+const DEVICE_SEARCH_MAX: Duration = Duration::from_secs(60);
 /// How often a live session is poked to prove the device is still there.
 const HEALTH_INTERVAL: Duration = Duration::from_secs(4);
 /// Progress events are rate-limited to this interval.
@@ -203,6 +208,7 @@ fn run(rx: Receiver<Command>, ev: Emitter, cancel: Arc<AtomicBool>, interrupt: A
     }
 
     let mut last_search = Instant::now() - DEVICE_SEARCH_INTERVAL;
+    let mut search_interval = DEVICE_SEARCH_INTERVAL;
     let mut last_health = Instant::now();
 
     loop {
@@ -210,7 +216,7 @@ fn run(rx: Receiver<Command>, ev: Emitter, cancel: Arc<AtomicBool>, interrupt: A
         if !demo
             && backend.session.is_none()
             && !backend.ejected
-            && now.duration_since(last_search) >= DEVICE_SEARCH_INTERVAL
+            && now.duration_since(last_search) >= search_interval
         {
             if backend.await_replug && usb::find_device().is_ok() {
                 // Still plugged in: do not touch it. A wedged Zune is only recovered by
@@ -221,6 +227,11 @@ fn run(rx: Receiver<Command>, ev: Emitter, cancel: Arc<AtomicBool>, interrupt: A
             backend.await_replug = false;
             last_search = now;
             backend.try_connect(&ev);
+            search_interval = if backend.session.is_some() {
+                DEVICE_SEARCH_INTERVAL
+            } else {
+                (search_interval * 2).min(DEVICE_SEARCH_MAX)
+            };
         }
 
         match rx.recv_timeout(IDLE_TICK) {
@@ -242,6 +253,7 @@ fn run(rx: Receiver<Command>, ev: Emitter, cancel: Arc<AtomicBool>, interrupt: A
                 backend.handle(cmd, &ev, &cancel, &interrupt);
                 if force_connect {
                     last_search = Instant::now();
+                    search_interval = DEVICE_SEARCH_INTERVAL;
                 }
                 last_health = Instant::now();
             }

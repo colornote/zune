@@ -732,3 +732,37 @@ pub fn hexdump(d: &[u8]) -> String {
         .collect::<Vec<_>>()
         .join("\n")
 }
+
+#[cfg(test)]
+mod device_probe_tests {
+    use super::*;
+
+    /// Not part of the normal run: a full connect + MTPZ handshake from a background
+    /// thread, which is exactly what the GUI worker does. Run with the device plugged
+    /// in:
+    ///
+    ///   cargo test --features linux -- --ignored thread_can_talk_to_the_device
+    ///
+    /// Read-only: it opens a session and reads the device info, nothing else.
+    #[test]
+    #[ignore = "talks to a real device over USB"]
+    fn thread_can_talk_to_the_device() {
+        let handle = std::thread::spawn(|| -> anyhow::Result<String> {
+            let info = crate::core::usb::find_device()?;
+            let mut transport = crate::core::usb::Transport::open(&info)?;
+            let _ = transport.drain_pending_input(std::time::Duration::from_millis(350));
+            let mut session = Session::new(transport);
+            session.open_session()?;
+            // The handshake and a read, the two things the worker does first.
+            let keys = crate::core::MtpzKeys::load(None)?;
+            session.authenticate(&keys)?;
+            let di = session.device_info()?;
+            Ok(format!("{} / {}", di.manufacturer, di.device_version))
+        });
+        match handle.join() {
+            Ok(Ok(info)) => println!("background-thread connect OK: {info}"),
+            Ok(Err(e)) => panic!("background-thread connect FAILED: {e:#}"),
+            Err(_) => panic!("the worker thread panicked"),
+        }
+    }
+}
