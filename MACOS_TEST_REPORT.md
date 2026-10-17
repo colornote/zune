@@ -4,7 +4,7 @@
 时间：2026-10-15 20:2x CST
 被测产物：`dist/zune-aarch64-apple-darwin.tar.gz` (19:20 构建, 924K)
 测试机：Mac16,8 / Apple M4 Pro / macOS (arm64)
-设备：Zune 30, serial `XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX`
+设备：Zune 30, serial `XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX`（已隐去）
 
 ---
 

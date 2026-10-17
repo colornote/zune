@@ -51,6 +51,7 @@ pub const OP_END_TRUSTED_APP_SESSION: u16 = 0x9216;
 /// Read the WLAN profiles the device holds. The mirror of 0x9227 — `FUN_6a9bff6d` in
 /// ZuneNativeLib.dll is the PC client's reader, and it frames the answer the same way the
 /// writer does: `u32 count` followed by `count` records of 320 bytes.
+pub const OP_WIFI_PREPARE: u16 = 0x9224; // -> sent right before the profile write
 pub const OP_WIFI_GET_PROFILES: u16 = 0x9226;
 pub const OP_WIFI_SCAN: u16 = 0x9225; // -> ZNetScanAndWaitForNetworks
 pub const OP_WIFI_SET_PROFILE: u16 = 0x9227; // -> ZNetSetWifiProfile + ZNetAddWifiProfile
@@ -168,6 +169,7 @@ pub fn op_name(op: u16) -> &'static str {
         OP_GET_WMDRM_PD_RESP => "GetWMDRMPDResp (MTPZ)",
         OP_ENABLE_TRUSTED_OPS => "EnableTrustedOps (MTPZ)",
         OP_END_TRUSTED_APP_SESSION => "EndTrustedAppSession (MTPZ)",
+        OP_WIFI_PREPARE => "wifi prepare (0x9224)",
         OP_WIFI_GET_PROFILES => "wifi profiles (0x9226)",
         OP_WIFI_SCAN => "wifi scan (0x9225)",
         OP_WIFI_SET_PROFILE => "wifi set-profile (0x9227)",

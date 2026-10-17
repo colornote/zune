@@ -179,6 +179,10 @@ enum Command {
     #[command(subcommand)]
     Wifi(WifiCommand),
 
+    /// Wireless-sync pairing — what the official "Set Up Wireless Sync" does over USB
+    #[command(subcommand)]
+    Wireless(WirelessCommand),
+
     /// Close the session cleanly
     Eject,
 }
@@ -200,6 +204,49 @@ enum WifiCommand {
     },
     /// Run the device's connectivity test (0x9228)
     Test,
+    /// Configure WiFi end-to-end: prepare (0x9224), write the profile (0x9227),
+    /// then walk the device through connecting (0x9228 x5)
+    Connect {
+        /// Network name (SSID)
+        #[arg(long)]
+        ssid: String,
+        /// Passphrase — RSA-encrypted with the device's own key before it goes out
+        #[arg(long)]
+        password: String,
+        /// Security words as the scan reports them: "1,7,4" = WPA2-PSK / AES-CCMP
+        #[arg(long, default_value = "1,7,4", value_delimiter = ',', num_args = 1..=3)]
+        flags: Vec<u32>,
+    },
+    /// Send an arbitrary vendor opcode with u32 arguments (probe only)
+    Op {
+        /// Opcode in hex, e.g. 9224
+        opcode: String,
+        /// Arguments, comma-separated
+        #[arg(value_delimiter = ',')]
+        params: Vec<u32>,
+    },
+}
+
+#[derive(Subcommand)]
+enum WirelessCommand {
+    /// Pair the device with this PC over USB, configure WiFi and enable wireless
+    /// sync — Phase 1 + Phase 2 of the official flow
+    Setup {
+        /// Network name (SSID)
+        #[arg(long)]
+        ssid: String,
+        /// Passphrase — RSA-encrypted with the device's own key before it goes out
+        #[arg(long)]
+        password: String,
+        /// Security words as the scan reports them: "1,7,4" = WPA2-PSK / AES-CCMP
+        #[arg(long, default_value = "1,7,4", value_delimiter = ',', num_args = 1..=3)]
+        flags: Vec<u32>,
+        /// Partner name the device shows on its screen
+        #[arg(long, default_value = "Mac")]
+        name: String,
+    },
+    /// Read the pairing properties back (0xD401 / 0xD220 / 0xD221 …)
+    Status,
 }
 
 fn main() -> Result<()> {
@@ -251,6 +298,7 @@ fn main() -> Result<()> {
         }
         Command::Rm { handles, name } => cmd_rm(&mut s, key_path.as_deref(), &handles, name.as_deref()),
         Command::Wifi(w) => cmd_wifi(&mut s, key_path.as_deref(), w),
+        Command::Wireless(w) => cmd_wireless(&mut s, key_path.as_deref(), w),
         Command::Eject => Ok(()),
         Command::Tags { .. } => unreachable!(),
         Command::Convert { .. } => unreachable!(),
@@ -984,8 +1032,154 @@ fn cmd_wifi(s: &mut Session, key_path: Option<&Path>, w: WifiCommand) -> Result<
             s.wifi_test_connectivity()?;
             println!("connectivity test triggered");
         }
+        WifiCommand::Connect { ssid, password, flags } => {
+            auth(s, key_path)?;
+            let flags = match flags.as_slice() {
+                [a, b, c] => [*a, *b, *c],
+                _ => anyhow::bail!("--flags wants exactly three words, e.g. 1,7,4"),
+            };
+            match s.device_rsa_modulus.as_ref() {
+                Some(m) => println!(
+                    "device RSA key captured ({} bytes, low byte {:02x})",
+                    m.len(),
+                    m[0]
+                ),
+                None => anyhow::bail!(
+                    "the MTPZ handshake did not yield a device RSA key — cannot encrypt the passphrase"
+                ),
+            }
+            let profile = s.wifi_connect(&ssid, &password, flags)?;
+            println!("profile committed: {} bytes", profile.len());
+            println!(
+                "  head: {}",
+                profile[..0x44]
+                    .iter()
+                    .map(|b| format!("{b:02x}"))
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            );
+            println!("watch the device screen, then: zune wifi profiles");
+            let path = std::env::temp_dir().join("zune-wifi-profile.bin");
+            std::fs::write(&path, &profile)?;
+            println!("sent profile saved to {}", path.display());
+        }
+        WifiCommand::Op { opcode, params } => {
+            auth(s, key_path)?;
+            let op = u16::from_str_radix(opcode.trim_start_matches("0x"), 16)
+                .with_context(|| format!("opcode '{opcode}' is not hex, e.g. 9224"))?;
+            let data = s.wifi_op(op, &params)?;
+            if data.is_empty() {
+                println!("0x{op:04x} ok, params {params:?} — no data");
+            } else {
+                println!("0x{op:04x} ok, params {params:?} — {} bytes", data.len());
+                println!("{}", hexdump(&data));
+            }
+        }
     }
     Ok(())
+}
+
+// ── wireless sync ────────────────────────────────────────────────────────────
+
+/// Phase 1 + Phase 2 of the official wireless-sync setup, then the WiFi profile.
+fn cmd_wireless(s: &mut Session, key_path: Option<&Path>, w: WirelessCommand) -> Result<()> {
+    match w {
+        WirelessCommand::Setup { ssid, password, flags, name } => {
+            auth(s, key_path)?;
+            let flags = match flags.as_slice() {
+                [a, b, c] => [*a, *b, *c],
+                _ => anyhow::bail!("--flags wants exactly three words, e.g. 1,7,4"),
+            };
+            if s.device_rsa_modulus.is_none() {
+                anyhow::bail!(
+                    "the MTPZ handshake did not yield a device RSA key — cannot encrypt the passphrase"
+                );
+            }
+            let pc_guid = load_or_create_pc_guid()?;
+            println!("this PC's GUID: {pc_guid}");
+
+            println!("phase 1 — USB sync pairing…");
+            s.wireless_pair(&pc_guid, Some(&name)).context("phase 1")?;
+            println!("phase 1 complete");
+
+            println!("phase 2 — wireless enable…");
+            let session = s.wireless_enable(&pc_guid).context("phase 2")?;
+            match &session {
+                Some(g) => println!("device session GUID: {g}"),
+                None => println!("device session GUID: (device did not report one)"),
+            }
+
+            println!("writing the WiFi profile…");
+            let profile = s.wifi_connect(&ssid, &password, flags)?;
+            println!("profile committed ({} bytes)", profile.len());
+            let path = std::env::temp_dir().join("zune-wifi-profile.bin");
+            std::fs::write(&path, &profile)?;
+            println!("sent profile saved to {}", path.display());
+
+            // The capture switches the radio on again after the profile write.
+            let _ = s.wifi_op(0x9230, &[1]);
+            println!();
+            println!("Pairing + network are in. Unplug the device, put it on a charger,");
+            println!("and watch its screen for a minute — it only reaches for WiFi away");
+            println!("from USB. `zune wireless status` reads the pairing back.");
+        }
+        WirelessCommand::Status => {
+            auth(s, key_path)?;
+            for (code, what) in [
+                (0xd401u16, "SynchronizationPartner"),
+                (0xd220, "PC GUID"),
+                (0xd221, "Session GUID"),
+                (0xd402, "Device name"),
+                (0xd406, "Initiator"),
+                (0xd225, "Null GUID slot"),
+            ] {
+                match s.get_device_prop_value(code) {
+                    Ok(raw) => {
+                        let shown = mtp::dec_str(&raw, 0)
+                            .map(|(t, _)| t)
+                            .unwrap_or_else(|_| hex::encode(&raw));
+                        println!("  0x{code:04X}  {what:22} = {shown}");
+                    }
+                    Err(e) => println!("  0x{code:04X}  {what:22} — {e}"),
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+/// The PC's identity for Zune pairing: a GUID that persists across runs, because the
+/// device remembers it. Lives in `~/.zune-rs-pc-guid`, generated on first use.
+fn load_or_create_pc_guid() -> Result<String> {
+    let path = std::env::var_os("HOME")
+        .map(|h| PathBuf::from(h).join(".zune-rs-pc-guid"))
+        .context("HOME is not set")?;
+    if let Ok(text) = std::fs::read_to_string(&path) {
+        let guid = text.trim().to_string();
+        if !guid.is_empty() {
+            return Ok(guid);
+        }
+    }
+    let guid = new_uuid();
+    std::fs::write(&path, format!("{guid}\n"))?;
+    Ok(guid)
+}
+
+/// A random UUID v4 in lowercase hex — the shape the Zune client uses for its GUIDs.
+fn new_uuid() -> String {
+    let mut b = [0u8; 16];
+    rand::RngCore::fill_bytes(&mut rand::thread_rng(), &mut b);
+    b[6] = (b[6] & 0x0f) | 0x40;
+    b[8] = (b[8] & 0x3f) | 0x80;
+    let h = hex::encode(b);
+    format!(
+        "{}-{}-{}-{}-{}",
+        &h[0..8],
+        &h[8..12],
+        &h[12..16],
+        &h[16..20],
+        &h[20..32]
+    )
 }
 
 // ── local tags ───────────────────────────────────────────────────────────────

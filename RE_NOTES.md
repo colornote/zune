@@ -2,7 +2,7 @@
 
 ## 目标设备
 - 连接于 USB `0x14200000`,`Microsoft Zune`,`VID 0x045e / PID 0x0710 / Rev 1.00`
-- 序列号 `XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX`
+- 序列号 `XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX`（已隐去）
 - 设备类 `bDeviceClass=0xFF`(厂商私有),不走 UMS → 不挂载为磁盘;macOS 走 Image Capture/PTP
 
 ## 固件来源
@@ -220,3 +220,46 @@ int FUN_6a7ab402(undefined4 *param_1)          // param_1 = profile 结构
 
 **下一步**：解 320 字节记录内部布局（SSID / 认证模式 / WEP-WPA 密钥 / BSS），入口在 `FUN_6a7ab4e9`
 （结构来源）与 `ZuneWlanCfgSvc`（已用 Ghidra 分析：634 函数 / 290 字符串，尚未细读）。
+
+---
+
+## ★ WiFi 无线连接实测成功（2026-10-17 凌晨，macOS）—— 无线同步未竟
+
+### 结论
+**Zune 30 已能通过 USB 配置 WiFi 并自动连网**（SSID `<路由器SSID>`，WPA-PSK/TKIP，IP `192.168.x.x`）。
+无线同步（PTP/IP）差最后一步：设备监听 TCP 15740 但对初始化回 `INIT_FAIL`。
+
+### 工具链（zune-rs 新增，实测通过）
+- `zune wifi connect --ssid X --password Y [--flags a,b,c]`（0x9224→0x9227→0x9228×5）
+- `zune wireless setup --ssid X --password Y --name <PC名>`（Phase 1+2 配对 + profile + 0x9230）
+- `zune wireless status` / `zune wifi op <hex> [args]`（带数据载荷的事务已支持）
+- 代码：`zune-rs/src/mtpz.rs`（`find_device_modulus` / `encrypt_wifi_password`）、
+  `device.rs`（`wireless_pair` / `wireless_enable` / `build_wifi_profile`）、`main.rs`
+
+### profile 记录布局（写入 324B = 4B profileId + 320B 记录；0x9226 读回是去掉前缀的 320B）
+```
++0x04 u32 ssidLen  +0x08 SSID(32, NUL 填充)
++0x28 u32 flags[0]=1  +0x2c auth  +0x30 cipher  +0x34 =1(常量)  +0x38/+0x3c =0
++0x40 u32 密文长度=128  +0x44 RSA-1024(PKCS#1v1.5, UTF-16LE 明文)  +0xc4 零填充到 324
+```
+- flags 用 NDIS 枚举：auth 4=WPA-PSK / 7=WPA2-PSK；cipher 2=TKIP / 4=AES-CCMP / 0=无
+- **密码用“设备自己的 RSA 公钥”加密**：公钥在 MTPZ 握手解密 payload 里（marker `01 00 80` + 128B 小端模数，低字节奇数）
+- **扫描记录（0x9225，56B/条）尾部三元组 ≠ 安全类型**（校准实验：同一 AP 从 WPA2/AES 改为 WPA/TKIP 后扫描值不变）→ flags 直接按目标网络安全类型填
+
+### 关键实测数据
+- **设备 WiFi MAC：`00:17:FA:XX:XX:XX`**（微软 OUI；来自属性 `0xD21F` = `uuid:00000000-0000-0000-ffff-0017faXXXXXX`）
+- 设备 GUID（`0xD221`）= `{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}`（=序列号，已隐去）；网络状态属性 `0xD217` = 7459
+- 路由器实测：`active=1`、DHCP hostname = 写入 `0xD402` 的值；profile 密文**“使用后清零”**（写入后读回在，设备尝试连接后变全零）
+- `0x9224` 返回 **DATA 容器**（非 RESPONSE）；`0x9227` 探测（4B 零）返回 `0x2002`，与 AFTL 抓包一致
+
+### PTP/IP（无线同步）现状 —— 未完成
+- 设备联网后**监听 TCP 15740**；PC 主动连 + Init Command Request → **`INIT_FAIL` reason=1**（libgphoto2 注：permission denied 类）
+- 已试变体：Initiator GUID = 设备 GUID / PC GUID / 全零 / 随机 × 字符串序 / LE 字节序 × name 带/不带长度字节 —— 均被拒或超时
+- XuneSyncLibrary 的 `ConnectWireless()` 是**空实现**，其 ptpip_client 从未验证 → 无可靠参考
+- 抓包：设备上线只发 **Gratuitous ARP Announcement**（约 4 次）后完全沉默（不查名字/不广播）；PC 每秒高频重连时设备不回 SYN-ACK（**需温和重试**：每 10s、连上保持）
+- 设备周期（实测）：连上 ~30–90 秒 → 找不到同步 PC → 断开 → 重试
+
+### 下一步（若继续）
+1. 固件里定位监听 15740 的模块（端口为数值常量需反汇编；`fw/modules/modules/` 已解包）
+2. 或逆向 Zune Desktop 的 `ZuneIpTransport.dll`（官方 PC 侧 PTP/IP）
+3. 核对 `0xD230` blob（`7a 24 ec 12 …`，疑似时间戳/配对 ID）与“配对有效期”检查

@@ -24,13 +24,24 @@ pub struct Session {
     pub session_storage: u32,
     /// AES session key negotiated by the MTPZ handshake
     pub session_key: Option<[u8; 16]>,
+    /// The device's own RSA-1024 public key (little-endian modulus), captured from
+    /// the MTPZ handshake payload. The WiFi profile's passphrase is encrypted with
+    /// it — the scheme the official Zune client uses.
+    pub device_rsa_modulus: Option<Vec<u8>>,
     /// Last operation sent, so a failed response names the step it belongs to.
     last_op: u16,
 }
 
 impl Session {
     pub fn new(transport: Transport) -> Self {
-        Session { transport, tx: 0, session_storage: 0x0001_0001, session_key: None, last_op: 0 }
+        Session {
+            transport,
+            tx: 0,
+            session_storage: 0x0001_0001,
+            session_key: None,
+            device_rsa_modulus: None,
+            last_op: 0,
+        }
     }
 
     fn next_tx(&mut self) -> u32 {
@@ -216,9 +227,10 @@ impl Session {
         let resp = self
             .get_mtpz()
             .context("MTPZ 4/6 GetWMDRMPDResp (0x9213) — device challenge")?;
-        let (mac, key) = mtpz::parse_device_response(keys, &resp, &rand)
+        let (mac, key, device_public) = mtpz::parse_device_response(keys, &resp, &rand)
             .context("MTPZ 5/6 decrypting the device response")?;
         self.session_key = Some(key);
+        self.device_rsa_modulus = device_public;
 
         self.send_mtpz(&mtpz::build_confirmation(&mac))
             .context("MTPZ 6/6 SendWMDRMPDReq (0x9212) — confirmation MAC")?;
@@ -467,6 +479,247 @@ impl Session {
         self.recv_resp()?;
         Ok(())
     }
+
+    /// 0x9224 — "get ready for WiFi": the Zune client sends it immediately before
+    /// the profile write (capture order: 0x9224, 0x9227, 0x9228(0), 0x9228(2) x4).
+    ///
+    /// Like 0x9225 it answers with DATA *and* a response, so both shapes are read.
+    pub fn wifi_prepare(&mut self) -> Result<Vec<u8>> {
+        self.send_cmd(OP_WIFI_PREPARE, &[])?;
+        let c = self.recv_container()?;
+        match c.ctype {
+            T_DATA => {
+                let data = c.data.clone();
+                self.recv_resp()?;
+                Ok(data)
+            }
+            T_RESP => {
+                if c.code != C_OK {
+                    bail!("0x9224 failed: {:#06x}", c.code);
+                }
+                Ok(Vec::new())
+            }
+            other => bail!("0x9224: unexpected container type {other:#06x}"),
+        }
+    }
+
+    /// SetDevicePropValue with a raw payload — the pairing properties are bytes,
+    /// not strings (0xD21C is a lone zero; 0xD229/0xD22A/0xD230 are small blobs).
+    pub fn set_device_prop_raw(&mut self, code: u16, value: &[u8]) -> Result<()> {
+        self.send_cmd(OP_SET_DEVICE_PROP, &[code as u32])?;
+        self.send_data(OP_SET_DEVICE_PROP, value)?;
+        self.recv_resp()?;
+        Ok(())
+    }
+
+    /// Any vendor opcode with u32 arguments — 0x9228 takes one in the client's
+    /// sequence (0 once, then 2 four times). Reads DATA-then-RESPONSE or a bare
+    /// RESPONSE, whichever the opcode answers with.
+    pub fn wifi_op(&mut self, opcode: u16, params: &[u32]) -> Result<Vec<u8>> {
+        self.send_cmd(opcode, params)?;
+        let c = self.recv_container()?;
+        match c.ctype {
+            T_DATA => {
+                let data = c.data.clone();
+                self.recv_resp()?;
+                Ok(data)
+            }
+            T_RESP => {
+                if c.code != C_OK {
+                    bail!("0x{opcode:04x} returned {:#06x}", c.code);
+                }
+                Ok(Vec::new())
+            }
+            other => bail!("0x{opcode:04x}: unexpected container type {other:#06x}"),
+        }
+    }
+
+    /// A vendor opcode that carries a data payload *and* arguments — 0x922B (the
+    /// pairing finaliser) and the 0x9227-init probe. The 0x9227 probe answering with
+    /// an error is part of the capture, so the caller may ignore the error.
+    pub fn wifi_op_data(&mut self, opcode: u16, params: &[u32], data: &[u8]) -> Result<Vec<u8>> {
+        self.send_cmd(opcode, params)?;
+        self.send_data(opcode, data)?;
+        let c = self.recv_container()?;
+        match c.ctype {
+            T_DATA => {
+                let d = c.data.clone();
+                let r = self.recv_container()?;
+                if r.ctype != T_RESP {
+                    bail!("0x{opcode:04x}: expected a RESPONSE after DATA, got {:#06x}", r.ctype);
+                }
+                if r.code != C_OK {
+                    bail!("0x{opcode:04x}: response {:#06x} ({})", r.code, response_name(r.code));
+                }
+                Ok(d)
+            }
+            T_RESP => {
+                if c.code != C_OK {
+                    bail!("0x{opcode:04x} returned {:#06x} ({})", c.code, response_name(c.code));
+                }
+                Ok(Vec::new())
+            }
+            other => bail!("0x{opcode:04x}: unexpected container type {other:#06x}"),
+        }
+    }
+
+    /// Phase 1 of the wireless-sync setup — the USB synchronization partnership.
+    ///
+    /// This is what the official client runs when you press "Set Up Wireless Sync";
+    /// the order and the constant blobs follow the Xune/AFTL reconstruction of the
+    /// USB captures. On success the device believes it is paired with `pc_guid`,
+    /// which is what makes it look for that PC once it is on WiFi.
+    pub fn wireless_pair(&mut self, pc_guid: &str, device_name: Option<&str>) -> Result<()> {
+        // 1. The client names itself first.
+        self.set_device_prop(DEVPROP_SESSION_INITIATOR, "macOS/11.0 ZuneRS/0.1.0")
+            .context("0xD406 initiator name")?;
+
+        // 2. Descriptor reads the client performs before pairing; the answers are
+        //    not used here, but the device's state machine expects the reads.
+        for code in [0xd22f, 0xd402, 0x5002, 0xd231, 0xd232, 0xd21c, 0xd225, 0xd401, 0xd22c] {
+            let _ = self.get_device_prop_desc(code);
+        }
+
+        // 3. The friendly name the device shows for this partner.
+        if let Some(name) = device_name {
+            self.set_device_prop(0xd402, name).context("0xD402 device name")?;
+        }
+
+        // 4. The pairing proper.
+        self.set_device_prop(0xd225, "{00000000-0000-0000-0000-000000000000}")
+            .context("0xD225 null GUID")?;
+        self.set_device_prop_raw(0xd21c, &[0x00]).context("0xD21C")?;
+        self.set_device_prop(0xd401, &brace_uuid(pc_guid))
+            .context("0xD401 SynchronizationPartner (the key write)")?;
+        for (code, blob) in [
+            (0xd230u16, &[0x7au8, 0x24, 0xec, 0x12, 0, 0, 0, 0][..]),
+            (0xd229, &[0xf4, 0x00, 0x00, 0x00][..]),
+            (0xd22a, &[0x5c, 0xfe, 0xff, 0xff][..]),
+        ] {
+            let _ = self.get_device_prop_desc(code);
+            self.set_device_prop_raw(code, blob)
+                .with_context(|| format!("0x{code:04X} pairing blob"))?;
+        }
+
+        // 5. The capture's tail: prepare, read the state property three times, the
+        //    0x9217 nudge, a 4-zero-byte 0x9227 probe (an error here is expected and
+        //    is what the capture shows), then the 0x9218 finaliser.
+        self.wifi_prepare().context("0x9224")?;
+        for _ in 0..3 {
+            let _ = self.get_device_prop_value(0xd217);
+        }
+        self.wifi_op(0x9217, &[1]).context("0x9217(1)")?;
+        match self.wifi_op_data(0x9227, &[], &[0u8; 4]) {
+            Ok(_) => println!("  0x9227 probe: accepted"),
+            Err(e) => println!("  0x9227 probe: {e} (expected in the capture)"),
+        }
+        self.wifi_op(0x9218, &[0, 0, 5000]).context("0x9218(0,0,5000)")?;
+        Ok(())
+    }
+
+    /// Phase 2 — tell the device which PC it just paired with and switch wireless
+    /// sync on. Returns the session GUID the device reports (the identity PTP/IP
+    /// connections use). Send the WiFi profile in the same session; the capture
+    /// enables the radio again after the profile write.
+    pub fn wireless_enable(&mut self, pc_guid: &str) -> Result<Option<String>> {
+        self.wifi_op(0x9230, &[1]).context("0x9230(1) network init")?;
+        self.wifi_op_data(0x922b, &[3, 1, 0], &phase2_payload())
+            .context("0x922B(3,1,0)")?;
+        self.set_device_prop(0xd220, &brace_uuid(pc_guid)).context("0xD220 PC GUID")?;
+        let raw = self.get_device_prop_value(0xd221).context("0xD221 session GUID")?;
+        let session = dec_str(&raw, 0).ok().map(|(s, _)| s);
+        Ok(session)
+    }
+
+    /// Configure a WiFi network end to end, in the order the Zune client uses.
+    ///
+    /// The passphrase is RSA-encrypted with the device's *own* public key — the one
+    /// captured during the MTPZ handshake — because that is what the device expects
+    /// to decrypt. Returns the 324-byte profile that was sent, for logging.
+    pub fn wifi_connect(&mut self, ssid: &str, password: &str, flags: [u32; 3]) -> Result<Vec<u8>> {
+        let modulus = self
+            .device_rsa_modulus
+            .clone()
+            .context("no device RSA key — the MTPZ handshake must run first")?;
+        let profile = build_wifi_profile(ssid, password, &modulus, flags)?;
+
+        self.wifi_prepare().context("WiFi 0x9224 (prepare)")?;
+        self.wifi_set_profile(&profile).context("WiFi 0x9227 (write profile)")?;
+        self.wifi_op(OP_WIFI_TEST_CONNECTIVITY, &[0]).context("WiFi 0x9228(0)")?;
+        for pass in 1..=4 {
+            self.wifi_op(OP_WIFI_TEST_CONNECTIVITY, &[2])
+                .with_context(|| format!("WiFi 0x9228(2), pass {pass}"))?;
+        }
+        // The client reads its network state property twice at the end; a failure
+        // here does not undo the profile, so it is not fatal.
+        let _ = self.get_device_prop_value(0xd217);
+        let _ = self.get_device_prop_value(0xd217);
+        Ok(profile)
+    }
+}
+
+/// Windows-style GUID the way the official client writes them: uppercase, braced.
+fn brace_uuid(guid: &str) -> String {
+    let bare = guid.trim().trim_start_matches('{').trim_end_matches('}');
+    format!("{{{}}}", bare.to_uppercase())
+}
+
+/// The 260-byte payload the capture sends with 0x922B (frame 1231): four fixed
+/// bytes then zeros.
+fn phase2_payload() -> Vec<u8> {
+    let mut d = vec![0u8; 260];
+    d[..4].copy_from_slice(&[0x02, 0x52, 0xc0, 0x00]);
+    d
+}
+
+/// Build the 324-byte WiFi profile the official client writes.
+///
+/// Two independent confirmations for this layout: the Windows USB capture the
+/// Xune/AFTL client reproduces, and this project's read-back of a live device
+/// (0x9226), which returns the same record with the leading id stripped.
+///
+/// ```text
+///   +0x00  u32  profile id = 1        (the read-back starts at the next field)
+///   +0x04  u32  SSID length
+///   +0x08  32B  SSID, NUL padded
+///   +0x28  u32  security[0]  (1 in every capture seen)
+///   +0x2c  u32  security[1]  (auth: 7 = WPA2-PSK)
+///   +0x30  u32  security[2]  (cipher: 4 = AES-CCMP)
+///   +0x34  u32  1            (constant — the "konst" of the read-back)
+///   +0x38  u32  0
+///   +0x3c  u32  0
+///   +0x40  u32  128          (ciphertext length)
+///   +0x44  128B RSA-1024 PKCS#1 v1.5 of the UTF-16LE passphrase
+///   +0xc4  zero padding out to 324 bytes
+/// ```
+pub fn build_wifi_profile(
+    ssid: &str,
+    password: &str,
+    modulus_le: &[u8],
+    flags: [u32; 3],
+) -> Result<Vec<u8>> {
+    let ssid = ssid.as_bytes();
+    if ssid.is_empty() || ssid.len() > 32 {
+        bail!("SSID must be 1..=32 bytes, got {}", ssid.len());
+    }
+    let ciphertext = mtpz::encrypt_wifi_password(modulus_le, password)?;
+
+    let mut p = Vec::with_capacity(324);
+    p.extend_from_slice(&1u32.to_le_bytes()); // +0x00 profile id
+    p.extend_from_slice(&(ssid.len() as u32).to_le_bytes()); // +0x04 ssid length
+    let mut area = [0u8; 32];
+    area[..ssid.len()].copy_from_slice(ssid);
+    p.extend_from_slice(&area); // +0x08 SSID
+    for f in flags {
+        p.extend_from_slice(&f.to_le_bytes()); // +0x28 security[0..3]
+    }
+    p.extend_from_slice(&1u32.to_le_bytes()); // +0x34 constant
+    p.extend_from_slice(&0u32.to_le_bytes()); // +0x38
+    p.extend_from_slice(&0u32.to_le_bytes()); // +0x3c
+    p.extend_from_slice(&(ciphertext.len() as u32).to_le_bytes()); // +0x40
+    p.extend_from_slice(&ciphertext); // +0x44
+    p.resize(324, 0); // +0xc4 padding
+    Ok(p)
 }
 
 /// Build the 52-byte ObjectInfo dataset the Zune accepts, plus the name and two

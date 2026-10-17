@@ -78,7 +78,7 @@ MVP 功能：
 
 Mac 端有另一个 pi agent 负责实测，会把结果反馈回来：
 - 机器：Mac16,8 / Apple M4 Pro / macOS arm64
-- 设备：Zune 30, serial `XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX`
+- 设备：Zune 30, serial `XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX`（已隐去）
 - Mac 上有 cargo 1.94 + ffmpeg 8.1.1 + sips，必要时可本地构建
 
 ---

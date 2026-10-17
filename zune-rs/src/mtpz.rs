@@ -165,7 +165,11 @@ pub fn build_app_cert_msg_with_rand(keys: &MtpzKeys, rand: &[u8]) -> Vec<u8> {
 }
 
 /// Step 2: decrypt the device response, yielding the response payload and the AES key.
-pub fn parse_device_response(keys: &MtpzKeys, resp: &[u8], sent_rand: &[u8]) -> Result<(Vec<u8>, [u8; 16])> {
+pub fn parse_device_response(
+    keys: &MtpzKeys,
+    resp: &[u8],
+    sent_rand: &[u8],
+) -> Result<(Vec<u8>, [u8; 16], Option<Vec<u8>>)> {
     if resp.len() < 136 || resp[0] != 0x02 || resp[1] != 0x02 || resp[3] != 0x80 {
         bail!("bad device response header {:02x?}", &resp[..resp.len().min(4)]);
     }
@@ -211,7 +215,88 @@ pub fn parse_device_response(keys: &MtpzKeys, resp: &[u8], sent_rand: &[u8]) -> 
     let ml = u16::from_be_bytes(pt.get(o..o + 2).context("payload: mac length")?.try_into()?) as usize;
     o += 2;
     let mac = pt.get(o..o + ml).context("payload: mac body")?.to_vec();
-    Ok((mac, key))
+    // The same payload carries the device's own RSA-1024 public key (marker
+    // `01 00 80`, then the 128-byte little-endian modulus). The WiFi passphrase is
+    // encrypted with it later, so hand it to the caller.
+    let device_public = find_device_modulus(&pt);
+    Ok((mac, key, device_public))
+}
+
+/// Scan a decrypted MTPZ payload for the device's RSA public modulus: the marker
+/// `01 00 80` (exponent 0x10001) followed by 128 little-endian bytes whose low byte
+/// is odd — a modulus is. The marker does not sit at a fixed offset (hence the scan),
+/// and this is the same heuristic the OpenZune/AFTL client uses.
+fn find_device_modulus(payload: &[u8]) -> Option<Vec<u8>> {
+    const MODULUS: usize = 128;
+    const MARKER: [u8; 3] = [0x01, 0x00, 0x80];
+    if payload.len() < MODULUS + 3 {
+        return None;
+    }
+    (0..=payload.len() - (MODULUS + 3)).find_map(|i| {
+        (payload[i..i + 3] == MARKER && payload[i + 3] & 1 == 1)
+            .then(|| payload[i + 3..i + 3 + MODULUS].to_vec())
+    })
+}
+
+/// Encrypt a WiFi passphrase the way the Zune client does: RSA-1024 PKCS#1 v1.5 over
+/// the UTF-16LE bytes, with the **device's** public key from the MTPZ handshake.
+///
+/// The modulus arrives little-endian (it is what a Windows capture of the official
+/// client contains); RSA maths want it big-endian, hence the reverse. Legacy crypto
+/// for a 2006 device — not a security boundary, just wire format.
+pub fn encrypt_wifi_password(modulus_le: &[u8], password: &str) -> Result<Vec<u8>> {
+    const MODULUS: usize = 128;
+    if modulus_le.len() != MODULUS {
+        bail!(
+            "device RSA modulus is {} bytes, expected {MODULUS}",
+            modulus_le.len()
+        );
+    }
+    if password.is_empty() {
+        bail!("password is empty");
+    }
+    let mut plain = Vec::with_capacity(password.len() * 2);
+    for unit in password.encode_utf16() {
+        plain.extend_from_slice(&unit.to_le_bytes());
+    }
+    if plain.len() > MODULUS - 11 {
+        bail!(
+            "passphrase too long for RSA-1024 ({} UTF-16 bytes)",
+            plain.len()
+        );
+    }
+
+    // PKCS#1 v1.5: 00 02 <non-zero padding, at least 8 bytes> 00 <message>
+    let mut em = vec![0u8; MODULUS];
+    em[1] = 0x02;
+    let pad = MODULUS - 3 - plain.len();
+    let mut rng = rand::thread_rng();
+    for b in em[2..2 + pad].iter_mut() {
+        loop {
+            let v = rand::RngCore::next_u32(&mut rng) as u8;
+            if v != 0 {
+                *b = v;
+                break;
+            }
+        }
+    }
+    em[2 + pad] = 0x00;
+    em[3 + pad..].copy_from_slice(&plain);
+
+    let mut n_be = modulus_le.to_vec();
+    n_be.reverse();
+    let n = BigUint::from_bytes_be(&n_be);
+    let m = BigUint::from_bytes_be(&em);
+    let e = BigUint::from(65537u32);
+    let c = m.modpow(&e, &n);
+
+    let mut out = vec![0u8; MODULUS];
+    let bytes = c.to_bytes_be();
+    if bytes.len() > MODULUS {
+        bail!("RSA ciphertext is {} bytes — modulus too small", bytes.len());
+    }
+    out[MODULUS - bytes.len()..].copy_from_slice(&bytes);
+    Ok(out)
 }
 
 /// Step 3: the confirmation MAC sent back to enable trusted operations.
@@ -342,5 +427,40 @@ mod primitive_tests {
             .decrypt_padded_mut::<cipher::block_padding::NoPadding>(&mut buf)
             .unwrap();
         assert_eq!(hex::encode(pt), "6bc1bee22e409f96e93d7e117393172a");
+    }
+
+    /// The WiFi passphrase must come back out of the RSA layer byte-for-byte:
+    /// encrypt with the public modulus, decrypt with the matching private exponent,
+    /// then check the PKCS#1 v1.5 structure and the UTF-16LE message inside.
+    ///
+    /// Throwaway keypair from `openssl genrsa 1024` (never used for anything else);
+    /// both halves live here so the test is self-contained.
+    #[test]
+    fn wifi_password_survives_the_rsa_roundtrip() {
+        let n_hex = "bb80dee21525a3c87c67af37b7903511f8de5f6e15691cd6af22152c88f894eb40f3e14f99496040c3dbbc156cc096625572a25a3cade4007db6fdf37e6edfeec626b574aea1fcfa832dafb55d547cfe657ee9a4486f11f9b0c334975225b70d4c6c2fb9143345bf0394fb3de15b35741e8968a081c95a59235f44ffb8e8e511";
+        let d_hex = "6895c23c62c542ecd20f575981a70b230228af1c0d0f3b49b8180fad6e9d111b837844e58c3fb4538baba5e66169aeb81ca73b4d8fe902730fac214c4eea73369c9dc9e3455bfb51a3b668da2ee7356dbb04e78ea74287b3a8bbd6399269305f1a54d664aa121b7e5e0bb21a139e02dae57528fce9a855f6122ff7bd54894dd1";
+
+        // The device hands its modulus over little-endian; flip it as the wire code does.
+        let mut n_le = hex::decode(n_hex).unwrap();
+        n_le.reverse();
+        let ct = encrypt_wifi_password(&n_le, "13800000000").unwrap();
+        assert_eq!(ct.len(), 128);
+
+        let n = BigUint::from_bytes_be(&hex::decode(n_hex).unwrap());
+        let d = BigUint::from_bytes_be(&hex::decode(d_hex).unwrap());
+        let m = BigUint::from_bytes_be(&ct).modpow(&d, &n);
+        let mut em = vec![0u8; 128];
+        let raw = m.to_bytes_be();
+        em[128 - raw.len()..].copy_from_slice(&raw);
+
+        assert_eq!(em[0], 0x00);
+        assert_eq!(em[1], 0x02);
+        let sep = em[2..].iter().position(|b| *b == 0).unwrap() + 2;
+        assert!(sep >= 10, "PKCS#1 padding must be at least 8 bytes");
+        let mut expect = Vec::new();
+        for u in "13800000000".encode_utf16() {
+            expect.extend_from_slice(&u.to_le_bytes());
+        }
+        assert_eq!(&em[sep + 1..], expect.as_slice());
     }
 }
